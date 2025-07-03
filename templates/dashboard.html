@@ -1,0 +1,2241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Hệ thống Chấm công</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Thêm flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-text: #2c3e50;
+        }
+        
+        /* Ensure consistent table row heights */
+        table tr {
+            height: 50px !important;
+        }
+        
+        table td {
+            vertical-align: middle !important;
+            height: 50px !important;
+            padding: 8px !important;
+            box-sizing: border-box !important;
+        }
+        
+        /* Cố định chiều cao tối thiểu cho bảng chấm công */
+        .attendance-history .table-responsive {
+            min-height: 320px !important; /* Bao gồm thead và tbody */
+        }
+        
+        /* Đảm bảo tất cả các dòng có height cố định */
+        .attendance-history table tr {
+            height: 50px !important;
+        }
+        
+        /* Điều chỉnh bảng chính */
+        .attendance-history table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        /* Đảm bảo cột trạng thái hiển thị đúng */
+        .badge.bg-success, .badge.bg-warning {
+            display: inline-block;
+            min-width: 125px;
+            padding: 8px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        /* Đảm bảo dòng rỗng hiển thị đúng */
+        .attendance-history tr.empty-row td {
+            background-color: #f8fafc !important;
+        }
+        
+        /* Thiết lập box-sizing cho mọi phần tử bảng */
+        table tr, table td, table td * {
+            box-sizing: border-box !important;
+        }
+        
+        /* Chuẩn hóa các nút và placeholder */
+        .btn-sm, td span {
+            height: 30px !important;
+            line-height: 30px !important;
+            padding: 0 10px !important;
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--dark-text);
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 220px;
+            background-color: var(--primary-color);
+            padding: 15px;
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            margin: 0 auto 15px;
+        }
+
+        .user-info h4 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            margin-left: 220px;
+            padding: 15px;
+            max-width: calc(100% - 220px);
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .page-header {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        .page-title {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .stat-card .title {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Attendance Form Styles */
+        .attendance-form {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        @media (max-width: 767px) {
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .form-row > div {
+                margin-bottom: 10px;
+            }
+            
+            .attendance-form .row .col-6 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .attendance-history {
+            background-color: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 100%;
+            margin: 0;
+        }
+
+        .attendance-history .table-responsive {
+            overflow-x: auto;
+            min-width: 100%;
+            max-width: 100%;
+        }
+
+        .table {
+            width: 100%;
+            table-layout: fixed;
+            font-size: 0.9rem;
+            margin: 0;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: 500;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                padding: 0;
+            }
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+            }
+        }
+
+        .holiday-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        #holidayTypeWrapper {
+            display: none;
+            min-width: 200px;
+        }
+        
+        #holidayTypeWrapper.show {
+            display: block;
+        }
+        
+        .form-check {
+            margin-bottom: 0;
+        }
+        
+        /* Thêm CSS để giới hạn chiều rộng của cột ghi chú và hiển thị tooltip */
+        .note-cell {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* Đảm bảo các cột có kích thước phù hợp */
+        .table th, .table td {
+            vertical-align: middle;
+            word-break: break-word;
+            padding: 6px 4px !important;
+        }
+        
+        /* Thiết lập độ rộng và căn chỉnh cho từng cột */
+        .table th:nth-child(1), .table td:nth-child(1) { width: 80px; } /* Ngày */
+        .table th:nth-child(2), .table td:nth-child(2) { width: 60px; } /* Giờ vào */
+        .table th:nth-child(3), .table td:nth-child(3) { width: 60px; } /* Giờ ra */
+        .table th:nth-child(4), .table td:nth-child(4) { width: 40px; } /* Nghỉ */
+        .table th:nth-child(5), .table td:nth-child(5) { width: 50px; } /* Giờ công */
+        .table th:nth-child(6), .table td:nth-child(6) { width: 55px; } /* Tăng ca trước 22h */
+        .table th:nth-child(7), .table td:nth-child(7) { width: 55px; } /* Tăng ca sau 22h */
+        .table th:nth-child(8), .table td:nth-child(8) { width: 80px; } /* Loại ngày */
+        .table th:nth-child(9), .table td:nth-child(9) { width: 90px; } /* Trạng thái */
+        .table th:nth-child(10), .table td:nth-child(10) { width: 90px; } /* Thao tác */
+        .table th:nth-child(11), .table td:nth-child(11) { width: 90px; } /* Ghi chú */
+
+        /* Cải thiện giao diện phân trang */
+        .pagination {
+            margin-top: 20px;
+        }
+
+        .pagination .page-item {
+            margin: 0 3px;
+        }
+
+        .pagination .page-link {
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            color: var(--accent-color);
+            border: 1px solid #dee2e6;
+            transition: all 0.2s;
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .pagination .page-link:hover {
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+            color: var(--accent-color);
+        }
+
+        .pagination .page-item.active .page-link:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        /* Cải thiện responsive */
+        @media (max-width: 1200px) {
+            .attendance-history .table-responsive {
+                overflow-x: auto;
+            }
+            
+            .table th, .table td {
+                white-space: nowrap;
+            }
+        }
+
+        @media (min-width: 1201px) {
+            .attendance-history .table-responsive {
+                overflow-x: hidden;
+            }
+        }
+
+        /* Cải thiện font size trong bảng khi màn hình nhỏ */
+        @media (max-width: 992px) {
+            .table {
+                font-size: 0.85rem;
+            }
+            
+            .badge.bg-success, .badge.bg-warning {
+                font-size: 0.8rem;
+                min-width: 100px;
+            }
+        }
+
+        /* Thêm scrollbar tùy chỉnh để tối ưu không gian */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* Giảm padding cho các phần tử con */
+        .page-header {
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .attendance-form {
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-control {
+            padding: 0.375rem 0.5rem;
+        }
+
+        /* Bỏ các style không cần thiết cho badges */
+        .badge.bg-success, .badge.bg-warning {
+            display: none;
+        }
+
+        /* Thêm style cho trạng thái text */
+        .status-approved {
+            color: #198754; /* màu xanh lá */
+            font-weight: 500;
+        }
+
+        .status-pending {
+            color: #ffc107; /* màu vàng */
+            font-weight: 500;
+        }
+
+        .status-rejected {
+            color: #dc3545; /* màu đỏ */
+            font-weight: 500;
+        }
+
+        /* Căn chỉnh cho các cột */
+        .table th, .table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* Ghi chú căn trái */
+        .table th:last-child, .table td:last-child {
+            text-align: left;
+        }
+
+        /* Thiết lập style cho header của bảng */
+        .table thead th {
+            font-weight: 600;
+            color: #495057;
+            background-color: #f8f9fa;
+            border-top: none;
+            text-align: center;
+            vertical-align: middle;
+            padding: 10px 5px;
+        }
+
+        /* Thiết lập style cho các hàng trong bảng */
+        .table tbody td {
+            padding: 8px 4px;
+            vertical-align: middle;
+        }
+
+        /* Tiêu đề cuối cùng (ghi chú) được căn trái */
+        .table th:last-child {
+            text-align: left;
+            padding-left: 10px;
+        }
+
+        /* Tiêu đề cột trạng thái */
+        .table th:nth-child(9) {
+            text-align: center;
+        }
+
+        /* Tiêu đề cột thao tác */
+        .table th:nth-child(10) {
+            text-align: center;
+        }
+
+        /* Thêm style cho empty-row */
+        .empty-row td {
+            height: 50px;
+            padding: 0;
+        }
+
+        /* Style cho tất cả các hàng */
+        .table tr {
+            height: 50px;
+        }
+
+        /* Các thẻ th và td đều có height cố định */
+        .table th, .table td {
+            height: 50px !important;
+        }
+
+        /* Điều chỉnh CSS cho cột trạng thái để nhất quán */
+        .status-approved, .status-pending, .status-rejected {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Thiết lập style cho nút thao tác */
+        .edit-attendance-btn {
+            width: auto !important;
+            min-width: 60px !important;
+            height: 32px !important;
+            padding: 4px 8px !important;
+            border: 1px solid rgba(0,0,0,0.2) !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+            font-size: 12px !important;
+            white-space: nowrap !important;
+        }
+
+        .delete-attendance-btn {
+            width: auto !important;
+            min-width: 60px !important;
+            height: 32px !important;
+            padding: 4px 8px !important;
+            border: 1px solid rgba(0,0,0,0.2) !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+            font-size: 12px !important;
+            white-space: nowrap !important;
+        }
+
+        .edit-attendance-btn i, .delete-attendance-btn i {
+            font-size: 12px !important;
+        }
+
+        /* Thiết lập style cho nút phê duyệt và từ chối */
+        .approve-attendance-btn, .reject-attendance-btn {
+            width: auto !important;
+            min-width: 90px !important;
+            height: 32px !important;
+            padding: 4px 8px !important;
+            border: 1px solid rgba(0,0,0,0.2) !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+            font-size: 12px !important;
+            white-space: nowrap !important;
+        }
+
+        .approve-attendance-btn i, .reject-attendance-btn i {
+            font-size: 12px !important;
+        }
+
+        /* Tăng khoảng cách trong container */
+        .action-container {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 32px !important;
+            gap: 8px !important;
+        }
+
+        /* Điều chỉnh các nút thao tác */
+        .btn-action-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            gap: 6px;
+        }
+
+        .btn-sm {
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Đặt CSS !important để ghi đè mọi thiết lập khác */
+        .btn.btn-warning.btn-sm.edit-attendance-btn,
+        .btn.btn-danger.btn-sm.delete-attendance-btn {
+            width: 38px !important;
+            height: 32px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .table td.note-cell {
+            background-color: #f8fafc !important;
+            max-width: 120px;
+            cursor: pointer;
+        }
+
+        .attendance-history .empty-row td {
+            background-color: #f8fafc !important;
+        }
+
+        /* Thêm vào phần <style> */
+        .no-data-row {
+            font-weight: 600 !important;
+            font-size: 1.05rem !important;
+            color: #888 !important;
+            text-align: center !important;
+            background: #f8fafc !important;
+            height: 50px !important;
+            vertical-align: middle !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-clock me-2"></i>Chấm công</h3>
+        </div>
+        <div class="user-profile">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-info">
+                <h4>{{ user.name }}</h4>
+                <p>Mã NV: {{ user.employee_id }}</p>
+                <p>{{ user.department }}</p>
+                <div class="role-switcher" style="margin-top:10px;">
+                    <label for="role-select" style="font-weight:500;">Vai trò hiện tại:</label>
+                    <select id="role-select" class="form-select form-select-sm" style="margin-top:4px;">
+                        {% set current_role = session.get('current_role', user.roles.split(',')[0]) %}
+                        {% for role in user.roles.split(',') %}
+                            <option value="{{ role }}" {% if role == current_role %}selected{% endif %}>
+                                {% if role == 'EMPLOYEE' %}Nhân viên{% elif role == 'TEAM_LEADER' %}Trưởng nhóm{% elif role == 'MANAGER' %}Quản lý{% elif role == 'ADMIN' %}Quản trị viên{% else %}{{ role }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#" class="nav-link active">
+                    <i class="fas fa-home"></i>
+                    Trang chủ
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-calendar-plus"></i>
+                    Đăng ký nghỉ phép
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" id="attendanceHistoryMenu">
+                    <i class="fas fa-calendar-alt"></i>
+                    Lịch sử chấm công
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    Báo cáo
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-user-cog"></i>
+                    Cài đặt
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/logout" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Đăng xuất
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid p-0">
+            <div class="page-header">
+                <h1 class="page-title">Bảng điều khiển</h1>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-cards" style="display:none;">
+                <div class="stat-card">
+                    <div class="icon" style="background-color: rgba(52, 152, 219, 0.1); color: var(--accent-color);">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="title">Ngày làm việc trong tháng</div>
+                    <div class="value">22</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon" style="background-color: rgba(46, 204, 113, 0.1); color: var(--success-color);">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="title">Giờ làm việc trong tháng</div>
+                    <div class="value">176</div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon" style="background-color: rgba(241, 196, 15, 0.1); color: var(--warning-color);">
+                        <i class="fas fa-calendar-minus"></i>
+                    </div>
+                    <div class="title">Ngày nghỉ còn lại</div>
+                    <div class="value">12</div>
+                </div>
+            </div>
+
+            <!-- Attendance Form - Hiển thị động theo vai trò -->
+            <div class="attendance-form" id="attendanceFormSection" style="display: none;">
+                <h4 class="mb-4"><i class="fas fa-clock me-2"></i>Đăng ký chấm công</h4>
+                <form id="attendanceForm">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-2">
+                            <label for="attendanceDate" class="form-label">Ngày</label>
+                            <input type="text" class="form-control form-control-sm" id="attendanceDate" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label for="shiftSelect" class="form-label">Ca làm việc</label>
+                            <select class="form-control form-control-sm" id="shiftSelect">
+                                <option value="">-- Chọn ca --</option>
+                                <option value="1">Ca 1 (7:30-16:30)</option>
+                                <option value="2">Ca 2 (8:00-17:00)</option>
+                                <option value="3">Ca 3 (9:00-18:00)</option>
+                                <option value="4">Ca 4 (11:00-22:00)</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label for="checkInTime" class="form-label">Giờ vào</label>
+                            <input type="time" class="form-control form-control-sm" id="checkInTime" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label for="checkOutTime" class="form-label">Giờ ra</label>
+                            <input type="time" class="form-control form-control-sm" id="checkOutTime" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label for="breakTime" class="form-label">Giờ nghỉ</label>
+                            <input type="time" class="form-control form-control-sm" id="breakTime" value="01:00" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label for="dayType" class="form-label">Loại ngày</label>
+                            <select class="form-control form-control-sm" id="dayType">
+                                <option value="" selected>-- Chọn loại ngày --</option>
+                                <option value="normal">Ngày thường</option>
+                                <option value="weekend">Cuối tuần</option>
+                                <option value="vietnamese_holiday">Lễ Việt Nam</option>
+                                <option value="japanese_holiday">Lễ Nhật Bản</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="attendanceNote" class="form-label">Ghi chú</label>
+                            <textarea class="form-control" id="attendanceNote" rows="3" placeholder="Nhập ghi chú của bạn..."></textarea>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <button type="button" class="btn btn-primary btn-sm" id="saveAttendanceBtn">
+                                        <i class="fas fa-save me-2"></i>
+                                        Lưu đăng ký
+                                    </button>
+                                    <button type="button" id="cancelEditBtn" onclick="resetForm()" style="display: none !important; background: #f44336; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; padding: 0.5rem 1.2rem; min-width: 100px; margin-left: 18px; box-shadow: 0 2px 8px rgba(244,67,54,0.08); outline: none; align-items: center; justify-content: center;">
+                                        <i class="fas fa-times" style="margin-right: 8px; font-size: 14px;"></i>
+                                        Hủy sửa
+                                    </button>
+                                </div>
+                                <input type="hidden" id="editAttendanceId">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Attendance History - Hiển thị động theo vai trò -->
+            <div class="attendance-history" id="attendanceHistorySection" style="display: none;">
+                <h4 class="mb-4"><i class="fas fa-history me-2"></i>Lịch sử đăng ký chấm công tháng <span id="currentMonth">6</span></h4>
+                <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                    <table class="table table-striped" style="table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Ngày</th>
+                                <th style="width: 55px;">Giờ vào</th>
+                                <th style="width: 55px;">Giờ ra</th>
+                                <th style="width: 36px;">Nghỉ</th>
+                                <th style="width: 60px;">Tổng giờ làm</th>
+                                <th style="width: 50px;">Giờ công</th>
+                                <th style="width: 50px;">Tăng ca<br/>trước 22h</th>
+                                <th style="width: 50px;">Tăng ca<br/>sau 22h</th>
+                                <th style="width: 80px;">Loại ngày</th>
+                                <th style="width: 80px;">Trạng thái</th>
+                                <th style="width: 120px;">Thao tác</th>
+                                <th style="width: 120px;">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceHistory">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination justify-content-center" id="attendancePagination"></ul>
+                </nav>
+            </div>
+
+            <!-- Section: Lịch sử chấm công toàn bộ (chỉ ADMIN) -->
+            <div class="attendance-history" id="allAttendanceHistorySection" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4><i class="fas fa-history me-2"></i>Lịch sử chấm công đã phê duyệt</h4>
+                    <button class="btn btn-secondary btn-sm" id="btnBackToDashboard">
+                        <i class="fas fa-arrow-left me-2"></i>Trở về
+                    </button>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-auto">
+                        <select id="filterMonth" class="form-select form-select-sm">
+                            <option value="">-- Tháng --</option>
+                            <option value="1">Tháng 1</option>
+                            <option value="2">Tháng 2</option>
+                            <option value="3">Tháng 3</option>
+                            <option value="4">Tháng 4</option>
+                            <option value="5">Tháng 5</option>
+                            <option value="6">Tháng 6</option>
+                            <option value="7">Tháng 7</option>
+                            <option value="8">Tháng 8</option>
+                            <option value="9">Tháng 9</option>
+                            <option value="10">Tháng 10</option>
+                            <option value="11">Tháng 11</option>
+                            <option value="12">Tháng 12</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <select id="filterYear" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm btn-primary" id="btnFilterAttendance">Tìm kiếm</button>
+                        <button class="btn btn-sm btn-secondary" id="btnResetFilter">Xem tất cả</button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                    <table class="table table-striped" style="table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Ngày</th>
+                                <th style="width: 55px;">Giờ vào</th>
+                                <th style="width: 55px;">Giờ ra</th>
+                                <th style="width: 36px;">Nghỉ</th>
+                                <th style="width: 60px;">Tổng giờ làm</th>
+                                <th style="width: 50px;">Giờ công</th>
+                                <th style="width: 50px;">Tăng ca<br/>trước 22h</th>
+                                <th style="width: 50px;">Tăng ca<br/>sau 22h</th>
+                                <th style="width: 80px;">Loại ngày</th>
+                                <th style="width: 80px;">Nhân viên</th>
+                                <th style="width: 80px;">Phòng ban</th>
+                                <th style="width: 80px;">Trạng thái</th>
+                                <th style="width: 120px;">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allAttendanceHistoryBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination justify-content-center" id="allAttendancePagination"></ul>
+                </nav>
+            </div>
+
+            <!-- Approval Section - Hiển thị động theo vai trò -->
+            <div class="attendance-history" id="approvalSection" style="display: none;">
+                <h4 class="mb-4"><i class="fas fa-user-check me-2"></i>Phê duyệt chấm công</h4>
+                <div class="row mb-3">
+                    <div class="col-auto">
+                        <input type="text" id="approvalSearchName" class="form-control form-control-sm" placeholder="Tìm theo tên nhân viên...">
+                    </div>
+                    <div class="col-auto" id="departmentFilterContainer" style="display: none;">
+                        <select id="approvalDepartment" class="form-select form-select-sm">
+                            <option value="">-- Phòng ban --</option>
+                            <option value="BUD">BUD</option>
+                            <option value="SCOPE">SCOPE</option>
+                            <option value="KIRI">KIRI</option>
+                            <option value="CREEK&RIVER">CREEK&RIVER</option>
+                            <option value="COMO">COMO</option>
+                            <option value="OFFICE">OFFICE</option>
+                            <option value="YORK">YORK</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <input type="text" id="approvalDateFrom" class="form-control form-control-sm" placeholder="Từ ngày">
+                    </div>
+                    <div class="col-auto">
+                        <input type="text" id="approvalDateTo" class="form-control form-control-sm" placeholder="Đến ngày">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary btn-sm" id="btnApprovalFilter">Lọc</button>
+                        <button class="btn btn-secondary btn-sm" id="btnApprovalReset">Đặt lại</button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                    <table class="table table-striped" style="table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Ngày</th>
+                                <th style="width: 55px;">Giờ vào</th>
+                                <th style="width: 55px;">Giờ ra</th>
+                                <th style="width: 36px;">Nghỉ</th>
+                                <th style="width: 60px;">Tổng giờ làm</th>
+                                <th style="width: 50px;">Giờ công</th>
+                                <th style="width: 50px;">Tăng ca<br/>trước 22h</th>
+                                <th style="width: 50px;">Tăng ca<br/>sau 22h</th>
+                                <th style="width: 80px;">Loại ngày</th>
+                                <th style="width: 80px;">Nhân viên</th>
+                                <th style="width: 80px;">Phòng ban</th>
+                                <th style="width: 80px;">Trạng thái</th>
+                                <th style="width: 120px;">Thao tác</th>
+                                <th style="width: 120px;">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approvalAttendanceBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination justify-content-center" id="approvalPagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js?v=1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr?v=1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js?v=1.0.2"></script>
+    <script>
+        // Function to show toast notification
+        function showToast(message, type = 'success') {
+            console.log('Showing toast:', message, type);  // Debug log
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+
+            let icon = type;
+            if (type === 'success') icon = 'success';
+            else if (type === 'error') icon = 'error';
+            else if (type === 'warning') icon = 'warning';
+            else if (type === 'info') icon = 'info';
+
+            Toast.fire({
+                icon: icon,
+                title: message
+            });
+        }
+
+        let attendanceData = [];
+        let currentPage = 1;
+        const rowsPerPage = 5;
+        let approvalPage = 1;
+        let approvalPerPage = 10;
+
+        function renderAttendancePage(page) {
+            const tbody = document.getElementById('attendanceHistory');
+            if (!tbody) {
+                console.log('attendanceHistory element not found, skipping render');
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            // Đảm bảo bảng hiển thị đúng cấu trúc
+            if (tbody.parentElement) {
+                tbody.parentElement.classList.add('attendance-table');
+            }
+            
+            if (!attendanceData || attendanceData.length === 0) {
+                const totalRows = rowsPerPage;
+                const middleRow = Math.floor(totalRows / 2);
+                for (let i = 0; i < totalRows; i++) {
+                    const row = document.createElement('tr');
+                    row.style.height = '50px';
+                    row.className = 'empty-row';
+                    if (i === middleRow) {
+                        row.innerHTML = `<td colspan="12" class="no-data-row">Không có dữ liệu chấm công</td>`;
+                    } else {
+                        row.innerHTML = `
+                            <td style="height: 50px; width: 70px;"></td>
+                            <td style="height: 50px; width: 55px;"></td>
+                            <td style="height: 50px; width: 55px;"></td>
+                            <td style="height: 50px; width: 36px;"></td>
+                            <td style="height: 50px; width: 60px;"></td>
+                            <td style="height: 50px; width: 50px;"></td>
+                            <td style="height: 50px; width: 50px;"></td>
+                            <td style="height: 50px; width: 50px;"></td>
+                            <td style="height: 50px; width: 80px;"></td>
+                            <td style="height: 50px; width: 80px;"></td>
+                            <td style="height: 50px; width: 120px;"></td>
+                            <td style="height: 50px; width: 120px;" class="note-cell"></td>
+                        `;
+                    }
+                    tbody.appendChild(row);
+                }
+                return;
+            }
+
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = attendanceData.slice(start, end);
+            
+            // Tính số dòng trống cần thêm để đạt đủ 5 dòng
+            const emptyRowsNeeded = Math.max(0, rowsPerPage - pageData.length);
+            
+            pageData.forEach(record => {
+                const row = document.createElement('tr');
+                row.style.height = '50px'; // Set fixed height for all rows
+                let statusText = record.approved ? 'Đã phê duyệt' : 'Chờ phê duyệt';
+                
+                // Xử lý hiển thị loại ngày
+                let holidayTypeText = '-';
+                if (record.holiday_type) {
+                                            switch(record.holiday_type) {
+                            case 'normal':
+                                holidayTypeText = 'Ngày thường';
+                                break;
+                            case 'weekend':
+                                holidayTypeText = 'Cuối tuần';
+                                break;
+                            case 'vietnamese_holiday':
+                                holidayTypeText = 'Lễ Việt Nam';
+                                break;
+                            case 'japanese_holiday':
+                                holidayTypeText = 'Lễ Nhật Bản';
+                                break;
+                            default:
+                                holidayTypeText = record.holiday_type;
+                        }
+                }
+
+                // Xác định class cho trạng thái
+                let statusClass = record.approved ? 'status-approved' : 'status-pending';
+                if (record.status === 'rejected') {
+                    statusText = 'Từ chối';
+                    statusClass = 'status-rejected';
+                }
+                
+                row.innerHTML = `
+                    <td style="height: 50px; width: 70px;">${formatDate(record.date)}</td>
+                    <td style="height: 50px; width: 55px;">${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
+                    <td style="height: 50px; width: 55px;">${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                    <td style="height: 50px; width: 36px;">${record.break_time || '0:00'}</td>
+                    <td style="height: 50px; width: 60px;">${record.total_work_hours || '-'}</td>
+                    <td style="height: 50px; width: 50px;">${record.work_hours_display || '-'}</td>
+                    <td style="height: 50px; width: 50px;">${record.overtime_before_22 && record.overtime_before_22 !== 'NaN:NaN' ? record.overtime_before_22 : '0:00'}</td>
+                    <td style="height: 50px; width: 50px;" title="${record.overtime_after_22 && record.overtime_after_22 !== 'NaN:NaN' ? `Giá trị gốc: ${record.overtime_after_22}` : '0 giờ'}">${record.overtime_after_22 && record.overtime_after_22 !== 'NaN:NaN' ? record.overtime_after_22 : '0:00'}</td>
+                    <td style="height: 50px; width: 80px;">${holidayTypeText}</td>
+                    <td style="height: 50px; width: 80px;">
+                        <span class="${statusClass}">${statusText}</span>
+                    </td>
+                    <td style="height: 50px; width: 120px; padding: 0 !important;">
+                        <div class="action-container">
+                        ${!record.approved ? `
+                            <div class="btn-action-container">
+                                <button class='btn btn-warning btn-sm edit-attendance-btn' data-id='${record.id}'>
+                                    <i class='fas fa-edit me-1'></i>Sửa
+                                </button>
+                                <button class='btn btn-danger btn-sm delete-attendance-btn' data-id='${record.id}'>
+                                    <i class='fas fa-trash me-1'></i>Xóa
+                                </button>
+                            </div>
+                        ` : '<div style="width:75px;">-</div>'}
+                        </div>
+                    </td>
+                    <td style="height: 50px;" class="note-cell" data-full-note="${record.note || ''}">
+                        ${record.note || '-'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Thêm các dòng trống nếu cần để đủ 5 dòng
+            for (let i = 0; i < emptyRowsNeeded; i++) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.className = 'empty-row';
+                emptyRow.innerHTML = `
+                    <td style="height: 50px; width: 70px;"></td>
+                    <td style="height: 50px; width: 55px;"></td>
+                    <td style="height: 50px; width: 55px;"></td>
+                    <td style="height: 50px; width: 36px;"></td>
+                    <td style="height: 50px; width: 60px;"></td>
+                    <td style="height: 50px; width: 50px;"></td>
+                    <td style="height: 50px; width: 50px;"></td>
+                    <td style="height: 50px; width: 50px;"></td>
+                    <td style="height: 50px; width: 80px;"></td>
+                    <td style="height: 50px; width: 80px;"></td>
+                    <td style="height: 50px; width: 120px;"></td>
+                    <td style="height: 50px; width: 120px;" class="note-cell"></td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+
+            // Gắn lại sự kiện cho nút sửa và xóa
+            document.querySelectorAll('.edit-attendance-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    handleEditAttendance(this.getAttribute('data-id'));
+                });
+            });
+            
+            document.querySelectorAll('.delete-attendance-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    Swal.fire({
+                        title: 'Xác nhận xóa',
+                        text: 'Bạn có chắc chắn muốn xóa bản ghi chấm công này?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Xóa',
+                        cancelButtonText: 'Hủy'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            deleteAttendance(id);
+                        }
+                    });
+                });
+            });
+
+            // Gán sự kiện click cho note-cell
+            bindNoteCellClick();
+        }
+
+        function renderAttendancePagination() {
+            const totalPages = Math.ceil(attendanceData.length / rowsPerPage);
+            const pagination = document.getElementById('attendancePagination');
+            if (!pagination) {
+                console.log('attendancePagination element not found, skipping pagination render');
+                return;
+            }
+            
+            pagination.innerHTML = '';
+            function createPageItem(i, active = false) {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (active ? ' active' : '');
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = '#';
+                a.textContent = i;
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    currentPage = i;
+                    renderAttendancePage(currentPage);
+                    renderAttendancePagination();
+                });
+                li.appendChild(a);
+                pagination.appendChild(li);
+            }
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) createPageItem(i, i === currentPage);
+            } else {
+                createPageItem(1, currentPage === 1);
+                if (currentPage > 4) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pagination.appendChild(li);
+                }
+                for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                    createPageItem(i, i === currentPage);
+                }
+                if (currentPage < totalPages - 3) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pagination.appendChild(li);
+                }
+                createPageItem(totalPages, currentPage === totalPages);
+            }
+        }
+
+        function updateAttendanceHistory() {
+            console.log('Fetching attendance history...');  // Debug log
+            
+            // Kiểm tra xem element attendanceHistory có tồn tại không
+            const attendanceHistoryElement = document.getElementById('attendanceHistory');
+            if (!attendanceHistoryElement) {
+                console.log('attendanceHistory element not found, skipping update');
+                return;
+            }
+            
+            fetch('/api/attendance/history')
+                .then(response => {
+                    console.log('Response status:', response.status);  // Debug log
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Received data:', data);  // Debug log
+                    if (data.error) {
+                        showToast(data.error, 'error');
+                        return;
+                    }
+                    attendanceData = data;
+                    currentPage = 1;
+                    renderAttendancePage(currentPage);
+                    renderAttendancePagination();
+                })
+                .catch(error => {
+                    console.error('Error fetching attendance history:', error);
+                    showToast('Không thể tải lịch sử chấm công. Vui lòng thử lại sau.', 'error');
+                });
+        }
+
+        // Function to handle edit attendance
+        function handleEditAttendance(id) {
+            fetch(`/api/attendance/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast(data.error, 'error');
+                        return;
+                    }
+
+                    // Format date to YYYY-MM-DD
+                    const date = new Date(data.date);
+                    const formattedDate = date.toISOString().split('T')[0];
+
+                    // Fill form with attendance data
+                    const dateInput = document.getElementById('attendanceDate');
+                    const checkInTimeInput = document.getElementById('checkInTime');
+                    const checkOutTimeInput = document.getElementById('checkOutTime');
+                    const breakTimeInput = document.getElementById('breakTime');
+                    const dayTypeSelect = document.getElementById('dayType');
+                    const noteInput = document.getElementById('attendanceNote');
+                    const editIdInput = document.getElementById('editAttendanceId');
+                    const saveBtn = document.getElementById('saveAttendanceBtn');
+                    const cancelBtn = document.getElementById('cancelEditBtn');
+                    const shiftSelect = document.getElementById('shiftSelect');
+
+                    if (dateInput) dateInput.value = formattedDate;
+                    if (checkInTimeInput) checkInTimeInput.value = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
+                    if (checkOutTimeInput) checkOutTimeInput.value = data.check_out ? data.check_out.split(' ')[1].substring(0, 5) : '';
+                    if (breakTimeInput) breakTimeInput.value = formatTimeForInput(data.break_time);
+                    if (dayTypeSelect) dayTypeSelect.value = data.holiday_type || '';
+
+                    // Nếu bản ghi bị từ chối, xóa trống ô ghi chú để người dùng nhập lại.
+                    // Lý do từ chối có thể xem ở bảng bên dưới.
+                    if (data.status === 'rejected') {
+                        if (noteInput) noteInput.value = '';
+                    } else {
+                        if (noteInput) noteInput.value = data.note || '';
+                    }
+                    
+                    if (editIdInput) editIdInput.value = id;
+                    
+                    // Xác định và thiết lập ca làm việc dựa trên giờ vào
+                    const checkInTime = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
+                    if (shiftSelect) {
+                        if (checkInTime === '07:30') {
+                            shiftSelect.value = '1';
+                        } else if (checkInTime === '08:00') {
+                            shiftSelect.value = '2';
+                        } else if (checkInTime === '09:00') {
+                            shiftSelect.value = '3';
+                        } else if (checkInTime === '11:00') {
+                            shiftSelect.value = '4';
+                        }
+                    }
+
+                    // Chỉ hiện nút hủy sửa khi đang sửa
+                    if (cancelBtn) {
+                        cancelBtn.style.cssText = "display: inline-flex !important; background: #f44336; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; padding: 0.5rem 1.2rem; min-width: 100px; margin-left: 18px; box-shadow: 0 2px 8px rgba(244,67,54,0.08); outline: none; align-items: center; justify-content: center;";
+                    }
+                    if (saveBtn) {
+                        saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cập nhật đăng ký';
+                    }
+                    if (checkInTimeInput) checkInTimeInput.focus();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Không thể tải thông tin chấm công', 'error');
+                });
+        }
+
+        // Function to format date for display
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+
+        // Function to format time for input
+        function formatTimeForInput(hours) {
+            const hh = Math.floor(hours);
+            const mm = Math.round((hours - hh) * 60);
+            return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        }
+
+        // Function to handle attendance
+        function handleAttendanceSubmit() {
+            const dateInput = document.getElementById('attendanceDate');
+            const checkInTimeInput = document.getElementById('checkInTime');
+            const checkOutTimeInput = document.getElementById('checkOutTime');
+            const noteInput = document.getElementById('attendanceNote');
+            const breakTimeInput = document.getElementById('breakTime');
+            const dayTypeSelect = document.getElementById('dayType');
+            const editId = document.getElementById('editAttendanceId');
+
+            // Kiểm tra các element cần thiết có tồn tại không
+            if (!dateInput || !checkInTimeInput || !checkOutTimeInput) {
+                showToast('Không thể tìm thấy form chấm công', 'error');
+                return;
+            }
+
+            // Get values
+            let date = dateInput.value;
+            const checkIn = checkInTimeInput.value;
+            const checkOut = checkOutTimeInput.value;
+            const note = noteInput ? noteInput.value : '';
+            const breakTimeStr = breakTimeInput ? breakTimeInput.value : '01:00';
+            const dayType = dayTypeSelect ? dayTypeSelect.value : '';
+            const isHoliday = dayType !== 'normal';
+
+            // Validate inputs
+            if (!date || date.trim() === '') {
+                showToast('Vui lòng chọn ngày chấm công', 'warning');
+                return;
+            }
+            if (!dayType) {
+                showToast('Vui lòng chọn loại ngày', 'warning');
+                return;
+            }
+            if (!checkIn || !checkOut) {
+                showToast('Vui lòng nhập đầy đủ ngày và giờ vào/ra', 'warning');
+                return;
+            }
+
+            // Convert date format if using flatpickr
+            if (date.includes('/')) {
+                const [d, m, y] = date.split('/');
+                date = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+
+            // Calculate break time in hours
+            let breakTime = 1.0;
+            if (breakTimeStr) {
+                const [hh, mm] = breakTimeStr.split(':').map(Number);
+                breakTime = hh + (mm / 60);
+            }
+
+            // Prepare data
+            const data = {
+                date: date,
+                check_in: checkIn,
+                check_out: checkOut,
+                note: note,
+                break_time: breakTime,
+                is_holiday: isHoliday,
+                holiday_type: dayType
+            };
+
+            console.log('Submitting data:', data);  // Debug log
+
+            // If editing, use PUT request
+            if (editId && editId.value) {
+                fetch(`/api/attendance/${editId.value}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast(data.error, 'error');
+                    } else {
+                        showToast('Cập nhật chấm công thành công', 'success');
+                        resetForm();
+                        updateAttendanceHistory();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Đã xảy ra lỗi khi cập nhật chấm công', 'error');
+                });
+                return;
+            }
+
+            // If new record, use POST request
+            fetch('/api/attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showToast(data.error, 'error');
+                } else {
+                    showToast('Lưu chấm công thành công', 'success');
+                    resetForm();
+                    updateAttendanceHistory();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Đã xảy ra lỗi khi lưu chấm công', 'error');
+            });
+        }
+
+        // Function to reset form
+        function resetForm() {
+            console.log('resetForm called - hiding cancel button');
+            const attendanceForm = document.getElementById('attendanceForm');
+            const editAttendanceId = document.getElementById('editAttendanceId');
+            const saveAttendanceBtn = document.getElementById('saveAttendanceBtn');
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            const shiftSelect = document.getElementById('shiftSelect');
+            const attendanceDate = document.getElementById('attendanceDate');
+            
+            if (attendanceForm) attendanceForm.reset();
+            if (editAttendanceId) editAttendanceId.value = '';
+            if (saveAttendanceBtn) saveAttendanceBtn.innerHTML = '<i class="fas fa-save me-2"></i>Lưu đăng ký';
+            if (cancelEditBtn) cancelEditBtn.style.cssText = "display: none !important;";
+            if (shiftSelect) shiftSelect.value = "";
+            
+            // Xóa ngày đã chọn trong flatpickr và đặt lại placeholder
+            if (attendanceDate && attendanceDate._flatpickr) {
+                attendanceDate._flatpickr.clear();
+                attendanceDate.placeholder = 'Chọn ngày...';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('saveAttendanceBtn')?.addEventListener('click', handleAttendanceSubmit);
+        document.getElementById('cancelEditBtn')?.addEventListener('click', resetForm);
+        
+        // Xử lý sự kiện khi chọn ca làm việc
+        document.getElementById('shiftSelect')?.addEventListener('change', function() {
+            const shiftValue = this.value;
+            
+            if (shiftValue === '1') {
+                // Ca 1: 7:30 - 16:30
+                document.getElementById('checkInTime').value = '07:30';
+                document.getElementById('checkOutTime').value = '16:30';
+            } 
+            else if (shiftValue === '2') {
+                // Ca 2: 8:00 - 17:00
+                document.getElementById('checkInTime').value = '08:00';
+                document.getElementById('checkOutTime').value = '17:00';
+            }
+            else if (shiftValue === '3') {
+                // Ca 3: 9:00 - 18:00
+                document.getElementById('checkInTime').value = '09:00';
+                document.getElementById('checkOutTime').value = '18:00';
+            }
+            else if (shiftValue === '4') {
+                // Ca 4: 11:00 - 22:00
+                document.getElementById('checkInTime').value = '11:00';
+                document.getElementById('checkOutTime').value = '22:00';
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - initializing...');
+            
+            // Lấy vai trò hiện tại
+            const roleSelect = document.getElementById('role-select');
+            const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
+            
+            // Cập nhật giao diện theo vai trò hiện tại
+            updateUIForRole(currentRole);
+            
+            // Cập nhật tháng hiện tại trong tiêu đề
+            const currentMonthElement = document.getElementById('currentMonth');
+            if (currentMonthElement) {
+                const currentMonth = new Date().getMonth() + 1; // Tháng trong JS bắt đầu từ 0
+                currentMonthElement.textContent = currentMonth;
+            }
+            
+            // Đảm bảo nút hủy sửa luôn ẩn khi mới load trang
+            const cancelEditBtn = document.getElementById('cancelEditBtn');
+            if (cancelEditBtn) {
+                cancelEditBtn.style.cssText = "display: none !important;";
+            }
+            
+            const dateInput = document.getElementById('attendanceDate');
+            
+            // Khởi tạo flatpickr cho input ngày với định dạng Việt Nam
+            if (dateInput) {
+                flatpickr("#attendanceDate", {
+                    dateFormat: "d/m/Y",
+                    locale: "vn",
+                    allowInput: false, // Ngăn người dùng nhập tay
+                    placeholder: "Chọn ngày...",
+                    onChange: function(selectedDates, dateStr, instance) {
+                        if (dateStr === '') {
+                             instance.input.placeholder = 'Chọn ngày...';
+                        }
+                    }
+                });
+            }
+            
+            // Khởi tạo flatpickr cho các ô lọc ngày trong phần phê duyệt
+            flatpickr("#approvalDateFrom", {
+                altInput: true,
+                altFormat: "d/m/Y",
+                dateFormat: "Y-m-d",
+                locale: "vn",
+                placeholder: "Từ ngày"
+            });
+
+            flatpickr("#approvalDateTo", {
+                altInput: true,
+                altFormat: "d/m/Y",
+                dateFormat: "Y-m-d",
+                locale: "vn",
+                placeholder: "Đến ngày"
+            });
+            
+            // Initial load of attendance history (chỉ khi là nhân viên)
+            if (currentRole === 'EMPLOYEE') {
+                const attendanceHistoryElement = document.getElementById('attendanceHistory');
+                if (attendanceHistoryElement) {
+                    updateAttendanceHistory();
+                }
+            }
+
+            if (roleSelect) {
+                roleSelect.addEventListener('change', function(e) {
+                    switchRole(e.target.value);
+                });
+            }
+            
+            // Khởi tạo năm cho filter
+            const yearSelect = document.getElementById('filterYear');
+            if (yearSelect) {
+                // Thêm tùy chọn placeholder
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Năm --';
+                yearSelect.appendChild(placeholder);
+                
+                const currentYear = new Date().getFullYear();
+                for (let year = currentYear; year >= currentYear - 5; year--) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }
+            }
+        });
+        // Function to delete attendance
+        function deleteAttendance(id) {
+            fetch(`/api/attendance/${id}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showToast(data.error, 'error');
+                } else {
+                    showToast('Đã xóa thành công!', 'success');
+                    updateAttendanceHistory();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Lỗi server khi xóa!', 'error');
+            });
+        }
+
+        function bindNoteCellClick() {
+            document.querySelectorAll('.note-cell').forEach(function(cell) {
+                cell.addEventListener('click', function(e) {
+                    const note = this.dataset.fullNote;
+                    if (note && note.trim() !== '') {
+                        Swal.fire({
+                            title: 'Ghi chú',
+                            html: `<div style='text-align:left;max-width:400px;word-break:break-word;'>${note}</div>`,
+                            confirmButtonText: 'Đóng',
+                            width: 500
+                        });
+                    }
+                });
+            });
+        }
+
+        // Ẩn toast lỗi khi người dùng bắt đầu nhập lại giờ vào/ra
+        document.getElementById('checkInTime')?.addEventListener('input', function() {
+            Swal.close(); // Đóng toast nếu đang hiển thị
+        });
+        document.getElementById('checkOutTime')?.addEventListener('input', function() {
+            Swal.close(); // Đóng toast nếu đang hiển thị
+        });
+
+        // Sự kiện bấm vào menu Lịch sử chấm công
+        document.getElementById('attendanceHistoryMenu')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const roleSelect = document.getElementById('role-select');
+            const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
+            
+            // Chỉ ADMIN mới có thể xem lịch sử toàn bộ
+            if (currentRole === 'ADMIN') {
+                // Ẩn các section khác và chỉ hiển thị lịch sử toàn bộ
+                const attendanceFormSection = document.getElementById('attendanceFormSection');
+                const attendanceHistorySection = document.getElementById('attendanceHistorySection');
+                const approvalSection = document.getElementById('approvalSection');
+                const allAttendanceHistorySection = document.getElementById('allAttendanceHistorySection');
+                
+                if (attendanceFormSection) attendanceFormSection.style.display = 'none';
+                if (attendanceHistorySection) attendanceHistorySection.style.display = 'none';
+                if (approvalSection) approvalSection.style.display = 'none';
+                if (allAttendanceHistorySection) allAttendanceHistorySection.style.display = 'block';
+                
+                // Mặc định là tháng và năm hiện tại khi vào
+                const filterMonth = document.getElementById('filterMonth');
+                const filterYear = document.getElementById('filterYear');
+                const now = new Date();
+                
+                if (filterMonth) filterMonth.value = now.getMonth() + 1;
+                if (filterYear) filterYear.value = now.getFullYear();
+
+                loadAllAttendanceHistory();
+            } else {
+                showToast('Chỉ quản trị viên mới có thể xem lịch sử chấm công đã phê duyệt', 'warning');
+            }
+        });
+
+        // Sự kiện bấm vào menu Trang chủ
+        document.getElementById('homeMenu')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const roleSelect = document.getElementById('role-select');
+            const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
+            
+            // Load lại dashboard theo vai trò hiện tại
+            updateUIForRole(currentRole);
+            
+            // Reset form nếu đang ở chế độ edit
+            const editIdInput = document.getElementById('editAttendanceId');
+            if (editIdInput && editIdInput.value) {
+                resetForm();
+            }
+            
+            // Cập nhật active state cho menu
+            const menuItems = document.querySelectorAll('.nav-link');
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            showToast('Đã tải lại trang chủ', 'success');
+        });
+
+        // Phân trang cho lịch sử toàn bộ (chỉ ADMIN)
+        let allAttendanceData = [];
+        let allCurrentPage = 1;
+        const allRowsPerPage = 10;
+
+        function loadAllAttendanceHistory(page = 1) {
+            const month = document.getElementById('filterMonth').value;
+            const year = document.getElementById('filterYear').value;
+            let url = `/api/attendance/history?all=1&page=${page}&per_page=${allRowsPerPage}`;
+            if (month) url += `&month=${month}`;
+            if (year) url += `&year=${year}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast(data.error, 'error');
+                        return;
+                    }
+                    renderAllAttendancePage(data.data);
+                    renderAllAttendancePagination(data.page, Math.ceil(data.total / data.per_page));
+                })
+                .catch(error => {
+                    console.error('Error fetching all attendance history:', error);
+                    showToast('Không thể tải lịch sử chấm công toàn bộ', 'error');
+                });
+        }
+
+        function renderAllAttendancePagination(currentPage, totalPages) {
+            const pagination = document.getElementById('allAttendancePagination');
+            pagination.innerHTML = '';
+            
+            function createPageItem(i, active = false) {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (active ? ' active' : '');
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = '#';
+                a.textContent = i;
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    allCurrentPage = i;
+                    loadAllAttendanceHistory(allCurrentPage);
+                });
+                li.appendChild(a);
+                pagination.appendChild(li);
+            }
+            
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) createPageItem(i, i === currentPage);
+            } else {
+                createPageItem(1, currentPage === 1);
+                if (currentPage > 4) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pagination.appendChild(li);
+                }
+                for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                    createPageItem(i, i === currentPage);
+                }
+                if (currentPage < totalPages - 3) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pagination.appendChild(li);
+                }
+                createPageItem(totalPages, currentPage === totalPages);
+            }
+        }
+
+        function renderAllAttendancePage(pageData) {
+            const tbody = document.getElementById('allAttendanceHistoryBody');
+            tbody.innerHTML = '';
+            if (!pageData || pageData.length === 0) {
+                const totalRows = allRowsPerPage;
+                const middleRow = Math.floor(totalRows / 2);
+                for (let i = 0; i < totalRows; i++) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.className = 'empty-row';
+                    if (i === middleRow) {
+                        emptyRow.innerHTML = `<td colspan="12" class="no-data-row">Không có dữ liệu chấm công</td>`;
+                    } else {
+                        emptyRow.innerHTML = `
+                            <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                            <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                            <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                            <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                            <td style="height: 50px;"></td>
+                        `;
+                    }
+                    tbody.appendChild(emptyRow);
+                }
+                return;
+            }
+
+            pageData.forEach(record => {
+                let statusText = record.approved ? 'Đã phê duyệt' : 'Chờ phê duyệt';
+                if (record.status === 'rejected') statusText = 'Từ chối';
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatDate(record.date)}</td>
+                    <td>${record.check_in ? record.check_in : '--:--'}</td>
+                    <td>${record.check_out ? record.check_out : '--:--'}</td>
+                    <td>${record.break_time || '-'}</td>
+                    <td>${record.total_work_hours || '-'}</td>
+                    <td>${record.work_hours_display || '-'}</td>
+                    <td>${record.overtime_before_22 || '0:00'}</td>
+                    <td>${record.overtime_after_22 || '0:00'}</td>
+                    <td>${record.holiday_type}</td>
+                    <td>${record.user_name || '-'}</td>
+                    <td>${record.department || '-'}</td>
+                    <td>${statusText}</td>
+                    <td>${record.note || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            const emptyRowsNeeded = Math.max(0, allRowsPerPage - pageData.length);
+            for (let i = 0; i < emptyRowsNeeded; i++) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.className = 'empty-row';
+                emptyRow.innerHTML = `
+                    <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                    <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                    <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                    <td style="height: 50px;"></td> <td style="height: 50px;"></td> <td style="height: 50px;"></td>
+                    <td style="height: 50px;"></td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+        }
+
+        function getApprovalFilters() {
+            return {
+                search: document.getElementById('approvalSearchName')?.value || '',
+                department: document.getElementById('approvalDepartment')?.value || '',
+                date_from: document.getElementById('approvalDateFrom')?.value || '',
+                date_to: document.getElementById('approvalDateTo')?.value || ''
+            };
+        }
+        async function loadApprovalAttendance(page = 1) {
+            const approvalBody = document.getElementById('approvalAttendanceBody');
+            if (!approvalBody) return;
+            approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Đang tải dữ liệu...</td></tr>';
+            const filters = getApprovalFilters();
+            let url = `/api/attendance/pending?page=${page}&per_page=${approvalPerPage}`;
+            if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+            if (filters.department) url += `&department=${encodeURIComponent(filters.department)}`;
+            if (filters.date_from) url += `&date_from=${encodeURIComponent(filters.date_from)}`;
+            if (filters.date_to) url += `&date_to=${encodeURIComponent(filters.date_to)}`;
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                approvalBody.innerHTML = '';
+                if (!result.data || result.data.length === 0) {
+                    approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Không có bản ghi chấm công chờ phê duyệt</td></tr>';
+                    renderApprovalPagination(1, 1);
+                    return;
+                }
+                result.data.forEach(record => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(record.date)}</td>
+                        <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
+                        <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                        <td>${record.break_time || '-'}</td>
+                        <td>${record.total_work_hours || '-'}</td>
+                        <td>${record.work_hours_display || '-'}</td>
+                        <td>${record.overtime_before_22 || '0:00'}</td>
+                        <td>${record.overtime_after_22 || '0:00'}</td>
+                        <td>${translateHolidayType(record.holiday_type)}</td>
+                        <td>${record.user_name || '-'}</td>
+                        <td>${record.department || '-'}</td>
+                        <td>${translateStatus(record.status)}</td>
+                        <td style="height: 50px; width: 120px; padding: 0 !important;">
+                            <div class="action-container">
+                            ${!record.approved ? `
+                                    <div class="btn-action-container">
+                                        <button class='btn btn-success btn-sm approve-attendance-btn' data-id='${record.id}' title="Phê duyệt">
+                                            <i class='fas fa-check me-1'></i>Phê duyệt
+                                        </button>
+                                        <button class='btn btn-danger btn-sm reject-attendance-btn' data-id='${record.id}' title="Từ chối">
+                                            <i class='fas fa-times me-1'></i>Từ chối
+                                        </button>
+                            ` : `<span>-</span>`}
+                            </div>
+                        </td>
+                        <td style="height: 50px; width: 120px;" class="note-cell" data-full-note="${record.note || ''}">
+                            ${record.note || '-'}
+                        </td>
+                    `;
+                    approvalBody.appendChild(row);
+                });
+                bindNoteCellClick(); // Kích hoạt popup cho ghi chú
+                renderApprovalPagination(result.page, Math.ceil(result.total / result.per_page));
+                
+                // Gắn event listeners cho các nút phê duyệt và từ chối
+                document.querySelectorAll('.approve-attendance-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        approveAttendance(id, 'approve');
+                    });
+                });
+                
+                document.querySelectorAll('.reject-attendance-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        approveAttendance(id, 'reject');
+                    });
+                });
+            } catch (e) {
+                approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Lỗi tải dữ liệu</td></tr>';
+                renderApprovalPagination(1, 1);
+            }
+        }
+        function renderApprovalPagination(current, total) {
+            const pag = document.getElementById('approvalPagination');
+            pag.innerHTML = '';
+            if (total <= 1) return;
+            function createPageItem(i, active = false) {
+                const li = document.createElement('li');
+                li.className = 'page-item' + (active ? ' active' : '');
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = '#';
+                a.textContent = i;
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    approvalPage = i;
+                    loadApprovalAttendance(approvalPage);
+                });
+                li.appendChild(a);
+                pag.appendChild(li);
+            }
+            if (total <= 7) {
+                for (let i = 1; i <= total; i++) createPageItem(i, i === current);
+            } else {
+                createPageItem(1, current === 1);
+                if (current > 4) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pag.appendChild(li);
+                }
+                for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+                    createPageItem(i, i === current);
+                }
+                if (current < total - 3) {
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<span class="page-link">...</span>';
+                    pag.appendChild(li);
+                }
+                createPageItem(total, current === total);
+            }
+        }
+        
+        function translateHolidayType(holidayType) {
+            if (!holidayType) return '-';
+            const types = {
+                'Ngày thường': 'Ngày thường',
+                'Cuối tuần': 'Cuối tuần',
+                'Lễ Việt Nam': 'Lễ Việt Nam',
+                'Lễ Nhật Bản': 'Lễ Nhật Bản',
+                'normal': 'Ngày thường',
+                'weekend': 'Cuối tuần',
+                'vietnamese_holiday': 'Lễ Việt Nam',
+                'japanese_holiday': 'Lễ Nhật Bản'
+            };
+            return types[holidayType] || holidayType;
+        }
+
+        function translateStatus(status) {
+            const translations = {
+                'pending': 'Chờ phê duyệt',
+                'pending_manager': 'Chờ phê duyệt',
+                'pending_admin': 'Chờ phê duyệt',
+                'approved': 'Đã duyệt',
+                'rejected': 'Từ chối'
+            };
+            return translations[status] || status;
+        }
+
+        // Gọi khi trang load nếu có approval section
+        if (document.getElementById('approvalAttendanceBody')) {
+            loadApprovalAttendance();
+        }
+        document.getElementById('btnApprovalFilter')?.addEventListener('click', function() {
+            approvalPage = 1;
+            loadApprovalAttendance(approvalPage);
+        });
+        document.getElementById('btnApprovalReset')?.addEventListener('click', function() {
+            document.getElementById('approvalSearchName').value = '';
+            if (document.getElementById('approvalDepartment')) document.getElementById('approvalDepartment').value = '';
+            document.getElementById('approvalDateFrom').value = '';
+            document.getElementById('approvalDateTo').value = '';
+            approvalPage = 1;
+            loadApprovalAttendance(approvalPage);
+        });
+
+        // Xử lý sự kiện cho các nút filter trong lịch sử toàn bộ
+        document.getElementById('btnFilterAttendance')?.addEventListener('click', function() {
+            loadAllAttendanceHistory(1);
+        });
+
+        document.getElementById('btnResetFilter')?.addEventListener('click', function() {
+            document.getElementById('filterMonth').value = '';
+            document.getElementById('filterYear').value = '';
+            loadAllAttendanceHistory();
+        });
+
+        // Xử lý nút "Trở về" từ lịch sử toàn bộ
+        document.getElementById('btnBackToDashboard')?.addEventListener('click', function() {
+            const roleSelect = document.getElementById('role-select');
+            const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
+            
+            if (currentRole === 'ADMIN') {
+                // Hiển thị lại giao diện quản trị viên mặc định
+                updateUIForRole(currentRole);
+            }
+        });
+
+        function switchRole(role) {
+            fetch('/switch-role', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showToast(data.error, 'error');
+                } else {
+                    showToast(data.message, 'success');
+                    // Cập nhật giao diện động
+                    updateUIForRole(role);
+                }
+            })
+            .catch(error => {
+                console.error('Error switching role:', error);
+                showToast('Lỗi khi chuyển vai trò', 'error');
+            });
+        }
+
+        function updateUIForRole(role) {
+            const attendanceFormSection = document.getElementById('attendanceFormSection');
+            const attendanceHistorySection = document.getElementById('attendanceHistorySection');
+            const approvalSection = document.getElementById('approvalSection');
+            const allAttendanceHistorySection = document.getElementById('allAttendanceHistorySection');
+            const departmentFilterContainer = document.getElementById('departmentFilterContainer');
+            const pageTitle = document.querySelector('.page-title');
+            
+            // Ẩn tất cả các section trước
+            if (attendanceFormSection) attendanceFormSection.style.display = 'none';
+            if (attendanceHistorySection) attendanceHistorySection.style.display = 'none';
+            if (approvalSection) approvalSection.style.display = 'none';
+            if (allAttendanceHistorySection) allAttendanceHistorySection.style.display = 'none';
+            
+            // Ẩn filter phòng ban mặc định
+            if (departmentFilterContainer) departmentFilterContainer.style.display = 'none';
+            
+            if (role === 'EMPLOYEE') {
+                // Hiển thị form chấm công và lịch sử cho nhân viên
+                if (attendanceFormSection) attendanceFormSection.style.display = 'block';
+                if (attendanceHistorySection) attendanceHistorySection.style.display = 'block';
+                const attendanceHistoryElement = document.getElementById('attendanceHistory');
+                if (attendanceHistoryElement) {
+                    updateAttendanceHistory();
+                }
+                if (pageTitle) pageTitle.textContent = 'Bảng điều khiển';
+            } else if (['TEAM_LEADER', 'MANAGER', 'ADMIN'].includes(role)) {
+                // Hiển thị phần phê duyệt cho quản lý và admin
+                if (approvalSection) approvalSection.style.display = 'block';
+                // Hiển thị filter phòng ban cho MANAGER và ADMIN
+                if (['MANAGER', 'ADMIN'].includes(role) && departmentFilterContainer) {
+                    departmentFilterContainer.style.display = 'block';
+                }
+                // Load dữ liệu phê duyệt
+                loadApprovalAttendance();
+                if (pageTitle) pageTitle.textContent = 'Quản lý chấm công';
+            }
+            
+            // Cập nhật active state cho menu
+            updateMenuActiveState(role);
+        }
+
+        function updateMenuActiveState(role) {
+            // Cập nhật active state cho các menu item
+            const menuItems = document.querySelectorAll('.nav-link');
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Set active cho menu phù hợp
+            if (role === 'EMPLOYEE') {
+                const homeMenu = document.querySelector('.nav-link');
+                if (homeMenu) homeMenu.classList.add('active');
+            } else {
+                // Tìm menu phê duyệt hoặc tạo mới
+                const approvalMenu = document.querySelector('.nav-link[data-role="approval"]');
+                if (approvalMenu) {
+                    approvalMenu.classList.add('active');
+                } else {
+                    // Nếu không có menu phê duyệt, set active cho trang chủ
+                    const homeMenu = document.querySelector('.nav-link');
+                    if (homeMenu) homeMenu.classList.add('active');
+                }
+            }
+        }
+
+        // Hàm phê duyệt chấm công
+        async function approveAttendance(attendanceId, action) {
+            if (action === 'approve') {
+                // Xử lý phê duyệt trực tiếp
+                fetch(`/api/attendance/${attendanceId}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'approve', reason: '' })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showToast(data.error, 'error');
+                    } else {
+                        showToast(data.message, 'success');
+                        loadApprovalAttendance();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
+                });
+            } else if (action === 'reject') {
+                // Hiển thị popup để nhập lý do từ chối
+                const { value: reason } = await Swal.fire({
+                    title: 'Xác nhận từ chối',
+                    input: 'textarea',
+                    inputLabel: 'Lý do từ chối',
+                    inputPlaceholder: 'Nhập lý do từ chối ở đây...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Xác nhận',
+                    cancelButtonText: 'Hủy',
+                    confirmButtonColor: '#e74c3c',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Bạn cần nhập lý do từ chối!'
+                        }
+                    }
+                });
+
+                if (reason) {
+                    // Gửi yêu cầu từ chối với lý do
+                    fetch(`/api/attendance/${attendanceId}/approve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'reject', reason: reason })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            showToast(data.error, 'error');
+                        } else {
+                            showToast(data.message, 'success');
+                            loadApprovalAttendance();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Đã xảy ra lỗi khi từ chối', 'error');
+                    });
+                }
+            }
+        }
+        
+        window.switchRole = switchRole;
+        window.approveAttendance = approveAttendance;
+    </script>
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <script>showToast("{{ message }}", "{{ category }}");</script>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+</body>
+</html>
