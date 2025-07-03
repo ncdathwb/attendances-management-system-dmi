@@ -2,6 +2,8 @@
 *.db
 *.sqlite
 *.sqlite3
+attendance.db
+instance/
 
 # Python cache
 __pycache__/

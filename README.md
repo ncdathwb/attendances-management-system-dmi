@@ -1,147 +1,151 @@
-# Attendance Management System - DMI
+# Hệ Thống Quản Lý Chấm Công - DMI
 
-A comprehensive attendance management system built with Flask for DMI company. This system allows employees to record their attendance, managers to approve records, and administrators to manage the entire system.
+Hệ thống quản lý chấm công toàn diện được xây dựng bằng Flask cho công ty DMI. Hệ thống này cho phép nhân viên ghi lại chấm công, quản lý phê duyệt hồ sơ và quản trị viên quản lý toàn bộ hệ thống.
 
-## Features
+## Tính Năng
 
-### For Employees
-- Record daily attendance (check-in/check-out times)
-- View attendance history
-- Submit leave requests
-- Edit attendance records before approval
-- View approval status
+### Cho Nhân Viên
+- Ghi lại chấm công hàng ngày (giờ vào/giờ ra)
+- Xem lịch sử chấm công
+- Gửi yêu cầu nghỉ phép
+- Chỉnh sửa hồ sơ chấm công trước khi phê duyệt
+- Xem trạng thái phê duyệt
 
-### For Team Leaders
-- Approve attendance records for team members
-- View team attendance history
-- Manage team members
+### Cho Trưởng Nhóm
+- Phê duyệt hồ sơ chấm công cho thành viên nhóm
+- Xem lịch sử chấm công của nhóm
+- Quản lý thành viên nhóm
 
-### For Managers
-- Approve attendance records after team leader approval
-- View department-wide attendance
-- Manage department members
+### Cho Quản Lý
+- Phê duyệt hồ sơ chấm công sau khi trưởng nhóm phê duyệt
+- Xem chấm công toàn phòng ban
+- Quản lý thành viên phòng ban
 
-### For Administrators
-- Full system access
-- User management
-- View all attendance records
-- System configuration
+### Cho Quản Trị Viên
+- Truy cập toàn bộ hệ thống
+- Quản lý người dùng
+- Xem tất cả hồ sơ chấm công
+- Cấu hình hệ thống
 
-## Technology Stack
+## Công Nghệ Sử Dụng
 
 - **Backend**: Flask (Python)
-- **Database**: SQLite with SQLAlchemy ORM
+- **Database**: PostgreSQL với SQLAlchemy ORM
 - **Frontend**: HTML, CSS, JavaScript
-- **Authentication**: Flask-Login
-- **Database Migrations**: Flask-Migrate
+- **Xác thực**: Flask-Login
+- **Di chuyển Database**: Flask-Migrate
 
-## Installation
+## Cài Đặt
 
-1. **Clone the repository**
+1. **Clone repository**
    ```bash
    git clone https://github.com/ncdathwb/attendance-management-system-dmi.git
    cd attendance-management-system-dmi
    ```
 
-2. **Install dependencies**
+2. **Cài đặt dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Initialize the database**
+3. **Cấu hình PostgreSQL**
+   - Tạo database PostgreSQL
+   - Cập nhật thông tin kết nối trong `app.py`
+
+4. **Khởi tạo database**
    ```bash
    python init_db.py
    ```
 
-4. **Run the application**
+5. **Chạy ứng dụng**
    ```bash
    python app.py
    ```
 
-5. **Access the application**
-   Open your browser and go to `http://localhost:5000`
+6. **Truy cập ứng dụng**
+   Mở trình duyệt và truy cập `http://localhost:5000`
 
-## Database Setup
+## Cài Đặt Database
 
-The system comes with a pre-configured user list in `danhsach.txt`. To initialize the database with these users:
+Hệ thống đi kèm với danh sách người dùng được cấu hình sẵn trong `danhsach.txt`. Để khởi tạo database với những người dùng này:
 
 ```bash
 python init_db.py
 ```
 
-### Default Admin Account
-- **Employee ID**: 1395
-- **Password**: dat123
-- **Role**: ADMIN
+### Tài Khoản Admin Mặc Định
+- **Mã nhân viên**: 1395
+- **Mật khẩu**: dat123
+- **Vai trò**: ADMIN
 
-## Usage
+## Hướng Dẫn Sử Dụng
 
-### Login
-- Use your employee ID and password to log in
-- The system supports role-based access control
+### Đăng Nhập
+- Sử dụng mã nhân viên và mật khẩu để đăng nhập
+- Hệ thống hỗ trợ kiểm soát truy cập dựa trên vai trò
 
-### Recording Attendance
-1. Select the date
-2. Choose the day type (normal, weekend, holiday)
-3. Enter check-in and check-out times
-4. Add break time and notes if needed
-5. Submit the record
+### Ghi Chấm Công
+1. Chọn ngày
+2. Chọn loại ngày (thường, cuối tuần, lễ)
+3. Nhập giờ vào và giờ ra
+4. Thêm thời gian nghỉ và ghi chú nếu cần
+5. Gửi hồ sơ
 
-### Approval Process
-1. **Team Leader** approves initial records
-2. **Manager** reviews team leader approvals
-3. **Administrator** gives final approval
+### Quy Trình Phê Duyệt
+1. **Trưởng nhóm** phê duyệt hồ sơ ban đầu
+2. **Quản lý** xem xét phê duyệt của trưởng nhóm
+3. **Quản trị viên** đưa ra phê duyệt cuối cùng
 
-## File Structure
+## Cấu Trúc Tệp
 
 ```
 DMI-CHAMCONG/
-├── app.py                 # Main Flask application
-├── init_db.py            # Database initialization script
-├── fake_attendance_data.py # Script to generate test data
-├── requirements.txt      # Python dependencies
-├── danhsach.txt         # User list for initialization
-├── static/              # Static files (CSS, JS)
-├── templates/           # HTML templates
-└── migrations/          # Database migration files
+├── app.py                 # Ứng dụng Flask chính
+├── init_db.py            # Script khởi tạo database
+├── fake_attendance_data.py # Script tạo dữ liệu thử nghiệm
+├── requirements.txt      # Dependencies Python
+├── danhsach.txt         # Danh sách người dùng để khởi tạo
+├── static/              # Tệp tĩnh (CSS, JS)
+├── templates/           # Template HTML
+└── migrations/          # Tệp di chuyển database
 ```
 
 ## API Endpoints
 
-### Authentication
-- `POST /login` - User login
-- `GET /logout` - User logout
+### Xác Thực
+- `POST /login` - Đăng nhập người dùng
+- `GET /logout` - Đăng xuất người dùng
 
-### Attendance
-- `POST /api/attendance` - Record new attendance
-- `GET /api/attendance/history` - Get attendance history
-- `PUT /api/attendance/<id>` - Update attendance record
-- `DELETE /api/attendance/<id>` - Delete attendance record
-- `POST /api/attendance/<id>/approve` - Approve/reject attendance
+### Chấm Công
+- `POST /api/attendance` - Ghi chấm công mới
+- `GET /api/attendance/history` - Lấy lịch sử chấm công
+- `PUT /api/attendance/<id>` - Cập nhật hồ sơ chấm công
+- `DELETE /api/attendance/<id>` - Xóa hồ sơ chấm công
+- `POST /api/attendance/<id>/approve` - Phê duyệt/từ chối chấm công
 
-### User Management
-- `POST /switch-role` - Switch user role
-- `GET /admin/users` - Admin user management
+### Quản Lý Người Dùng
+- `POST /switch-role` - Chuyển đổi vai trò người dùng
+- `GET /admin/users` - Quản lý người dùng cho admin
 
-## Configuration
+## Cấu Hình
 
-The application uses the following configuration:
+Ứng dụng sử dụng cấu hình sau:
 
-- **Database**: SQLite (`attendance.db`)
-- **Secret Key**: Configured in `app.py`
-- **Session Management**: Flask session
+- **Database**: PostgreSQL
+- **Secret Key**: Được cấu hình trong `app.py`
+- **Quản lý Session**: Flask session
 
-## Contributing
+## Đóng Góp
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+1. Fork repository
+2. Tạo feature branch
+3. Thực hiện thay đổi
+4. Gửi pull request
 
-## License
+## Giấy Phép
 
-This project is proprietary software for DMI company.
+Dự án này là phần mềm độc quyền của công ty DMI.
 
-## Support
+## Hỗ Trợ
 
-For support and questions, please contact the development team. 
+Để được hỗ trợ và giải đáp thắc mắc, vui lòng liên hệ nhóm phát triển. 

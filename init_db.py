@@ -1,10 +1,12 @@
 from app import app, db, User, Attendance, Request
-import sqlite3
 import re
 from datetime import datetime, timedelta
 import os
 import random
 import time
+
+# Lưu ý: Đảm bảo PostgreSQL đã được cài đặt và cấu hình đúng
+# Tạo database 'attendance_db' trong PostgreSQL trước khi chạy script này
 
 def create_sample_users():
     """Tạo dữ liệu mẫu cho bảng users"""

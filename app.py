@@ -6,11 +6,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
 from functools import wraps
+from config import config
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///attendance.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Load configuration
+config_name = os.environ.get('FLASK_CONFIG') or 'default'
+app.config.from_object(config[config_name])
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
