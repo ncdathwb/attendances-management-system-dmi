@@ -29,6 +29,7 @@
 <body class="login-bg">
     <div class="login-container">
         <form method="POST" action="{{ url_for('login') }}" class="login-box login-form simple-login">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <h1 class="login-title">Đăng nhập</h1>
 
             <div class="alert alert-danger" id="login-alert" {% if not messages %}style="visibility:hidden;"{% endif %}>

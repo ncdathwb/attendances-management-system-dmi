@@ -1,12 +1,19 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
 from functools import wraps
 from config import config
+from sqlalchemy.orm import joinedload, selectinload
+import re
+from collections import defaultdict
+import time
+import secrets
+
+# Import database models
+from database.models import db, User, Attendance, Request, Department, AuditLog
 
 app = Flask(__name__)
 
@@ -14,187 +21,18 @@ app = Flask(__name__)
 config_name = os.environ.get('FLASK_CONFIG') or 'default'
 app.config.from_object(config[config_name])
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
+
+# Initialize database
+db.init_app(app)
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Database Models
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    password_hash = db.Column(db.String(120), nullable=False)
-    original_password = db.Column(db.String(120), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    employee_id = db.Column(db.Integer, unique=True, nullable=False)
-    roles = db.Column(db.String(100), nullable=False)
-    department = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-        self.original_password = password
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def has_role(self, role):
-        return role in self.roles.split(',')
-
-class Attendance(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    check_in = db.Column(db.DateTime, nullable=True)
-    check_out = db.Column(db.DateTime, nullable=True)
-    date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, approved, rejected
-    note = db.Column(db.Text, nullable=True)
-    break_time = db.Column(db.Float, nullable=False, default=1.0)  # Break time in hours
-    is_holiday = db.Column(db.Boolean, nullable=False, default=False)  # Is it a holiday
-    holiday_type = db.Column(db.String(20), nullable=True)  # Type of holiday (weekend, vietnamese_holiday, etc)
-    total_work_hours = db.Column(db.Float, nullable=True)  # Total work hours for the day
-    overtime_before_22 = db.Column(db.String(5), nullable=True)  # Overtime hours before 22:00
-    overtime_after_22 = db.Column(db.String(5), nullable=True)  # Overtime hours after 22:00
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    approved = db.Column(db.Boolean, default=False)  # True: đã phê duyệt, False: chưa phê duyệt
-
-    user = db.relationship('User', backref=db.backref('attendances', lazy=True))
-
-    def update_work_hours(self):
-        if not self.check_in or not self.check_out:
-            self.total_work_hours = None
-            self.overtime_before_22 = "0:00"
-            self.overtime_after_22 = "0:00"
-            return
-
-        def minutes_to_hhmm(minutes):
-            if minutes < 0: minutes = 0
-            hours = int(minutes // 60)
-            mins = int(minutes % 60)
-            return f"{hours}:{mins:02d}"
-
-        # Tổng giờ làm thực tế (đã trừ giờ nghỉ)
-        total_work_duration_hours = (self.check_out - self.check_in).total_seconds() / 3600 - self.break_time
-        self.total_work_hours = round(max(0, total_work_duration_hours), 2)
-        
-        # Logic cho ngày cuối tuần và ngày lễ
-        if self.holiday_type in ['weekend', 'vietnamese_holiday']:
-            twenty_two_oclock = self.check_in.replace(hour=22, minute=0, second=0, microsecond=0)
-            
-            # Tính tăng ca sau 22h
-            ot_after_22_minutes = 0
-            if self.check_out > twenty_two_oclock:
-                ot_after_22_start = max(self.check_in, twenty_two_oclock)
-                ot_after_22_minutes = (self.check_out - ot_after_22_start).total_seconds() / 60
-            
-            # Tính tổng giờ làm (đã trừ nghỉ)
-            total_work_minutes = max(0, total_work_duration_hours * 60)
-            
-            # Tăng ca trước 22h là tổng giờ trừ đi tăng ca sau 22h
-            ot_before_22_minutes = total_work_minutes - ot_after_22_minutes
-
-            self.overtime_before_22 = minutes_to_hhmm(ot_before_22_minutes)
-            self.overtime_after_22 = minutes_to_hhmm(ot_after_22_minutes)
-        else:
-            # Logic cho ngày thường
-            ca_gio = [
-                (7, 30, 16, 30), (8, 0, 17, 0), (9, 0, 18, 0), (11, 0, 22, 0)
-            ]
-            ca_batdau = self.check_in.replace(hour=7, minute=30, second=0, microsecond=0)
-            ca_ketthuc = self.check_in.replace(hour=16, minute=30, second=0, microsecond=0)
-            for h_in, m_in, h_out, m_out in ca_gio:
-                ca_start = self.check_in.replace(hour=h_in, minute=m_in, second=0, microsecond=0)
-                if abs((self.check_in - ca_start).total_seconds()) <= 3600:
-                    ca_batdau = ca_start
-                    ca_ketthuc = self.check_in.replace(hour=h_out, minute=m_out, second=0, microsecond=0)
-                    break
-
-            # Tăng ca trước 22h: từ sau giờ kết thúc ca đến 22:00
-            overtime_start = max(self.check_in, ca_ketthuc)
-            overtime_end = min(self.check_out, self.check_in.replace(hour=22, minute=0, second=0, microsecond=0))
-            overtime_before_22 = (overtime_end - overtime_start).total_seconds() / 60 if overtime_end > overtime_start else 0
-
-            # Tăng ca sau 22h
-            after_22 = self.check_in.replace(hour=22, minute=0, second=0, microsecond=0)
-            overtime_after_22 = (self.check_out - after_22).total_seconds() / 60 if self.check_out > after_22 else 0
-            
-            self.overtime_before_22 = minutes_to_hhmm(overtime_before_22)
-            self.overtime_after_22 = minutes_to_hhmm(overtime_after_22)
-
-    def calculate_regular_work_hours(self):
-        if not self.check_in or not self.check_out:
-            return 0.0
-
-        # Nếu là ngày lễ hoặc cuối tuần, giờ công = 0
-        if self.holiday_type in ['weekend', 'vietnamese_holiday']:
-            return 0.0
-
-        # Logic cho ngày thường: tính giờ làm việc trong ca chuẩn
-        ca_gio = [
-            (7, 30, 16, 30), (8, 0, 17, 0), (9, 0, 18, 0), (11, 0, 22, 0)
-        ]
-        
-        # Xác định ca làm việc
-        ca_batdau = self.check_in.replace(hour=7, minute=30, second=0, microsecond=0)
-        ca_ketthuc = self.check_in.replace(hour=16, minute=30, second=0, microsecond=0)
-        for h_in, m_in, h_out, m_out in ca_gio:
-            ca_start = self.check_in.replace(hour=h_in, minute=m_in, second=0, microsecond=0)
-            if abs((self.check_in - ca_start).total_seconds()) <= 3600: # Tìm ca dựa trên giờ vào
-                ca_batdau = ca_start
-                ca_ketthuc = self.check_in.replace(hour=h_out, minute=m_out, second=0, microsecond=0)
-                break
-        
-        # Tính thời gian làm việc thực tế trong ca
-        overlap_start = max(self.check_in, ca_batdau)
-        overlap_end = min(self.check_out, ca_ketthuc)
-        
-        in_shift_duration_hours = 0
-        if overlap_end > overlap_start:
-            in_shift_duration_hours = (overlap_end - overlap_start).total_seconds() / 3600
-        
-        # Trừ giờ nghỉ khỏi thời gian làm trong ca
-        regular_hours = max(0, in_shift_duration_hours - self.break_time)
-        
-        return round(regular_hours, 2)
-
-    def to_dict(self):
-        # Tính toán giờ công trước khi chuyển đổi
-        work_hours_val = self.calculate_regular_work_hours()
-
-        return {
-            'id': self.id,
-            'date': self.date.strftime('%Y-%m-%d'),
-            'check_in': self.check_in.strftime('%H:%M:%S') if self.check_in else None,
-            'check_out': self.check_out.strftime('%H:%M:%S') if self.check_out else None,
-            'status': self.status,
-            'break_time': format_hours_minutes(self.break_time) if self.break_time is not None else "0:00",
-            'is_holiday': self.is_holiday,
-            'holiday_type': translate_holiday_type(self.holiday_type),
-            'total_work_hours': format_hours_minutes(self.total_work_hours) if self.total_work_hours is not None else "0:00",
-            'work_hours_display': format_hours_minutes(work_hours_val),
-            'overtime_before_22': self.overtime_before_22,
-            'overtime_after_22': self.overtime_after_22,
-            'note': self.note,
-            'approved': self.approved
-        }
-
-class Request(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    request_type = db.Column(db.String(50), nullable=False)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    reason = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='pending')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    current_approver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    step = db.Column(db.String(20), nullable=False, default='leader')
-    reject_reason = db.Column(db.Text, nullable=True)
-
-    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('requests', lazy=True))
-    current_approver = db.relationship('User', foreign_keys=[current_approver_id], backref=db.backref('approvals', lazy=True))
+# Import rate limiting from utils
+from utils.decorators import rate_limit
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -208,14 +46,28 @@ def index():
     return redirect(url_for('dashboard'))
 
 @app.route('/login', methods=['GET', 'POST'])
+@rate_limit(max_requests=10, window_seconds=300)  # 10 attempts per 5 minutes
 def login():
     if request.method == 'POST':
-        employee_id = request.form.get('username')
+        employee_id_str = request.form.get('username')
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
         
+        # Validate input
+        if not employee_id_str or not password:
+            flash('Vui lòng nhập đầy đủ mã nhân viên và mật khẩu!', 'error')
+            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        
+        employee_id = validate_employee_id(employee_id_str)
+        if not employee_id:
+            flash('Mã nhân viên không hợp lệ!', 'error')
+            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        
+        if not validate_str(password, max_length=100):
+            flash('Mật khẩu không hợp lệ!', 'error')
+            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        
         try:
-            employee_id = int(employee_id)
             user = User.query.filter_by(employee_id=employee_id).first()
             
             if user and user.check_password(password):
@@ -224,43 +76,76 @@ def login():
                 session['employee_id'] = user.employee_id
                 session['roles'] = user.roles.split(',')
                 session['current_role'] = user.roles.split(',')[0]
+                session['last_activity'] = datetime.now().isoformat()
                 response = redirect(url_for('dashboard'))
                 
+                log_audit_action(
+                    user_id=user.id,
+                    action='LOGIN',
+                    table_name='users',
+                    record_id=user.id,
+                    new_values={'login_time': datetime.now().isoformat()}
+                )
+                
                 if remember:
-                    # Set cookies to expire in 30 days
-                    response.set_cookie('remembered_username', str(employee_id), max_age=30*24*60*60)
-                    response.set_cookie('remembered_password', password, max_age=30*24*60*60)
+                    # Generate secure remember token instead of storing password
+                    remember_token = secrets.token_urlsafe(32)
+                    user.remember_token = remember_token
+                    user.remember_token_expires = datetime.now() + timedelta(days=30)
+                    db.session.commit()
+                    response.set_cookie('remember_token', remember_token, max_age=30*24*60*60, httponly=True, secure=app.config.get('SESSION_COOKIE_SECURE', False))
                 else:
-                    # Clear any existing cookies
-                    response.delete_cookie('remembered_username')
-                    response.delete_cookie('remembered_password')
+                    response.delete_cookie('remember_username')
+                    response.delete_cookie('remember_password')
                 
                 flash('Đăng nhập thành công!', 'success')
                 return response
             
             flash('Mã nhân viên hoặc mật khẩu không đúng!', 'error')
-        except ValueError:
-            flash('Mã nhân viên không hợp lệ!', 'error')
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            flash('Đã xảy ra lỗi khi đăng nhập!', 'error')
     
     return render_template('login.html', messages=get_flashed_messages(with_categories=False))
 
 @app.route('/logout')
 def logout():
+    # Log logout if user was logged in
+    if 'user_id' in session:
+        log_audit_action(
+            user_id=session['user_id'],
+            action='LOGOUT',
+            table_name='users',
+            record_id=session['user_id'],
+            new_values={'logout_time': datetime.now().isoformat()}
+        )
     session.clear()
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
-        print("No user_id in session, redirecting to login")  # Debug log
         return redirect(url_for('login'))
     
     user = User.query.get(session['user_id'])
     if not user:
-        print("User not found, clearing session")  # Debug log
         session.clear()
         flash('Phiên đăng nhập không hợp lệ!', 'error')
         return redirect(url_for('login'))
+    
+    # Kiểm tra user có active không
+    if not user.is_active:
+        session.clear()
+        flash('Tài khoản đã bị khóa!', 'error')
+        return redirect(url_for('login'))
+    
+    # Kiểm tra session timeout
+    if check_session_timeout():
+        flash('Phiên đăng nhập đã hết hạn!', 'error')
+        return redirect(url_for('login'))
+    
+    # Cập nhật thời gian hoạt động cuối
+    update_session_activity()
     
     # Đảm bảo session có đầy đủ thông tin
     if 'roles' not in session:
@@ -272,64 +157,52 @@ def dashboard():
     if 'employee_id' not in session:
         session['employee_id'] = user.employee_id
     
-    print("Rendering dashboard for user:", user.name)  # Debug log
+    # Validate current_role có trong user roles không
+    if session['current_role'] not in user.roles.split(','):
+        session['current_role'] = user.roles.split(',')[0]
+    
     return render_template('dashboard.html', user=user)
 
 @app.route('/api/attendance', methods=['POST'])
+@rate_limit(max_requests=20, window_seconds=60)  # 20 requests per minute
 def record_attendance():
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     data = request.get_json()
-    date = data.get('date')
-    check_in = data.get('check_in')
-    check_out = data.get('check_out')
-    note = data.get('note', '')
-    break_time = data.get('break_time', 1.0)
-    is_holiday = data.get('is_holiday', False)
-    holiday_type = data.get('holiday_type')
-    print("Received data:", data)  # Debug log
-    if not date or date.strip() == '':
-        return jsonify({'error': 'Vui lòng chọn ngày chấm công'}), 400
+    # Validate input
+    date = validate_date(data.get('date'))
+    check_in = validate_time(data.get('check_in'))
+    check_out = validate_time(data.get('check_out'))
+    note = validate_note(data.get('note', ''))
+    break_time = validate_float(data.get('break_time', 1.0), min_val=0, max_val=8)
+    is_holiday = bool(data.get('is_holiday', False))
+    holiday_type = validate_holiday_type(data.get('holiday_type'))
+    if not date:
+        return jsonify({'error': 'Vui lòng chọn ngày chấm công hợp lệ'}), 400
     if not holiday_type:
-        return jsonify({'error': 'Vui lòng chọn loại ngày'}), 400
+        return jsonify({'error': 'Vui lòng chọn loại ngày hợp lệ'}), 400
     if not check_in or not check_out:
-        return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra'}), 400
-    try:
-        # Parse date and times
-        selected_date = datetime.strptime(date, '%Y-%m-%d').date()
-        check_in_time = datetime.strptime(f"{date}T{check_in}", '%Y-%m-%dT%H:%M')
-        check_out_time = datetime.strptime(f"{date}T{check_out}", '%Y-%m-%dT%H:%M')
-        print(f"Parsed times - Check in: {check_in_time}, Check out: {check_out_time}")  # Debug log
-        now = datetime.now()
-        if check_in_time > now:
-            return jsonify({'error': 'Không thể chấm công giờ vào sau thời gian thực!'}), 400
-        if check_out_time > now:
-            return jsonify({'error': 'Không thể chấm công giờ ra sau thời gian thực!'}), 400
-        if check_out_time <= check_in_time:
-            return jsonify({'error': 'Giờ ra phải sau giờ vào!'}), 400
-        
-        work_duration_seconds = (check_out_time - check_in_time).total_seconds()
-        break_time_seconds = break_time * 3600
-        if break_time_seconds >= work_duration_seconds:
-            return jsonify({'error': 'Giờ nghỉ không thể lớn hơn hoặc bằng tổng thời gian làm việc!'}), 400
-            
-    except ValueError as e:
-        print(f"ValueError: {str(e)}")  # Debug log
-        return jsonify({'error': 'Định dạng ngày hoặc giờ không hợp lệ'}), 400
+        return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra hợp lệ'}), 400
+    if break_time is None:
+        return jsonify({'error': 'Thời gian nghỉ không hợp lệ!'}), 400
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-    # Kiểm tra đã có bản ghi chấm công cho ngày này chưa
-    existing_attendance = Attendance.query.filter_by(user_id=user.id, date=selected_date).first()
+    existing_attendance = Attendance.query.filter_by(user_id=user.id, date=date).first()
     if existing_attendance:
-        return jsonify({'error': 'Bạn đã chấm công cho ngày này rồi, không thể chấm công 2 lần trong 1 ngày.'}), 400
-    
-    # Kiểm tra ngày không được trong tương lai
-    if selected_date > datetime.now().date():
+        if existing_attendance.status != 'rejected':
+            return jsonify({'error': 'Bạn đã chấm công cho ngày này rồi, không thể chấm công 2 lần trong 1 ngày.'}), 400
+        else:
+            db.session.delete(existing_attendance)
+            db.session.commit()
+    if date > datetime.now().date():
         return jsonify({'error': 'Không thể chấm công cho ngày trong tương lai!'}), 400
     attendance = Attendance(
         user_id=user.id,
-        date=selected_date,
+        date=date,
         break_time=break_time,
         is_holiday=is_holiday,
         holiday_type=holiday_type,
@@ -338,12 +211,24 @@ def record_attendance():
         overtime_after_22="0:00"
     )
     db.session.add(attendance)
-    attendance.check_in = check_in_time
-    attendance.check_out = check_out_time
+    attendance.check_in = datetime.combine(date, check_in)
+    attendance.check_out = datetime.combine(date, check_out)
     attendance.note = note
     attendance.update_work_hours()
     try:
         db.session.commit()
+        log_audit_action(
+            user_id=user.id,
+            action='CREATE_ATTENDANCE',
+            table_name='attendances',
+            record_id=attendance.id,
+            new_values={
+                'date': attendance.date.isoformat(),
+                'check_in': attendance.check_in.isoformat() if attendance.check_in else None,
+                'check_out': attendance.check_out.isoformat() if attendance.check_out else None,
+                'status': attendance.status
+            }
+        )
         return jsonify({
             'message': 'Chấm công thành công',
             'work_hours': attendance.total_work_hours,
@@ -351,57 +236,53 @@ def record_attendance():
             'overtime_after_22': attendance.overtime_after_22
         })
     except Exception as e:
-        print(f"Database error: {str(e)}")  # Debug log
+        print(f"Database error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'Đã xảy ra lỗi khi lưu dữ liệu'}), 500
 
 @app.route('/api/attendance/history')
 def get_attendance_history():
-    print("Session data:", session)  # Debug log
     if 'user_id' not in session:
-        print("No user_id in session")  # Debug log
         return jsonify({'error': 'Không có quyền truy cập'}), 401
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     try:
         user = User.query.get(session['user_id'])
-        print("User found:", user)  # Debug log
         if not user:
             return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-        
-        # Kiểm tra quyền truy cập
         current_role = session.get('current_role', user.roles.split(',')[0])
-        
-        # Nếu có ?all=1 thì chỉ ADMIN mới được truy cập
         if request.args.get('all') == '1':
             if current_role != 'ADMIN':
                 return jsonify({'error': 'Chỉ quản trị viên mới có thể xem lịch sử chấm công toàn bộ'}), 403
-            
-            page = int(request.args.get('page', 1))
-            per_page = int(request.args.get('per_page', 10))
-            month = request.args.get('month')
-            year = request.args.get('year')
-            
-            # ADMIN có thể xem tất cả records đã được phê duyệt
-            # Sửa lỗi: Hiển thị của tất cả user, không chỉ của admin
+            if not has_role(session['user_id'], 'ADMIN'):
+                return jsonify({'error': 'Bạn không có quyền truy cập dữ liệu toàn bộ'}), 403
+            page = validate_int(request.args.get('page', 1), min_val=1)
+            per_page = validate_int(request.args.get('per_page', 10), min_val=1, max_val=100)
+            month = validate_int(request.args.get('month'), min_val=1, max_val=12) if request.args.get('month') else None
+            year = validate_int(request.args.get('year'), min_val=2000, max_val=2100) if request.args.get('year') else None
+            if page is None or per_page is None:
+                return jsonify({'error': 'Tham số phân trang không hợp lệ'}), 400
             q = Attendance.query.filter_by(approved=True)
-
             if month and year:
-                q = q.filter(db.extract('month', Attendance.date) == int(month), db.extract('year', Attendance.date) == int(year))
+                q = q.filter(db.extract('month', Attendance.date) == month, db.extract('year', Attendance.date) == year)
             elif month:
-                q = q.filter(db.extract('month', Attendance.date) == int(month))
+                q = q.filter(db.extract('month', Attendance.date) == month)
             elif year:
-                q = q.filter(db.extract('year', Attendance.date) == int(year))
-
+                q = q.filter(db.extract('year', Attendance.date) == year)
             total = q.count()
-            attendances = q.order_by(Attendance.date.desc()).offset((page-1)*per_page).limit(per_page).all()
-            
+            # Optimize with eager loading to prevent N+1 queries
+            attendances = q.options(
+                joinedload(Attendance.user),
+                joinedload(Attendance.approver)
+            ).order_by(Attendance.date.desc()).offset((page-1)*per_page).limit(per_page).all()
             history = []
             for att in attendances:
-                att_user = User.query.get(att.user_id)
                 att_dict = att.to_dict()
-                att_dict['user_name'] = att_user.name if att_user else '-'
-                att_dict['department'] = att_user.department if att_user else '-'
+                att_dict['user_name'] = att.user.name if att.user else '-'
+                att_dict['department'] = att.user.department if att.user else '-'
+                att_dict['approver_name'] = att.approver.name if att.approver else '-'
                 history.append(att_dict)
-
             return jsonify({
                 'total': total,
                 'page': page,
@@ -409,21 +290,21 @@ def get_attendance_history():
                 'data': history
             })
         else:
-            # Lấy lịch sử chấm công của tháng hiện tại (tất cả records để nhân viên thấy trạng thái)
             current_month = datetime.now().month
             current_year = datetime.now().year
+            # Optimize with eager loading
             attendances = Attendance.query.filter_by(user_id=user.id)\
+                .options(joinedload(Attendance.approver))\
                 .filter(db.extract('month', Attendance.date) == current_month)\
                 .filter(db.extract('year', Attendance.date) == current_year)\
                 .order_by(Attendance.date.desc())\
                 .all()
-        print("Found attendances:", len(attendances))  # Debug log
-        history = []
-        for att in attendances:
-            history.append(att.to_dict())
-        return jsonify(history)
+            history = []
+            for att in attendances:
+                history.append(att.to_dict())
+            return jsonify(history)
     except Exception as e:
-        print(f"Error in get_attendance_history: {str(e)}")  # Debug log
+        print(f"Error in get_attendance_history: {str(e)}")
         return jsonify({'error': 'Đã xảy ra lỗi khi lấy lịch sử chấm công'}), 500
 
 def validate_role(role):
@@ -458,23 +339,102 @@ def check_approval_permission(user_id, attendance_id, current_role):
     if not user:
         return False, "Không tìm thấy người dùng"
     
-    attendance = Attendance.query.get(attendance_id)
+    attendance = Attendance.query.options(joinedload(Attendance.user)).get(attendance_id)
     if not attendance:
         return False, "Không tìm thấy bản ghi chấm công"
     
-    # ADMIN và MANAGER có thể duyệt tất cả
-    if current_role in ['ADMIN', 'MANAGER']:
+    # ADMIN có thể duyệt tất cả
+    if current_role == 'ADMIN':
+        return True, ""
+    
+    # MANAGER có thể duyệt nhân viên cùng phòng ban
+    if current_role == 'MANAGER':
+        if not attendance.user or attendance.user.department != user.department:
+            return False, "Bạn chỉ có thể phê duyệt chấm công của nhân viên cùng phòng ban"
         return True, ""
     
     # TEAM_LEADER có thể duyệt nhân viên cùng phòng ban (bao gồm cả bản thân)
     if current_role == 'TEAM_LEADER':
-        attendance_user = User.query.get(attendance.user_id)
-        if not attendance_user or attendance_user.department != user.department:
+        if not attendance.user or attendance.user.department != user.department:
             return False, "Bạn chỉ có thể phê duyệt chấm công của nhân viên cùng phòng ban"
-        
         return True, ""
     
     return False, "Bạn không có quyền phê duyệt chấm công"
+
+def check_attendance_access_permission(user_id, attendance_id, action='read'):
+    """Check if user has permission to access specific attendance record"""
+    user = User.query.get(user_id)
+    if not user:
+        return False, "Không tìm thấy người dùng"
+    
+    attendance = Attendance.query.options(joinedload(Attendance.user)).get(attendance_id)
+    if not attendance:
+        return False, "Không tìm thấy bản ghi chấm công"
+    
+    current_role = session.get('current_role', user.roles.split(',')[0])
+    
+    # ADMIN có thể truy cập tất cả
+    if current_role == 'ADMIN':
+        return True, ""
+    
+    # MANAGER có thể truy cập nhân viên cùng phòng ban
+    if current_role == 'MANAGER':
+        if not attendance.user or attendance.user.department != user.department:
+            return False, "Bạn chỉ có thể truy cập chấm công của nhân viên cùng phòng ban"
+        return True, ""
+    
+    # TEAM_LEADER có thể truy cập nhân viên cùng phòng ban
+    if current_role == 'TEAM_LEADER':
+        if not attendance.user or attendance.user.department != user.department:
+            return False, "Bạn chỉ có thể truy cập chấm công của nhân viên cùng phòng ban"
+        return True, ""
+    
+    # EMPLOYEE chỉ có thể truy cập bản ghi của chính mình
+    if current_role == 'EMPLOYEE':
+        if attendance.user_id != user_id:
+            return False, "Bạn chỉ có thể truy cập bản ghi chấm công của chính mình"
+        return True, ""
+    
+    return False, "Bạn không có quyền truy cập bản ghi này"
+
+def check_request_access_permission(user_id, request_id, action='read'):
+    """Check if user has permission to access specific request record"""
+    user = User.query.get(user_id)
+    if not user:
+        return False, "Không tìm thấy người dùng"
+    
+    req = Request.query.options(joinedload(Request.user)).get(request_id)
+    if not req:
+        return False, "Không tìm thấy yêu cầu"
+    
+    current_role = session.get('current_role', user.roles.split(',')[0])
+    
+    # ADMIN có thể truy cập tất cả
+    if current_role == 'ADMIN':
+        return True, ""
+    
+    # MANAGER có thể truy cập yêu cầu của nhân viên cùng phòng ban
+    if current_role == 'MANAGER':
+        if not req.user or req.user.department != user.department:
+            return False, "Bạn chỉ có thể truy cập yêu cầu của nhân viên cùng phòng ban"
+        return True, ""
+    
+    # TEAM_LEADER có thể truy cập yêu cầu của nhân viên cùng phòng ban
+    if current_role == 'TEAM_LEADER':
+        if not req.user or req.user.department != user.department:
+            return False, "Bạn chỉ có thể truy cập yêu cầu của nhân viên cùng phòng ban"
+        return True, ""
+    
+    # EMPLOYEE chỉ có thể truy cập yêu cầu của chính mình
+    if current_role == 'EMPLOYEE':
+        if req.user_id != user_id:
+            return False, "Bạn chỉ có thể truy cập yêu cầu của chính mình"
+        return True, ""
+    
+    return False, "Bạn không có quyền truy cập yêu cầu này"
+
+# Import session utilities from utils
+from utils.session import check_session_timeout, update_session_activity, log_audit_action
 
 def require_role(required_role):
     """Decorator to require specific role for route"""
@@ -513,43 +473,57 @@ def admin_users():
 @require_admin
 def edit_user(user_id):
     user = User.query.get_or_404(user_id)
-    
     if request.method == 'POST':
         try:
-            user.name = request.form['name']
-            user.roles = request.form['role']
-            user.department = request.form['department']
-            
+            name = validate_input_sanitize(request.form['name'])
+            role = validate_role_value(request.form['role'])
+            department = validate_input_sanitize(request.form['department'])
+            if not name:
+                flash('Tên người dùng không hợp lệ', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
+            if not role:
+                flash('Vai trò không hợp lệ', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
+            if not department:
+                flash('Phòng ban không hợp lệ', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
+            user.name = name
+            user.roles = role
+            user.department = department
             db.session.commit()
             flash('Cập nhật người dùng thành công', 'success')
             return redirect(url_for('admin_users'))
         except Exception as e:
             flash(str(e), 'error')
             return redirect(url_for('edit_user', user_id=user_id))
-    
     return render_template('admin/edit_user.html', user=user)
 
 @app.route('/switch-role', methods=['POST'])
 def switch_role():
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-    
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     data = request.get_json()
-    role = data.get('role')
+    role = validate_role_value(data.get('role'))
     if not role:
-        return jsonify({'error': 'Thiếu vai trò'}), 400
-    
+        return jsonify({'error': 'Vai trò không hợp lệ'}), 400
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-    
-    # Kiểm tra xem user có role này không
     if role not in user.roles.split(','):
         return jsonify({'error': 'Vai trò không hợp lệ'}), 400
-    
-    # Cập nhật session
+    old_role = session.get('current_role')
     session['current_role'] = role
-    
+    log_audit_action(
+        user_id=user.id,
+        action='SWITCH_ROLE',
+        table_name='users',
+        record_id=user.id,
+        old_values={'current_role': old_role},
+        new_values={'current_role': role}
+    )
     return jsonify({'message': 'Đã chuyển vai trò thành công'}), 200
 
 # API endpoint để submit request
@@ -557,28 +531,43 @@ def switch_role():
 def submit_request():
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-    
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     data = request.get_json()
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-    
-    # Tìm leader của phòng ban
+    # Validate input
+    request_type = validate_input_sanitize(data.get('request_type'))
+    start_date = validate_date(data.get('start_date'))
+    end_date = validate_date(data.get('end_date'))
+    reason = validate_reason(data.get('reason'))
+    if not request_type:
+        return jsonify({'error': 'Loại yêu cầu không hợp lệ'}), 400
+    if not start_date:
+        return jsonify({'error': 'Ngày bắt đầu không hợp lệ'}), 400
+    if not end_date:
+        return jsonify({'error': 'Ngày kết thúc không hợp lệ'}), 400
+    if not reason:
+        return jsonify({'error': 'Lý do không hợp lệ'}), 400
+    if start_date > end_date:
+        return jsonify({'error': 'Ngày bắt đầu phải trước ngày kết thúc'}), 400
+    if start_date < datetime.now().date():
+        return jsonify({'error': 'Không thể tạo yêu cầu cho ngày trong quá khứ'}), 400
     leader = User.query.filter_by(department=user.department, roles='TEAM_LEADER').first()
     if not leader:
         return jsonify({'error': 'Không tìm thấy trưởng nhóm cho phòng ban này'}), 400
-    
     new_request = Request(
         user_id=user.id,
-        request_type=data.get('request_type'),
-        start_date=datetime.strptime(data.get('start_date'), '%Y-%m-%d').date(),
-        end_date=datetime.strptime(data.get('end_date'), '%Y-%m-%d').date(),
-        reason=data.get('reason'),
+        request_type=request_type,
+        start_date=start_date,
+        end_date=end_date,
+        reason=reason,
         current_approver_id=leader.id,
         step='leader',
         status='pending'
     )
-    
     db.session.add(new_request)
     db.session.commit()
     return jsonify({'message': 'Gửi yêu cầu thành công'}), 201
@@ -588,17 +577,23 @@ def submit_request():
 def approve_request(request_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-    
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     data = request.get_json()
     action = data.get('action')  # 'approve' hoặc 'reject'
-    reason = data.get('reason', '')
-    
-    req = Request.query.get_or_404(request_id)
+    reason = validate_reason(data.get('reason', '')) if data.get('action') == 'reject' else ''
+    if action not in ['approve', 'reject']:
+        return jsonify({'error': 'Hành động không hợp lệ'}), 400
+    if action == 'reject' and not reason:
+        return jsonify({'error': 'Lý do từ chối không hợp lệ'}), 400
+    has_permission, error_message = check_request_access_permission(session['user_id'], request_id, 'approve')
+    if not has_permission:
+        return jsonify({'error': error_message}), 403
+    req = Request.query.options(joinedload(Request.user)).get_or_404(request_id)
     approver = User.query.get(session['user_id'])
-    
     if req.current_approver_id != approver.id:
         return jsonify({'error': 'Bạn không có quyền phê duyệt yêu cầu này'}), 403
-    
     if action == 'approve':
         if req.step == 'leader':
             manager = User.query.filter_by(department=req.user.department, roles='MANAGER').first()
@@ -620,7 +615,6 @@ def approve_request(request_id):
         req.step = 'employee_edit'
         req.reject_reason = reason
         req.current_approver_id = req.user_id
-    
     db.session.commit()
     return jsonify({'message': 'Cập nhật yêu cầu thành công'}), 200
 
@@ -628,12 +622,39 @@ def approve_request(request_id):
 def delete_attendance(attendance_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
+    
+    # Kiểm tra session timeout
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    
+    # Cập nhật thời gian hoạt động cuối
+    update_session_activity()
+    
+    # Kiểm tra quyền truy cập (chỉ EMPLOYEE có thể xóa bản ghi của chính mình)
+    has_permission, error_message = check_attendance_access_permission(session['user_id'], attendance_id, 'delete')
+    if not has_permission:
+        return jsonify({'error': error_message}), 403
+    
     att = Attendance.query.get(attendance_id)
-    if not att or att.user_id != session['user_id']:
-        return jsonify({'error': 'Không tìm thấy bản ghi hoặc không có quyền xóa'}), 404
+    if not att:
+        return jsonify({'error': 'Không tìm thấy bản ghi'}), 404
     if att.approved:
         return jsonify({'error': 'Bản ghi đã được phê duyệt, không thể xóa!'}), 400
     try:
+        # Log attendance deletion
+        log_audit_action(
+            user_id=session['user_id'],
+            action='DELETE_ATTENDANCE',
+            table_name='attendances',
+            record_id=attendance_id,
+            old_values={
+                'date': att.date.isoformat(),
+                'check_in': att.check_in.isoformat() if att.check_in else None,
+                'check_out': att.check_out.isoformat() if att.check_out else None,
+                'status': att.status
+            }
+        )
+        
         db.session.delete(att)
         db.session.commit()
         return jsonify({'success': True})
@@ -646,9 +667,21 @@ def get_attendance(attendance_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
     
+    # Kiểm tra session timeout
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    
+    # Cập nhật thời gian hoạt động cuối
+    update_session_activity()
+    
+    # Kiểm tra quyền truy cập
+    has_permission, error_message = check_attendance_access_permission(session['user_id'], attendance_id, 'read')
+    if not has_permission:
+        return jsonify({'error': error_message}), 403
+    
     attendance = Attendance.query.get(attendance_id)
-    if not attendance or attendance.user_id != session['user_id']:
-        return jsonify({'error': 'Không tìm thấy bản ghi hoặc không có quyền truy cập'}), 404
+    if not attendance:
+        return jsonify({'error': 'Không tìm thấy bản ghi'}), 404
     
     return jsonify({
         'id': attendance.id,
@@ -667,75 +700,67 @@ def get_attendance(attendance_id):
 def update_attendance(attendance_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-    
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
+    has_permission, error_message = check_attendance_access_permission(session['user_id'], attendance_id, 'update')
+    if not has_permission:
+        return jsonify({'error': error_message}), 403
     attendance = Attendance.query.get(attendance_id)
-    if not attendance or attendance.user_id != session['user_id']:
-        return jsonify({'error': 'Không tìm thấy bản ghi hoặc không có quyền truy cập'}), 404
-    
+    if not attendance:
+        return jsonify({'error': 'Không tìm thấy bản ghi'}), 404
     if attendance.approved:
         return jsonify({'error': 'Bản ghi đã được phê duyệt, không thể sửa!'}), 400
-    
     data = request.get_json()
-    date = data.get('date')
-    check_in = data.get('check_in')
-    check_out = data.get('check_out')
-    note = data.get('note', '')
-    break_time = data.get('break_time', 1.0)
-    is_holiday = data.get('is_holiday', False)
-    holiday_type = data.get('holiday_type')
-    
-    print("Updating attendance with data:", data)  # Debug log
-    
-    if not date or date.strip() == '':
-        return jsonify({'error': 'Vui lòng chọn ngày chấm công'}), 400
+    # Validate input
+    date = validate_date(data.get('date'))
+    check_in = validate_time(data.get('check_in'))
+    check_out = validate_time(data.get('check_out'))
+    note = validate_note(data.get('note', ''))
+    break_time = validate_float(data.get('break_time', 1.0), min_val=0, max_val=8)
+    is_holiday = bool(data.get('is_holiday', False))
+    holiday_type = validate_holiday_type(data.get('holiday_type'))
+    if not date:
+        return jsonify({'error': 'Vui lòng chọn ngày chấm công hợp lệ'}), 400
     if not holiday_type:
-        return jsonify({'error': 'Vui lòng chọn loại ngày'}), 400
+        return jsonify({'error': 'Vui lòng chọn loại ngày hợp lệ'}), 400
     if not check_in or not check_out:
-        return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra'}), 400
-    
-    try:
-        # Parse date and times
-        selected_date = datetime.strptime(date, '%Y-%m-%d').date()
-        check_in_time = datetime.strptime(f"{date}T{check_in}", '%Y-%m-%dT%H:%M')
-        check_out_time = datetime.strptime(f"{date}T{check_out}", '%Y-%m-%dT%H:%M')
-        
-        # Validate time
-        now = datetime.now()
-        if check_out_time <= check_in_time:
-            return jsonify({'error': 'Giờ ra phải sau giờ vào!'}), 400
-            
-        work_duration_seconds = (check_out_time - check_in_time).total_seconds()
-        break_time_seconds = break_time * 3600
-        if break_time_seconds >= work_duration_seconds:
-            return jsonify({'error': 'Giờ nghỉ không thể lớn hơn hoặc bằng tổng thời gian làm việc!'}), 400
-            
-    except ValueError as e:
-        print(f"ValueError: {str(e)}")  # Debug log
-        return jsonify({'error': 'Định dạng ngày hoặc giờ không hợp lệ'}), 400
-    
-    # Update attendance record
-    attendance.date = selected_date
-    attendance.check_in = check_in_time
-    attendance.check_out = check_out_time
+        return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra hợp lệ'}), 400
+    if break_time is None:
+        return jsonify({'error': 'Thời gian nghỉ không hợp lệ!'}), 400
+    attendance.date = date
+    attendance.check_in = datetime.combine(date, check_in)
+    attendance.check_out = datetime.combine(date, check_out)
     attendance.note = note
     attendance.break_time = break_time
     attendance.is_holiday = is_holiday
     attendance.holiday_type = holiday_type
-    
-    # Reset trạng thái về pending nếu record bị từ chối
     if attendance.status == 'rejected':
         attendance.status = 'pending'
-    
-    # Kiểm tra ngày không được trong tương lai
-    if selected_date > datetime.now().date():
+    if date > datetime.now().date():
         return jsonify({'error': 'Không thể chấm công cho ngày trong tương lai!'}), 400
-    
     attendance.update_work_hours()
-    
     try:
         db.session.commit()
+        log_audit_action(
+            user_id=session['user_id'],
+            action='UPDATE_ATTENDANCE',
+            table_name='attendances',
+            record_id=attendance_id,
+            old_values={
+                'date': attendance.date.isoformat(),
+                'check_in': attendance.check_in.isoformat() if attendance.check_in else None,
+                'check_out': attendance.check_out.isoformat() if attendance.check_out else None,
+                'status': attendance.status
+            },
+            new_values={
+                'date': date.isoformat(),
+                'check_in': datetime.combine(date, check_in).isoformat(),
+                'check_out': datetime.combine(date, check_out).isoformat(),
+                'status': attendance.status
+            }
+        )
         message = 'Cập nhật chấm công thành công'
-        
         return jsonify({
             'message': message,
             'work_hours': attendance.total_work_hours,
@@ -743,75 +768,87 @@ def update_attendance(attendance_id):
             'overtime_after_22': attendance.overtime_after_22
         })
     except Exception as e:
-        print(f"Database error: {str(e)}")  # Debug log
+        print(f"Database error: {str(e)}")
         db.session.rollback()
         return jsonify({'error': 'Đã xảy ra lỗi khi cập nhật dữ liệu'}), 500
 
 @app.route('/api/attendance/<int:attendance_id>/approve', methods=['POST'])
+@rate_limit(max_requests=30, window_seconds=60)  # 30 approvals per minute
 def approve_attendance(attendance_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-        
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-    
-    # Kiểm tra quyền phê duyệt
     current_role = session.get('current_role', user.roles.split(',')[0])
     if current_role not in ['TEAM_LEADER', 'MANAGER', 'ADMIN']:
         return jsonify({'error': 'Bạn không có quyền phê duyệt chấm công'}), 403
-    
-    # Kiểm tra permission chi tiết
     has_permission, error_message = check_approval_permission(user.id, attendance_id, current_role)
     if not has_permission:
         return jsonify({'error': error_message}), 403
-        
     data = request.get_json()
     action = data.get('action')  # 'approve' hoặc 'reject'
-    reason = data.get('reason', '')
-    
+    reason = validate_reason(data.get('reason', '')) if data.get('action') == 'reject' else ''
+    if action not in ['approve', 'reject']:
+        return jsonify({'error': 'Hành động không hợp lệ'}), 400
+    if action == 'reject' and not reason:
+        return jsonify({'error': 'Lý do từ chối không hợp lệ'}), 400
     attendance = Attendance.query.get(attendance_id)
     if not attendance:
         return jsonify({'error': 'Không tìm thấy bản ghi chấm công'}), 404
-        
     if attendance.approved:
         return jsonify({'error': 'Bản ghi đã được phê duyệt hoàn tất'}), 400
-        
     if action == 'approve':
+        old_status = attendance.status
         if current_role == 'TEAM_LEADER':
-            # Trưởng nhóm duyệt -> chuyển cho Manager, không thông báo cho nhân viên
             if attendance.status != 'pending':
                 return jsonify({'error': 'Bản ghi không ở trạng thái chờ duyệt'}), 400
             attendance.status = 'pending_manager'
+            attendance.approved_by = user.id
+            attendance.approved_at = datetime.now()
             message = 'Đã chuyển lên Quản lý phê duyệt'
-            print(f"TEAM_LEADER approved attendance {attendance_id}, status changed to: {attendance.status}")
         elif current_role == 'MANAGER':
-            # Manager duyệt -> chuyển cho Admin
             if attendance.status != 'pending_manager':
                 return jsonify({'error': 'Bản ghi chưa được Trưởng nhóm phê duyệt'}), 400
             attendance.status = 'pending_admin'
+            attendance.approved_by = user.id
+            attendance.approved_at = datetime.now()
             message = 'Đã chuyển lên Admin phê duyệt'
-            print(f"MANAGER approved attendance {attendance_id}, status changed to: {attendance.status}")
         elif current_role == 'ADMIN':
-            # Admin duyệt -> hoàn tất
             if attendance.status not in ['pending_manager', 'pending_admin']:
                 return jsonify({'error': 'Bản ghi chưa được cấp dưới phê duyệt'}), 400
             attendance.status = 'approved'
             attendance.approved = True
+            attendance.approved_by = user.id
+            attendance.approved_at = datetime.now()
             message = 'Phê duyệt hoàn tất'
-            print(f"ADMIN approved attendance {attendance_id}, status changed to: {attendance.status}, approved: {attendance.approved}")
+        log_audit_action(
+            user_id=user.id,
+            action='APPROVE_ATTENDANCE',
+            table_name='attendances',
+            record_id=attendance_id,
+            old_values={'status': old_status},
+            new_values={'status': attendance.status, 'approved_by': user.id, 'approved_at': attendance.approved_at.isoformat()}
+        )
     else:  # reject
+        old_status = attendance.status
         attendance.status = 'rejected'
-        # Ghi đè ghi chú cũ bằng lý do từ chối mới
         attendance.note = f"Bị từ chối bởi {current_role}: {reason}"
         message = 'Từ chối thành công'
-        print(f"{current_role} rejected attendance {attendance_id}, status changed to: {attendance.status}")
-        
+        log_audit_action(
+            user_id=user.id,
+            action='REJECT_ATTENDANCE',
+            table_name='attendances',
+            record_id=attendance_id,
+            old_values={'status': old_status},
+            new_values={'status': attendance.status, 'reason': reason}
+        )
     try:
         db.session.commit()
-        return jsonify({
-            'message': message
-        })
+        return jsonify({'message': message})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Đã xảy ra lỗi khi cập nhật trạng thái'}), 500
@@ -880,64 +917,42 @@ def translate_holiday_type(holiday_type_en):
 def get_pending_attendance():
     if 'user_id' not in session:
         return jsonify({'total': 0, 'page': 1, 'per_page': 10, 'data': []})
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'total': 0, 'page': 1, 'per_page': 10, 'data': []})
     current_role = session.get('current_role', user.roles.split(',')[0])
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 10))
-    search = request.args.get('search', '').strip()
-    department = request.args.get('department', '').strip()
-    date_from = request.args.get('date_from', '').strip()
-    date_to = request.args.get('date_to', '').strip()
-
+    page = validate_int(request.args.get('page', 1), min_val=1)
+    per_page = validate_int(request.args.get('per_page', 10), min_val=1, max_val=100)
+    search = validate_input_sanitize(request.args.get('search', '').strip())
+    department = validate_input_sanitize(request.args.get('department', '').strip())
+    date_from = validate_date(request.args.get('date_from', '').strip()) if request.args.get('date_from') else None
+    date_to = validate_date(request.args.get('date_to', '').strip()) if request.args.get('date_to') else None
+    if page is None or per_page is None:
+        return jsonify({'error': 'Tham số phân trang không hợp lệ'}), 400
     if current_role == 'TEAM_LEADER':
-        # TEAM_LEADER chỉ thấy bản ghi pending ban đầu
         query = Attendance.query.filter_by(approved=False, status='pending')
-        # Cho phép leader duyệt nhân viên trong cùng phòng ban (bao gồm cả bản thân)
         team_users = User.query.filter(User.department == user.department).all()
         team_user_ids = [u.id for u in team_users]
         query = query.filter(Attendance.user_id.in_(team_user_ids))
     elif current_role == 'MANAGER':
-        # MANAGER chỉ thấy bản ghi đã được TEAM_LEADER duyệt
         query = Attendance.query.filter_by(approved=False, status='pending_manager')
-        # Bỏ điều kiện lọc user_id để MANAGER thấy tất cả bản ghi
         if department:
-            user_ids = [u.id for u in User.query.filter_by(department=department)]
-            query = query.filter(Attendance.user_id.in_(user_ids))
+            query = query.join(Attendance.user).filter(User.department == department)
     else:  # ADMIN
-        # ADMIN chỉ thấy các bản ghi đã được MANAGER duyệt và chờ mình
         query = Attendance.query.filter_by(approved=False, status='pending_admin')
-        
-        # Debug: In ra tất cả các status có trong database
-        all_statuses = db.session.query(Attendance.status).distinct().all()
-        print(f"All statuses in database: {[s[0] for s in all_statuses]}")
-        
-        # Debug: In ra số lượng bản ghi cho mỗi status
-        for status in ['pending', 'pending_manager', 'pending_admin', 'approved', 'rejected']:
-            count = Attendance.query.filter_by(status=status, approved=False).count()
-            print(f"Status '{status}': {count} records")
-
-    # Áp dụng các bộ lọc chung
     if search:
-        user_ids = [u.id for u in User.query.filter(User.name.ilike(f'%{search}%'))]
-        query = query.filter(Attendance.user_id.in_(user_ids))
+        query = query.join(Attendance.user).filter(User.name.ilike(f'%{search}%'))
     if date_from:
         query = query.filter(Attendance.date >= date_from)
     if date_to:
         query = query.filter(Attendance.date <= date_to)
-    
-    print(f"Current role: {current_role}")  # Debug log
-    print(f"Query SQL: {query}")  # Debug log
-    
     total = query.count()
-    records = query.order_by(Attendance.date.desc()).offset((page-1)*per_page).limit(per_page).all()
-    
-    print(f"Found {total} records")  # Debug log
-    
+    records = query.options(joinedload(Attendance.user)).order_by(Attendance.date.desc()).offset((page-1)*per_page).limit(per_page).all()
     result = []
     for att in records:
-        emp = User.query.get(att.user_id)
         result.append({
             'id': att.id,
             'date': att.date.strftime('%Y-%m-%d'),
@@ -949,10 +964,11 @@ def get_pending_attendance():
             'overtime_before_22': att.overtime_before_22,
             'overtime_after_22': att.overtime_after_22,
             'holiday_type': translate_holiday_type(att.holiday_type),
-            'user_name': emp.name if emp else '',
-            'department': emp.department if emp else '',
+            'user_name': att.user.name if att.user else '',
+            'department': att.user.department if att.user else '',
             'note': att.note,
-            'status': att.status
+            'status': att.status,
+            'approved': att.approved
         })
     return jsonify({
         'total': total,
@@ -965,27 +981,25 @@ def get_pending_attendance():
 def debug_attendance_status():
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
-    
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
+    update_session_activity()
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
-    
     current_role = session.get('current_role', user.roles.split(',')[0])
     if current_role != 'ADMIN':
         return jsonify({'error': 'Chỉ ADMIN mới có thể truy cập endpoint này'}), 403
-    
-    # Lấy tất cả các status có trong database
+    if not has_role(session['user_id'], 'ADMIN'):
+        return jsonify({'error': 'Bạn không có quyền truy cập debug endpoint'}), 403
     all_statuses = db.session.query(Attendance.status).distinct().all()
     status_counts = {}
-    
     for status in ['pending', 'pending_manager', 'pending_admin', 'approved', 'rejected']:
         count = Attendance.query.filter_by(status=status).count()
         status_counts[status] = count
-    
-    # Lấy một số bản ghi mẫu cho mỗi status
     sample_records = {}
     for status in ['pending', 'pending_manager', 'pending_admin']:
-        records = Attendance.query.filter_by(status=status).limit(5).all()
+        records = Attendance.query.options(joinedload(Attendance.user)).filter_by(status=status).limit(5).all()
         sample_records[status] = [
             {
                 'id': r.id,
@@ -993,19 +1007,94 @@ def debug_attendance_status():
                 'date': r.date.strftime('%Y-%m-%d'),
                 'status': r.status,
                 'approved': r.approved,
-                'user_name': User.query.get(r.user_id).name if User.query.get(r.user_id) else 'Unknown'
+                'user_name': r.user.name if r.user else 'Unknown'
             }
             for r in records
         ]
-    
     return jsonify({
         'all_statuses': [s[0] for s in all_statuses],
         'status_counts': status_counts,
         'sample_records': sample_records
     })
 
+def validate_date(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return None
+
+def validate_time(time_str):
+    try:
+        return datetime.strptime(time_str, '%H:%M').time()
+    except Exception:
+        return None
+
+def validate_float(val, min_val=None, max_val=None):
+    try:
+        f = float(val)
+        if min_val is not None and f < min_val:
+            return None
+        if max_val is not None and f > max_val:
+            return None
+        return f
+    except Exception:
+        return None
+
+def validate_str(val, max_length=255, allow_empty=False):
+    if not isinstance(val, str):
+        return None
+    if not allow_empty and not val.strip():
+        return None
+    if len(val) > max_length:
+        return None
+    return val.strip()
+
+def validate_note(val):
+    return validate_str(val, max_length=1000, allow_empty=True)
+
+def validate_reason(val):
+    return validate_str(val, max_length=500, allow_empty=False)
+
+def validate_holiday_type(val):
+    allowed = ['normal', 'weekend', 'vietnamese_holiday', 'japanese_holiday']
+    return val if val in allowed else None
+
+def validate_role_value(val):
+    allowed = ['EMPLOYEE', 'TEAM_LEADER', 'MANAGER', 'ADMIN']
+    return val if val in allowed else None
+
+def validate_int(val, min_val=None, max_val=None):
+    try:
+        i = int(val)
+        if min_val is not None and i < min_val:
+            return None
+        if max_val is not None and i > max_val:
+            return None
+        return i
+    except Exception:
+        return None
+
+# Import validation functions from utils
+from utils.validators import validate_input_sanitize, validate_employee_id
+
+# Exempt certain API endpoints from CSRF protection if needed
+# GET endpoints don't need CSRF protection
+try:
+    csrf.exempt(app.view_functions['get_attendance'])
+    csrf.exempt(app.view_functions['get_attendance_history'])
+    csrf.exempt(app.view_functions['get_pending_attendance'])
+    csrf.exempt(app.view_functions['debug_attendance_status'])
+except KeyError:
+    pass  # Routes might not exist yet
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         convert_overtime_to_hhmm()
-    app.run(debug=True) 
+    
+    # Production-ready settings
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    port = int(os.environ.get('FLASK_PORT', 5000))
+    
+    app.run(debug=debug_mode, host=host, port=port) 

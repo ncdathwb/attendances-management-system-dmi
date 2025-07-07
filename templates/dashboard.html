@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard - Hệ thống Chấm công</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -1457,14 +1458,23 @@
 
             // If editing, use PUT request
             if (editId && editId.value) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 fetch(`/api/attendance/${editId.value}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
                     body: JSON.stringify(data)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        return response.text().then(text => { throw new Error('Server trả về dữ liệu không phải JSON: ' + text); });
+                    }
+                })
                 .then(data => {
                     if (data.error) {
                         showToast(data.error, 'error');
@@ -1476,20 +1486,29 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showToast('Đã xảy ra lỗi khi cập nhật chấm công', 'error');
+                    showToast('Đã xảy ra lỗi khi cập nhật chấm công: ' + error.message, 'error');
                 });
                 return;
             }
 
             // If new record, use POST request
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             fetch('/api/attendance', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => response.json())
+            .then(response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => { throw new Error('Server trả về dữ liệu không phải JSON: ' + text); });
+                }
+            })
             .then(data => {
                 if (data.error) {
                     showToast(data.error, 'error');
@@ -1501,7 +1520,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('Đã xảy ra lỗi khi lưu chấm công', 'error');
+                showToast('Đã xảy ra lỗi khi lưu chấm công: ' + error.message, 'error');
             });
         }
 
@@ -1525,6 +1544,10 @@
             if (attendanceDate && attendanceDate._flatpickr) {
                 attendanceDate._flatpickr.clear();
                 attendanceDate.placeholder = 'Chọn ngày...';
+            }
+            // Đặt lại ngày về hôm nay sau khi reset
+            if (attendanceDate && attendanceDate._flatpickr) {
+                attendanceDate._flatpickr.setDate(new Date());
             }
         }
 
@@ -1590,7 +1613,10 @@
                     dateFormat: "d/m/Y",
                     locale: "vn",
                     allowInput: false, // Ngăn người dùng nhập tay
+                    altInput: true,
+                    altFormat: "d/m/Y",
                     placeholder: "Chọn ngày...",
+                    defaultDate: new Date(), // <-- tự động set ngày hôm nay
                     onChange: function(selectedDates, dateStr, instance) {
                         if (dateStr === '') {
                              instance.input.placeholder = 'Chọn ngày...';
@@ -1650,10 +1676,21 @@
         });
         // Function to delete attendance
         function deleteAttendance(id) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             fetch(`/api/attendance/${id}`, {
                 method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => { throw new Error('Server trả về dữ liệu không phải JSON: ' + text); });
+                }
+            })
             .then(data => {
                 if (data.error) {
                     showToast(data.error, 'error');
@@ -1664,7 +1701,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('Lỗi server khi xóa!', 'error');
+                showToast('Lỗi server khi xóa! ' + error.message, 'error');
             });
         }
 
@@ -1929,7 +1966,7 @@
                         <td>${translateStatus(record.status)}</td>
                         <td style="height: 50px; width: 120px; padding: 0 !important;">
                             <div class="action-container">
-                            ${!record.approved ? `
+                            ${['pending', 'pending_manager', 'pending_admin'].includes(record.status) ? `
                                     <div class="btn-action-container">
                                         <button class='btn btn-success btn-sm approve-attendance-btn' data-id='${record.id}' title="Phê duyệt">
                                             <i class='fas fa-check me-1'></i>Phê duyệt
@@ -2076,9 +2113,15 @@
         });
 
         function switchRole(role) {
+            // Lấy CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
             fetch('/switch-role', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({ role })
             })
             .then(res => res.json())
@@ -2165,15 +2208,29 @@
 
         // Hàm phê duyệt chấm công
         async function approveAttendance(attendanceId, action) {
+            console.log('approveAttendance called with:', { attendanceId, action });
+            
+            // Lấy CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            console.log('CSRF Token:', csrfToken);
+            
             if (action === 'approve') {
+                console.log('Processing approval...');
                 // Xử lý phê duyệt trực tiếp
                 fetch(`/api/attendance/${attendanceId}/approve`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
                     body: JSON.stringify({ action: 'approve', reason: '' })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Response data:', data);
                     if (data.error) {
                         showToast(data.error, 'error');
                     } else {
@@ -2186,6 +2243,7 @@
                     showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
                 });
             } else if (action === 'reject') {
+                console.log('Processing rejection...');
                 // Hiển thị popup để nhập lý do từ chối
                 const { value: reason } = await Swal.fire({
                     title: 'Xác nhận từ chối',
@@ -2204,14 +2262,22 @@
                 });
 
                 if (reason) {
+                    console.log('Sending rejection with reason:', reason);
                     // Gửi yêu cầu từ chối với lý do
                     fetch(`/api/attendance/${attendanceId}/approve`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
                         body: JSON.stringify({ action: 'reject', reason: reason })
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        console.log('Rejection response status:', response.status);
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Rejection response data:', data);
                         if (data.error) {
                             showToast(data.error, 'error');
                         } else {
@@ -2229,6 +2295,18 @@
         
         window.switchRole = switchRole;
         window.approveAttendance = approveAttendance;
+
+        // Set default value for attendanceDate to today
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.getElementById('attendanceDate');
+            if (dateInput && !dateInput.value) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        });
     </script>
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

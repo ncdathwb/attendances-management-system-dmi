@@ -11,75 +11,228 @@ const rowsPerPage = 5;
 let approvalPage = 1;
 let approvalPerPage = 10;
 
-// Current time
-function getCurrentTime() {
-    const now = new Date();
-    return now.toISOString().slice(0, 16);
+// CSRF token function with better error handling
+function getCSRFToken() {
+    const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const inputToken = document.querySelector('input[name="csrf_token"]')?.value;
+    
+    if (!metaToken && !inputToken) {
+        console.warn('CSRF token not found');
+        return null;
+    }
+    
+    return metaToken || inputToken;
 }
 
-// Format date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).replace(/\//g, '-');
-}
-
-// Show loading spinner
-function showSpinner() {
-    const spinner = document.createElement('div');
-    spinner.className = 'spinner';
-    attendanceList.appendChild(spinner);
-}
-
-// Hide loading spinner
-function hideSpinner() {
-    const spinner = document.querySelector('.spinner');
-    if (spinner) {
-        spinner.remove();
+// Enhanced API call function with better error handling
+async function apiCall(url, options = {}) {
+    const csrfToken = getCSRFToken();
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    };
+    
+    // Add CSRF token if available
+    if (csrfToken) {
+        defaultOptions.headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    const finalOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...options.headers
+        }
+    };
+    
+    try {
+        const response = await fetch(url, finalOptions);
+        
+        // Handle different response types
+        if (response.status === 401) {
+            const data = await response.json();
+            if (data.error && data.error.includes('Phiên đăng nhập đã hết hạn')) {
+                showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return response;
+            }
+        }
+        
+        // Handle rate limiting
+        if (response.status === 429) {
+            showAlert('Quá nhiều yêu cầu. Vui lòng thử lại sau.', 'warning');
+            return response;
+        }
+        
+        // Handle server errors
+        if (response.status >= 500) {
+            showAlert('Lỗi server. Vui lòng thử lại sau.', 'error');
+            return response;
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('API call error:', error);
+        showAlert('Lỗi kết nối. Vui lòng kiểm tra kết nối mạng.', 'error');
+        throw error;
     }
 }
 
-// Show alert message
+// Enhanced current time function with timezone support
+function getCurrentTime() {
+    const now = new Date();
+    const timezoneOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localTime = new Date(now.getTime() - timezoneOffset);
+    return localTime.toISOString().slice(0, 16);
+}
+
+// Enhanced date formatting with better locale support
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Invalid Date';
+        }
+        
+        return date.toLocaleDateString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).replace(/\//g, '-');
+    } catch (error) {
+        console.error('Date formatting error:', error);
+        return 'Invalid Date';
+    }
+}
+
+// Enhanced loading spinner with better UX
+function showSpinner(container = attendanceList) {
+    const existingSpinner = container.querySelector('.spinner');
+    if (existingSpinner) {
+        existingSpinner.remove();
+    }
+    
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    spinner.innerHTML = `
+        <div class="spinner-content">
+            <div class="spinner-circle"></div>
+            <p>Đang tải...</p>
+        </div>
+    `;
+    container.appendChild(spinner);
+}
+
+// Enhanced alert system with better styling
 function showAlert(message, type = 'success') {
     showToast(message, type);
 }
 
-// Show toast message
+// Enhanced toast system with better animations
 function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) return;
+    if (!toastContainer) {
+        console.warn('Toast container not found');
+        return;
+    }
+    
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    toast.style.minWidth = '180px';
-    toast.style.marginBottom = '12px';
-    toast.style.background = type === 'success' ? '#e8fbe8' : '#ffeaea';
-    toast.style.color = type === 'success' ? '#256d1b' : '#d32f2f';
-    toast.style.border = type === 'success' ? '1.5px solid #7ac142' : '1px solid #ffcdd2';
-    toast.style.borderRadius = '6px';
-    toast.style.padding = '12px 20px';
-    toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-    toast.style.fontSize = '15px';
-    toast.style.fontWeight = '500';
-    toast.style.textAlign = 'center';
-    toast.style.opacity = '0.98';
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-icon">${getToastIcon(type)}</span>
+            <span class="toast-message">${message}</span>
+        </div>
+    `;
+    
+    // Apply styles
+    Object.assign(toast.style, {
+        minWidth: '280px',
+        marginBottom: '12px',
+        background: getToastBackground(type),
+        color: getToastColor(type),
+        border: getToastBorder(type),
+        borderRadius: '8px',
+        padding: '16px 20px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        fontSize: '14px',
+        fontWeight: '500',
+        textAlign: 'left',
+        opacity: '0',
+        transform: 'translateY(-20px)',
+        transition: 'all 0.3s ease',
+        position: 'relative',
+        overflow: 'hidden'
+    });
+    
     toastContainer.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    }, 10);
+    
+    // Auto remove
     setTimeout(() => {
         toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 400);
-    }, 2000);
+        toast.style.transform = 'translateY(-20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+// Helper functions for toast styling
+function getToastIcon(type) {
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+}
+
+function getToastBackground(type) {
+    const backgrounds = {
+        success: '#f0f9ff',
+        error: '#fef2f2',
+        warning: '#fffbeb',
+        info: '#f0f9ff'
+    };
+    return backgrounds[type] || backgrounds.info;
+}
+
+function getToastColor(type) {
+    const colors = {
+        success: '#065f46',
+        error: '#dc2626',
+        warning: '#d97706',
+        info: '#1e40af'
+    };
+    return colors[type] || colors.info;
+}
+
+function getToastBorder(type) {
+    const borders = {
+        success: '1px solid #10b981',
+        error: '1px solid #ef4444',
+        warning: '1px solid #f59e0b',
+        info: '1px solid #3b82f6'
+    };
+    return borders[type] || borders.info;
 }
 
 // Load attendance history
 async function loadAttendanceHistory() {
     showSpinner();
     try {
-        const response = await fetch('/api/attendance/history');
+        const response = await apiCall('/api/attendance/history');
         const data = await response.json();
         
         if (response.ok) {
@@ -149,231 +302,32 @@ function getStatusBadgeClass(status) {
     }
 }
 
-// Handle role switching
-async function switchRole(role) {
-    try {
-        const response = await fetch('/switch-role', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role })
-        });
-        if (response.ok) {
-            // Thay vì reload trang, cập nhật giao diện động
-            updateUIForRole(role);
-            showAlert('Đã chuyển vai trò thành công', 'success');
-        } else {
-            showAlert('Không thể chuyển vai trò', 'danger');
-        }
-    } catch (e) {
-        showAlert('Lỗi khi chuyển vai trò', 'danger');
-    }
-}
+// Handle role switching - moved to HTML template to avoid conflicts
 
-// Function to update UI based on role
-function updateUIForRole(role) {
-    const attendanceFormSection = document.getElementById('attendanceFormSection');
-    const attendanceHistorySection = document.getElementById('attendanceHistorySection');
-    const approvalSection = document.getElementById('approvalSection');
-    const allAttendanceHistorySection = document.getElementById('allAttendanceHistorySection');
-    const departmentFilterContainer = document.getElementById('departmentFilterContainer');
-    
-    // Ẩn tất cả các section trước
-    if (attendanceFormSection) attendanceFormSection.style.display = 'none';
-    if (attendanceHistorySection) attendanceHistorySection.style.display = 'none';
-    if (approvalSection) approvalSection.style.display = 'none';
-    if (allAttendanceHistorySection) allAttendanceHistorySection.style.display = 'none';
-    
-    if (role === 'EMPLOYEE') {
-        // Hiển thị form chấm công và lịch sử cho nhân viên
-        if (attendanceFormSection) attendanceFormSection.style.display = 'block';
-        if (attendanceHistorySection) attendanceHistorySection.style.display = 'block';
-        // Load lại dữ liệu chấm công
-        updateAttendanceHistory();
-    } else if (['TEAM_LEADER', 'MANAGER', 'ADMIN'].includes(role)) {
-        // Hiển thị phần phê duyệt cho quản lý
-        if (approvalSection) approvalSection.style.display = 'block';
-        
-        // Hiển thị filter phòng ban cho MANAGER và ADMIN
-        if (departmentFilterContainer) {
-            if (['MANAGER', 'ADMIN'].includes(role)) {
-                departmentFilterContainer.style.display = 'block';
-            } else {
-                departmentFilterContainer.style.display = 'none';
-            }
-        }
-        
-        // Load dữ liệu phê duyệt
-        loadApprovalAttendance();
-    }
-    
-    // Cập nhật tiêu đề trang
-    const pageTitle = document.querySelector('.page-title');
-    if (pageTitle) {
-        if (role === 'EMPLOYEE') {
-            pageTitle.textContent = 'Bảng điều khiển';
-        } else {
-            pageTitle.textContent = 'Quản lý chấm công';
-        }
-    }
-    
-    // Cập nhật active state cho menu
-    updateMenuActiveState(role);
-}
+// Function to update UI based on role - moved to HTML template to avoid conflicts
 
-// Function to update menu active state
-function updateMenuActiveState(role) {
-    // Cập nhật active state cho các menu item
-    const menuItems = document.querySelectorAll('.nav-link');
-    menuItems.forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    // Set active cho menu phù hợp
-    if (role === 'EMPLOYEE') {
-        const homeMenu = document.querySelector('.nav-link');
-        if (homeMenu) homeMenu.classList.add('active');
-    } else {
-        // Tìm menu phê duyệt hoặc tạo mới
-        const approvalMenu = document.querySelector('.nav-link[data-role="approval"]');
-        if (approvalMenu) {
-            approvalMenu.classList.add('active');
-        }
-    }
-}
-
-// Function to load approval attendance data
-function loadApprovalAttendance() {
-    const approvalBody = document.getElementById('approvalAttendanceBody');
-    if (!approvalBody) return;
-    
-    // Hiển thị loading
-    approvalBody.innerHTML = '<tr><td colspan="13" class="text-center">Đang tải dữ liệu...</td></tr>';
-    
-    // Lấy các filter
-    const searchName = document.getElementById('approvalSearchName')?.value || '';
-    const department = document.getElementById('approvalDepartment')?.value || '';
-    const dateFrom = document.getElementById('approvalDateFrom')?.value || '';
-    const dateTo = document.getElementById('approvalDateTo')?.value || '';
-    
-    // Tạo URL với các tham số filter
-    let url = '/api/attendance/pending';
-    const params = new URLSearchParams();
-    if (searchName) params.append('search', searchName);
-    if (department) params.append('department', department);
-    if (dateFrom) params.append('date_from', dateFrom);
-    if (dateTo) params.append('date_to', dateTo);
-    
-    if (params.toString()) {
-        url += '?' + params.toString();
-    }
-    
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                approvalBody.innerHTML = '<tr><td colspan="13" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
-                return;
-            }
-            
-            approvalBody.innerHTML = '';
-            if (!data.data || data.data.length === 0) {
-                approvalBody.innerHTML = '<tr><td colspan="13" class="text-center">Không có bản ghi chấm công chờ phê duyệt</td></tr>';
-                return;
-            }
-            
-            data.data.forEach(record => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${record.date}</td>
-                    <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
-                    <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
-                    <td>${record.break_time || '-'}</td>
-                    <td>${record.total_work_hours || '-'}</td>
-                    <td>${record.work_hours_display || '-'}</td>
-                    <td>${record.overtime_before_22 || '0:00'}</td>
-                    <td>${record.overtime_after_22 || '0:00'}</td>
-                    <td>${record.holiday_type || '-'}</td>
-                    <td>${record.user_name || '-'}</td>
-                    <td>${record.department || '-'}</td>
-                    <td>${record.note || '-'}</td>
-                    <td>
-                        <button class="btn btn-success btn-sm" onclick="approveAttendance(${record.id}, 'approve')">Duyệt</button>
-                        <button class="btn btn-danger btn-sm" onclick="approveAttendance(${record.id}, 'reject')">Từ chối</button>
-                    </td>
-                `;
-                approvalBody.appendChild(row);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading approval data:', error);
-            approvalBody.innerHTML = '<tr><td colspan="13" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
-        });
-}
+// Function to load approval attendance data - moved to HTML template to avoid conflicts
 
 // Add event listeners for approval filters
 function setupApprovalEventListeners() {
-    // Filter button
+    // Filter button - moved to HTML template to avoid conflicts
     const btnApprovalFilter = document.getElementById('btnApprovalFilter');
     if (btnApprovalFilter) {
         btnApprovalFilter.addEventListener('click', function() {
-            loadApprovalAttendance();
+            // Function moved to HTML template
         });
     }
     
-    // Reset button
+    // Reset button - moved to HTML template to avoid conflicts
     const btnApprovalReset = document.getElementById('btnApprovalReset');
     if (btnApprovalReset) {
         btnApprovalReset.addEventListener('click', function() {
-            // Reset all filter inputs
-            const searchInput = document.getElementById('approvalSearchName');
-            const departmentSelect = document.getElementById('approvalDepartment');
-            const dateFromInput = document.getElementById('approvalDateFrom');
-            const dateToInput = document.getElementById('approvalDateTo');
-            
-            if (searchInput) searchInput.value = '';
-            if (departmentSelect) departmentSelect.value = '';
-            if (dateFromInput) dateFromInput.value = '';
-            if (dateToInput) dateToInput.value = '';
-            
-            // Reload data
-            loadApprovalAttendance();
+            // Function moved to HTML template
         });
     }
 }
 
-// Function to approve/reject attendance
-function approveAttendance(attendanceId, action) {
-    let reason = '';
-    if (action === 'reject') {
-        reason = prompt('Lý do từ chối:');
-        if (reason === null) return; // Người dùng hủy
-    }
-    
-    fetch(`/api/attendance/${attendanceId}/approve`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            action: action,
-            reason: reason
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            showAlert(data.error, 'danger');
-        } else {
-            showAlert(data.message, 'success');
-            // Reload dữ liệu phê duyệt
-            loadApprovalAttendance();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('Đã xảy ra lỗi khi phê duyệt', 'danger');
-    });
-}
+// Function to approve/reject attendance - moved to HTML template to avoid conflicts
 
 // Handle form submission
 timeAttendanceForm.addEventListener('submit', async (e) => {
@@ -383,11 +337,8 @@ timeAttendanceForm.addEventListener('submit', async (e) => {
     const action = formData.get('checkIn') ? 'check_in' : 'check_out';
     
     try {
-        const response = await fetch('/api/attendance', {
+        const response = await apiCall('/api/attendance', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 action: action,
                 time: formData.get(action === 'check_in' ? 'checkIn' : 'checkOut'),
@@ -409,14 +360,24 @@ timeAttendanceForm.addEventListener('submit', async (e) => {
     }
 });
 
+// Auto refresh session every 25 minutes to prevent timeout
+function setupSessionRefresh() {
+    setInterval(async () => {
+        try {
+            await apiCall('/api/attendance/history');
+        } catch (error) {
+            console.log('Session refresh failed:', error);
+        }
+    }, 25 * 60 * 1000); // 25 minutes
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Lấy vai trò hiện tại
     const roleSelect = document.getElementById('role-select');
     const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
     
-    // Cập nhật giao diện theo vai trò hiện tại
-    updateUIForRole(currentRole);
+    // Cập nhật giao diện theo vai trò hiện tại - moved to HTML template
     
     // Setup event listeners cho approval filters
     setupApprovalEventListeners();
@@ -436,10 +397,10 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAttendanceHistory();
     }
     
-    // Set up role switcher
-    if (roleSelect) {
-        roleSelect.addEventListener('change', (e) => switchRole(e.target.value));
-    }
+    // Set up role switcher - moved to HTML template to avoid conflicts
+    
+    // Setup session refresh
+    setupSessionRefresh();
 
     const today = new Date();
     const dateInput = document.getElementById('attendanceDate');
@@ -536,11 +497,8 @@ function handleAttendance(action) {
 
     const datetime = `${date}T${time}`;
 
-    fetch('/api/attendance', {
+    apiCall('/api/attendance', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ 
             action: action,
             datetime: datetime,
@@ -573,8 +531,8 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 // Make functions globally available
-window.switchRole = switchRole;
-window.approveAttendance = approveAttendance;
+        // window.switchRole = switchRole; // moved to HTML template
+        // window.approveAttendance = approveAttendance; // moved to HTML template
 
 // Function to update attendance history
 function updateAttendanceHistory() {
@@ -587,7 +545,7 @@ function updateAttendanceHistory() {
         return;
     }
     
-    fetch('/api/attendance/history')
+    apiCall('/api/attendance/history')
         .then(response => {
             console.log('Response status:', response.status);  // Debug log
             if (!response.ok) {
@@ -723,7 +681,7 @@ function renderAttendancePagination() {
 
 // Function to handle edit attendance
 function handleEditAttendance(id) {
-    fetch(`/api/attendance/${id}`)
+    apiCall(`/api/attendance/${id}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
@@ -765,7 +723,7 @@ function handleEditAttendance(id) {
 // Function to delete attendance
 function deleteAttendance(id) {
     if (confirm('Bạn có chắc chắn muốn xóa bản ghi chấm công này?')) {
-        fetch(`/api/attendance/${id}`, {
+        apiCall(`/api/attendance/${id}`, {
             method: 'DELETE',
         })
         .then(response => response.json())
@@ -854,11 +812,8 @@ function handleAttendanceSubmit() {
 
     // If editing, use PUT request
     if (editIdInput && editIdInput.value) {
-        fetch(`/api/attendance/${editIdInput.value}`, {
+        apiCall(`/api/attendance/${editIdInput.value}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify(data)
         })
         .then(response => response.json())
@@ -879,11 +834,8 @@ function handleAttendanceSubmit() {
     }
 
     // If new record, use POST request
-    fetch('/api/attendance', {
+    apiCall('/api/attendance', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
         body: JSON.stringify(data)
     })
     .then(response => response.json())

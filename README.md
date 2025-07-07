@@ -1,151 +1,237 @@
-# Hệ Thống Quản Lý Chấm Công - DMI
+# Hệ Thống Quản Lý Chấm Công DMI
 
-Hệ thống quản lý chấm công toàn diện được xây dựng bằng Flask cho công ty DMI. Hệ thống này cho phép nhân viên ghi lại chấm công, quản lý phê duyệt hồ sơ và quản trị viên quản lý toàn bộ hệ thống.
+Hệ thống quản lý chấm công hiện đại với các tính năng bảo mật cao và giao diện thân thiện.
 
-## Tính Năng
+## 🚀 Tính Năng Chính
 
-### Cho Nhân Viên
-- Ghi lại chấm công hàng ngày (giờ vào/giờ ra)
-- Xem lịch sử chấm công
-- Gửi yêu cầu nghỉ phép
-- Chỉnh sửa hồ sơ chấm công trước khi phê duyệt
-- Xem trạng thái phê duyệt
+- **Quản lý chấm công**: Ghi nhận giờ vào/ra, tính toán giờ làm việc và overtime
+- **Phân quyền đa cấp**: EMPLOYEE → TEAM_LEADER → MANAGER → ADMIN
+- **Phê duyệt chấm công**: Quy trình phê duyệt từng cấp
+- **Quản lý yêu cầu**: Hệ thống xin nghỉ phép, overtime
+- **Báo cáo và thống kê**: Xuất báo cáo chi tiết
+- **Audit log**: Ghi nhận mọi hoạt động của người dùng
+- **Bảo mật cao**: CSRF protection, rate limiting, input validation
 
-### Cho Trưởng Nhóm
-- Phê duyệt hồ sơ chấm công cho thành viên nhóm
-- Xem lịch sử chấm công của nhóm
-- Quản lý thành viên nhóm
+## 🔒 Cải Thiện Bảo Mật
 
-### Cho Quản Lý
-- Phê duyệt hồ sơ chấm công sau khi trưởng nhóm phê duyệt
-- Xem chấm công toàn phòng ban
-- Quản lý thành viên phòng ban
+### ✅ Đã Cải Thiện
+- **Xóa lưu trữ mật khẩu plain text** trong cookies
+- **Thêm input sanitization** để ngăn XSS và SQL injection
+- **Cải thiện validation** cho tất cả user inputs
+- **Thêm security headers** (X-Frame-Options, X-XSS-Protection, etc.)
+- **Rate limiting** cho tất cả API endpoints
+- **Session timeout** và automatic logout
+- **Audit logging** cho mọi hoạt động
 
-### Cho Quản Trị Viên
-- Truy cập toàn bộ hệ thống
+### 🛡️ Bảo Mật Hiện Tại
+- CSRF protection cho tất cả forms
+- Input validation và sanitization
+- Rate limiting (5 login attempts/5 minutes)
+- Session management với timeout
+- Secure cookie settings
+- SQL injection prevention
+- XSS protection
+
+## 📋 Yêu Cầu Hệ Thống
+
+- Python 3.8+
+- SQLite (mặc định)
+- Modern web browser
+
+## 🛠️ Cài Đặt
+
+### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd attendance-management-system-dmi
+```
+
+### 2. Tạo Virtual Environment
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# hoặc
+venv\Scripts\activate     # Windows
+```
+
+### 3. Cài Đặt Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Cấu Hình Environment
+```bash
+cp .env.example .env
+# Chỉnh sửa file .env theo nhu cầu
+```
+
+### 5. Khởi Tạo Database
+```bash
+python setup.py
+```
+
+### 6. Chạy Ứng Dụng
+```bash
+python app.py
+```
+
+Ứng dụng sẽ chạy tại: http://localhost:5000
+
+## 🗄️ Cấu Trúc Database
+
+### Bảng Users
+- Thông tin nhân viên
+- Phân quyền đa cấp
+- Remember token cho auto-login
+
+### Bảng Attendances
+- Ghi nhận chấm công
+- Tính toán giờ làm việc và overtime
+- Trạng thái phê duyệt
+
+### Bảng Requests
+- Yêu cầu nghỉ phép, overtime
+- Quy trình phê duyệt
+
+### Bảng AuditLogs
+- Ghi nhận mọi hoạt động
+- Tracking thay đổi dữ liệu
+
+## 🔐 Phân Quyền
+
+### EMPLOYEE
+- Chấm công hàng ngày
+- Xem lịch sử cá nhân
+- Tạo yêu cầu nghỉ phép
+
+### TEAM_LEADER
+- Tất cả quyền EMPLOYEE
+- Phê duyệt chấm công nhóm
+- Quản lý nhân viên trong nhóm
+
+### MANAGER
+- Tất cả quyền TEAM_LEADER
+- Phê duyệt chấm công phòng ban
+- Xem báo cáo phòng ban
+
+### ADMIN
+- Tất cả quyền
 - Quản lý người dùng
-- Xem tất cả hồ sơ chấm công
 - Cấu hình hệ thống
+- Xem báo cáo toàn bộ
 
-## Công Nghệ Sử Dụng
+## 📊 API Endpoints
 
-- **Backend**: Flask (Python)
-- **Database**: PostgreSQL với SQLAlchemy ORM
-- **Frontend**: HTML, CSS, JavaScript
-- **Xác thực**: Flask-Login
-- **Di chuyển Database**: Flask-Migrate
+### Authentication
+- `POST /login` - Đăng nhập
+- `GET /logout` - Đăng xuất
 
-## Cài Đặt
+### Attendance
+- `POST /api/attendance` - Tạo chấm công
+- `GET /api/attendance/history` - Lịch sử chấm công
+- `PUT /api/attendance/<id>` - Cập nhật chấm công
+- `DELETE /api/attendance/<id>` - Xóa chấm công
+- `POST /api/attendance/<id>/approve` - Phê duyệt chấm công
 
-1. **Clone repository**
-   ```bash
-   git clone https://github.com/ncdathwb/attendance-management-system-dmi.git
-   cd attendance-management-system-dmi
-   ```
+### Requests
+- `POST /api/request/submit` - Tạo yêu cầu
+- `POST /api/request/<id>/approve` - Phê duyệt yêu cầu
 
-2. **Cài đặt dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Cấu hình PostgreSQL**
-   - Tạo database PostgreSQL
-   - Cập nhật thông tin kết nối trong `app.py`
-
-4. **Khởi tạo database**
-   ```bash
-   python init_db.py
-   ```
-
-5. **Chạy ứng dụng**
-   ```bash
-   python app.py
-   ```
-
-6. **Truy cập ứng dụng**
-   Mở trình duyệt và truy cập `http://localhost:5000`
-
-## Cài Đặt Database
-
-Hệ thống đi kèm với danh sách người dùng được cấu hình sẵn trong `danhsach.txt`. Để khởi tạo database với những người dùng này:
+## 🧪 Testing
 
 ```bash
-python init_db.py
+# Chạy tests
+pytest
+
+# Chạy tests với coverage
+pytest --cov=app tests/
 ```
 
-### Tài Khoản Admin Mặc Định
-- **Mã nhân viên**: 1395
-- **Mật khẩu**: dat123
-- **Vai trò**: ADMIN
+## 📝 Logging
 
-## Hướng Dẫn Sử Dụng
+Hệ thống có 3 loại log:
+- `logs/attendance.log` - Log chung
+- `logs/error.log` - Log lỗi
+- `logs/security.log` - Log bảo mật
 
-### Đăng Nhập
-- Sử dụng mã nhân viên và mật khẩu để đăng nhập
-- Hệ thống hỗ trợ kiểm soát truy cập dựa trên vai trò
+## 🚀 Deployment
 
-### Ghi Chấm Công
-1. Chọn ngày
-2. Chọn loại ngày (thường, cuối tuần, lễ)
-3. Nhập giờ vào và giờ ra
-4. Thêm thời gian nghỉ và ghi chú nếu cần
-5. Gửi hồ sơ
-
-### Quy Trình Phê Duyệt
-1. **Trưởng nhóm** phê duyệt hồ sơ ban đầu
-2. **Quản lý** xem xét phê duyệt của trưởng nhóm
-3. **Quản trị viên** đưa ra phê duyệt cuối cùng
-
-## Cấu Trúc Tệp
-
-```
-DMI-CHAMCONG/
-├── app.py                 # Ứng dụng Flask chính
-├── init_db.py            # Script khởi tạo database
-├── fake_attendance_data.py # Script tạo dữ liệu thử nghiệm
-├── requirements.txt      # Dependencies Python
-├── danhsach.txt         # Danh sách người dùng để khởi tạo
-├── static/              # Tệp tĩnh (CSS, JS)
-├── templates/           # Template HTML
-└── migrations/          # Tệp di chuyển database
+### Development
+```bash
+python app.py
 ```
 
-## API Endpoints
+### Production
+```bash
+export FLASK_CONFIG=production
+export SECRET_KEY=your-secret-key
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
+```
 
-### Xác Thực
-- `POST /login` - Đăng nhập người dùng
-- `GET /logout` - Đăng xuất người dùng
+## 🔧 Cấu Hình Nâng Cao
 
-### Chấm Công
-- `POST /api/attendance` - Ghi chấm công mới
-- `GET /api/attendance/history` - Lấy lịch sử chấm công
-- `PUT /api/attendance/<id>` - Cập nhật hồ sơ chấm công
-- `DELETE /api/attendance/<id>` - Xóa hồ sơ chấm công
-- `POST /api/attendance/<id>/approve` - Phê duyệt/từ chối chấm công
+### Database (SQLite)
+```bash
+# SQLite được sử dụng mặc định (không cần cài đặt thêm)
+# Database file: attendance.db
 
-### Quản Lý Người Dùng
-- `POST /switch-role` - Chuyển đổi vai trò người dùng
-- `GET /admin/users` - Quản lý người dùng cho admin
+# Cấu hình trong .env
+DATABASE_URL=sqlite:///attendance.db
+```
 
-## Cấu Hình
+### Redis (cho caching và rate limiting)
+```bash
+# Cài đặt Redis
+pip install redis
 
-Ứng dụng sử dụng cấu hình sau:
+# Cấu hình trong .env
+REDIS_URL=redis://localhost:6379/0
+```
 
-- **Database**: PostgreSQL
-- **Secret Key**: Được cấu hình trong `app.py`
-- **Quản lý Session**: Flask session
+## 📈 Performance
 
-## Đóng Góp
+### Tối Ưu Hóa
+- Eager loading để tránh N+1 queries
+- Database connection pooling
+- Rate limiting để tránh spam
+- Caching cho các truy vấn thường xuyên
+
+### Monitoring
+- Log rotation (10MB per file, keep 10 files)
+- Error tracking và alerting
+- Performance metrics
+
+## 🤝 Contributing
 
 1. Fork repository
 2. Tạo feature branch
-3. Thực hiện thay đổi
-4. Gửi pull request
+3. Commit changes
+4. Push to branch
+5. Tạo Pull Request
 
-## Giấy Phép
+## 📄 License
 
-Dự án này là phần mềm độc quyền của công ty DMI.
+MIT License - xem file LICENSE để biết thêm chi tiết.
 
-## Hỗ Trợ
+## 🆘 Support
 
-Để được hỗ trợ và giải đáp thắc mắc, vui lòng liên hệ nhóm phát triển. 
+Nếu gặp vấn đề, vui lòng:
+1. Kiểm tra logs trong thư mục `logs/`
+2. Xem documentation
+3. Tạo issue trên GitHub
+
+## 🔄 Changelog
+
+### Version 2.1.0 (Latest)
+- ✅ Dọn dẹp code và xóa file dư thừa
+- ✅ Sửa logic tính toán giờ làm việc
+- ✅ Tái cấu trúc modules và imports
+- ✅ Cải thiện performance và maintainability
+
+### Version 2.0.0
+- ✅ Cải thiện bảo mật toàn diện
+- ✅ Tối ưu hóa performance
+- ✅ Cải thiện UX/UI
+- ✅ Thêm comprehensive logging
+- ✅ Cải thiện error handling
+- ✅ Tái cấu trúc code architecture
