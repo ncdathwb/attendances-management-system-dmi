@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Người Dùng - Hệ Thống Quản Lý Chấm Công</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .btn-success {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+        .btn-warning {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+        .btn-danger {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .badge {
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 600;
+        }
+        .badge-success {
+            background-color: #28a745;
+        }
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-danger {
+            background-color: #dc3545;
+        }
+        .badge-info {
+            background-color: #17a2b8;
+        }
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-clock me-2"></i>
+                Hệ Thống Quản Lý Chấm Công
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-home me-1"></i>Trang Chủ
+                </a>
+                <a class="nav-link active" href="{{ url_for('admin_users') }}">
+                    <i class="fas fa-users me-1"></i>Quản Lý Người Dùng
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Đăng Xuất
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Statistics Cards -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <div class="stats-number">{{ users|length }}</div>
+                    <div>Tổng Người Dùng</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <i class="fas fa-user-check fa-2x mb-2"></i>
+                    <div class="stats-number">{{ users|selectattr('is_active', 'equalto', True)|list|length }}</div>
+                    <div>Người Dùng Hoạt Động</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <i class="fas fa-user-tie fa-2x mb-2"></i>
+                    <div class="stats-number">{{ users|selectattr('roles', 'search', 'ADMIN')|list|length }}</div>
+                    <div>Quản Trị Viên</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card text-center">
+                    <i class="fas fa-building fa-2x mb-2"></i>
+                    <div class="stats-number">{{ users|map(attribute='department')|unique|list|length }}</div>
+                    <div>Phòng Ban</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Management Card -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Quản Lý Người Dùng
+                </h4>
+                <a href="{{ url_for('create_user') }}" class="btn btn-light">
+                    <i class="fas fa-user-plus me-1"></i>Tạo Người Dùng Mới
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Mã NV</th>
+                                <th>Họ và Tên</th>
+                                <th>Phòng Ban</th>
+                                <th>Vai Trò</th>
+                                <th>Trạng Thái</th>
+                                <th>Ngày Tạo</th>
+                                <th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>
+                                    <strong>{{ user.employee_id }}</strong>
+                                </td>
+                                <td>{{ user.name }}</td>
+                                <td>
+                                    <span class="badge badge-info">{{ user.department }}</span>
+                                </td>
+                                <td>
+                                    {% for role in user.roles.split(',') %}
+                                        {% if role == 'ADMIN' %}
+                                            <span class="badge badge-danger">{{ role }}</span>
+                                        {% elif role == 'MANAGER' %}
+                                            <span class="badge badge-warning">{{ role }}</span>
+                                        {% elif role == 'TEAM_LEADER' %}
+                                            <span class="badge badge-info">{{ role }}</span>
+                                        {% else %}
+                                            <span class="badge badge-success">{{ role }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge badge-success">Hoạt Động</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">Khóa</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('edit_user', user_id=user.id) }}" 
+                                           class="btn btn-warning btn-sm" title="Chỉnh Sửa">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if user.is_active %}
+                                            <button class="btn btn-danger btn-sm" title="Khóa Tài Khoản"
+                                                    onclick="toggleUserStatus({{ user.id }}, false)">
+                                                <i class="fas fa-lock"></i>
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-success btn-sm" title="Mở Khóa"
+                                                    onclick="toggleUserStatus({{ user.id }}, true)">
+                                                <i class="fas fa-unlock"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+
+        // Toggle user status function
+        function toggleUserStatus(userId, activate) {
+            if (confirm(activate ? 'Bạn có chắc muốn mở khóa tài khoản này?' : 'Bạn có chắc muốn khóa tài khoản này?')) {
+                // Here you would typically make an AJAX call to update the user status
+                // For now, we'll just show a message
+                alert('Chức năng này sẽ được implement sau!');
+            }
+        }
+    </script>
+</body>
+</html> 

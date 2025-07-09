@@ -488,28 +488,157 @@ def edit_user(user_id):
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
         try:
-            name = validate_input_sanitize(request.form['name'])
-            role = validate_role_value(request.form['role'])
-            department = validate_input_sanitize(request.form['department'])
+            name = validate_input_sanitize(request.form.get('name'))
+            department = validate_input_sanitize(request.form.get('department'))
+            
             if not name:
                 flash('Tên người dùng không hợp lệ', 'error')
-                return redirect(url_for('edit_user', user_id=user_id))
-            if not role:
-                flash('Vai trò không hợp lệ', 'error')
                 return redirect(url_for('edit_user', user_id=user_id))
             if not department:
                 flash('Phòng ban không hợp lệ', 'error')
                 return redirect(url_for('edit_user', user_id=user_id))
+            
+            # Get selected roles from checkboxes
+            selected_roles = []
+            role_mapping = {
+                'EMPLOYEE': 'EMPLOYEE',
+                'TEAM_LEADER': 'TEAM_LEADER', 
+                'MANAGER': 'MANAGER',
+                'ADMIN': 'ADMIN'
+            }
+            
+            for role_key, role_value in role_mapping.items():
+                if request.form.get(f'role_{role_key}') == 'on':
+                    selected_roles.append(role_value)
+            
+            if not selected_roles:
+                flash('Vui lòng chọn ít nhất một vai trò!', 'error')
+                return redirect(url_for('edit_user', user_id=user_id))
+            
+            # Update user
+            old_values = {
+                'name': user.name,
+                'department': user.department,
+                'roles': user.roles
+            }
+            
             user.name = name
-            user.roles = role
+            user.roles = ','.join(selected_roles)
             user.department = department
+            
             db.session.commit()
+            
+            # Log the action
+            log_audit_action(
+                user_id=session['user_id'],
+                action='UPDATE_USER',
+                table_name='users',
+                record_id=user_id,
+                old_values=old_values,
+                new_values={
+                    'name': name,
+                    'department': department,
+                    'roles': ','.join(selected_roles)
+                }
+            )
+            
             flash('Cập nhật người dùng thành công', 'success')
             return redirect(url_for('admin_users'))
         except Exception as e:
-            flash(str(e), 'error')
+            print(f"Error updating user: {str(e)}")
+            flash('Đã xảy ra lỗi khi cập nhật người dùng!', 'error')
             return redirect(url_for('edit_user', user_id=user_id))
     return render_template('admin/edit_user.html', user=user)
+
+@app.route('/admin/users/create', methods=['GET', 'POST'])
+@require_admin
+def create_user():
+    if request.method == 'POST':
+        try:
+            # Validate input
+            employee_id_str = request.form.get('employee_id')
+            password = request.form.get('password')
+            name = validate_input_sanitize(request.form.get('name'))
+            department = validate_input_sanitize(request.form.get('department'))
+            
+            # Validate employee_id
+            employee_id = validate_employee_id(employee_id_str)
+            if not employee_id:
+                flash('Mã nhân viên không hợp lệ!', 'error')
+                return render_template('admin/create_user.html')
+            
+            # Validate password
+            if not validate_str(password, max_length=100):
+                flash('Mật khẩu không hợp lệ!', 'error')
+                return render_template('admin/create_user.html')
+            
+            # Validate name and department
+            if not name:
+                flash('Tên người dùng không hợp lệ', 'error')
+                return render_template('admin/create_user.html')
+            if not department:
+                flash('Phòng ban không hợp lệ', 'error')
+                return render_template('admin/create_user.html')
+            
+            # Check if employee_id already exists
+            existing_user = User.query.filter_by(employee_id=employee_id).first()
+            if existing_user:
+                flash('Mã nhân viên đã tồn tại!', 'error')
+                return render_template('admin/create_user.html')
+            
+            # Get selected roles from checkboxes
+            selected_roles = []
+            role_mapping = {
+                'EMPLOYEE': 'EMPLOYEE',
+                'TEAM_LEADER': 'TEAM_LEADER', 
+                'MANAGER': 'MANAGER',
+                'ADMIN': 'ADMIN'
+            }
+            
+            for role_key, role_value in role_mapping.items():
+                if request.form.get(f'role_{role_key}') == 'on':
+                    selected_roles.append(role_value)
+            
+            if not selected_roles:
+                flash('Vui lòng chọn ít nhất một vai trò!', 'error')
+                return render_template('admin/create_user.html')
+            
+            # Create new user
+            new_user = User(
+                employee_id=employee_id,
+                name=name,
+                department=department,
+                roles=','.join(selected_roles),
+                is_active=True
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Log the action
+            log_audit_action(
+                user_id=session['user_id'],
+                action='CREATE_USER',
+                table_name='users',
+                record_id=new_user.id,
+                new_values={
+                    'employee_id': employee_id,
+                    'name': name,
+                    'department': department,
+                    'roles': ','.join(selected_roles)
+                }
+            )
+            
+            flash('Tạo người dùng thành công!', 'success')
+            return redirect(url_for('admin_users'))
+            
+        except Exception as e:
+            print(f"Error creating user: {str(e)}")
+            flash('Đã xảy ra lỗi khi tạo người dùng!', 'error')
+            return render_template('admin/create_user.html')
+    
+    return render_template('admin/create_user.html')
 
 @app.route('/switch-role', methods=['POST'])
 def switch_role():

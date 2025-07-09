@@ -744,6 +744,14 @@
                     Cài đặt
                 </a>
             </li>
+            {% if 'ADMIN' in session.get('roles', []) %}
+            <li class="nav-item">
+                <a href="{{ url_for('admin_users') }}" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    Quản lý người dùng
+                </a>
+            </li>
+            {% endif %}
             <li class="nav-item">
                 <a href="/logout" class="nav-link">
                     <i class="fas fa-sign-out-alt"></i>
