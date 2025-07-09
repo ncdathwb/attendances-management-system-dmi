@@ -745,7 +745,7 @@
                 </a>
             </li>
             {% if 'ADMIN' in session.get('roles', []) %}
-            <li class="nav-item">
+            <li class="nav-item" id="adminUsersMenu" style="display: none;">
                 <a href="{{ url_for('admin_users') }}" class="nav-link">
                     <i class="fas fa-users"></i>
                     Quản lý người dùng
@@ -2021,6 +2021,7 @@
             const approvalSection = document.getElementById('approvalSection');
             const allAttendanceHistorySection = document.getElementById('allAttendanceHistorySection');
             const departmentFilterContainer = document.getElementById('departmentFilterContainer');
+            const adminUsersMenu = document.getElementById('adminUsersMenu');
             const pageTitle = document.querySelector('.page-title');
             
             // Ẩn tất cả các section trước
@@ -2031,6 +2032,9 @@
             
             // Ẩn filter phòng ban mặc định
             if (departmentFilterContainer) departmentFilterContainer.style.display = 'none';
+            
+            // Ẩn menu quản lý users mặc định
+            if (adminUsersMenu) adminUsersMenu.style.display = 'none';
             
             if (role === 'EMPLOYEE') {
                 // Hiển thị form chấm công và lịch sử cho nhân viên
@@ -2047,6 +2051,10 @@
                 // Hiển thị filter phòng ban cho MANAGER và ADMIN
                 if (['MANAGER', 'ADMIN'].includes(role) && departmentFilterContainer) {
                     departmentFilterContainer.style.display = 'block';
+                }
+                // Chỉ hiển thị menu quản lý users cho ADMIN
+                if (role === 'ADMIN' && adminUsersMenu) {
+                    adminUsersMenu.style.display = 'block';
                 }
                 // Load dữ liệu phê duyệt
                 loadApprovalAttendance();

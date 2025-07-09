@@ -456,9 +456,18 @@ def require_role(required_role):
         def decorated_function(*args, **kwargs):
             if not session.get('user_id'):
                 return redirect(url_for('login'))
+            
+            # Kiểm tra vai trò hiện tại trong session
+            current_role = session.get('current_role')
+            if current_role != required_role:
+                flash(f'Bạn cần chuyển sang vai trò {required_role} để truy cập trang này', 'error')
+                return redirect(url_for('dashboard'))
+            
+            # Kiểm tra user có role này trong database không
             if not has_role(session['user_id'], required_role):
                 flash('Bạn không có quyền truy cập trang này', 'error')
-                return redirect(url_for('index'))
+                return redirect(url_for('dashboard'))
+            
             return f(*args, **kwargs)
         return decorated_function
     return decorator
