@@ -814,7 +814,7 @@
                         </div>
                         <div class="col-6 col-md-2">
                             <label for="breakTime" class="form-label">Giờ nghỉ</label>
-                            <input type="time" class="form-control form-control-sm" id="breakTime" value="01:00" required>
+                            <input type="text" class="form-control form-control-sm" id="breakTime" value="01:00" required placeholder="Nhập số giờ nghỉ (H:MM, ví dụ 0:30, 1:00)">
                         </div>
                         <div class="col-6 col-md-2">
                             <label for="dayType" class="form-label">Loại ngày</label>
@@ -837,7 +837,7 @@
                         <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <button type="button" class="btn btn-primary btn-sm" id="saveAttendanceBtn">
+                                    <button type="button" class="btn btn-primary btn-sm" id="saveAttendanceBtn" onclick="handleAttendanceSubmit()">
                                         <i class="fas fa-save me-2"></i>
                                         Lưu đăng ký
                                     </button>
@@ -863,6 +863,7 @@
                                 <th style="width: 70px;">Ngày</th>
                                 <th style="width: 55px;">Giờ vào</th>
                                 <th style="width: 55px;">Giờ ra</th>
+                                <th style="width: 40px;">Ca</th>
                                 <th style="width: 36px;">Nghỉ</th>
                                 <th style="width: 60px;">Tổng giờ làm</th>
                                 <th style="width: 50px;">Giờ công</th>
@@ -1017,6 +1018,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=1.0.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr?v=1.0.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js?v=1.0.2"></script>
+    <!-- Custom Dashboard JS -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1.0.2"></script>
     <script>
         // Function to show toast notification
         function showToast(message, type = 'success') {
@@ -1045,7 +1048,8 @@
             });
         }
 
-        let attendanceData = [];
+        // Use the same variable names as dashboard.js to avoid conflicts
+        let dashboardAttendanceData = [];
         let currentPage = 1;
         const rowsPerPage = 5;
         let approvalPage = 1;
@@ -1065,7 +1069,7 @@
                 tbody.parentElement.classList.add('attendance-table');
             }
             
-            if (!attendanceData || attendanceData.length === 0) {
+            if (!dashboardAttendanceData || dashboardAttendanceData.length === 0) {
                 const totalRows = rowsPerPage;
                 const middleRow = Math.floor(totalRows / 2);
                 for (let i = 0; i < totalRows; i++) {
@@ -1073,7 +1077,7 @@
                     row.style.height = '50px';
                     row.className = 'empty-row';
                     if (i === middleRow) {
-                        row.innerHTML = `<td colspan="12" class="no-data-row">Không có dữ liệu chấm công</td>`;
+                        row.innerHTML = `<td colspan="13" class="no-data-row">Không có dữ liệu chấm công</td>`;
                     } else {
                         row.innerHTML = `
                             <td style="height: 50px; width: 70px;"></td>
@@ -1097,7 +1101,7 @@
 
             const start = (page - 1) * rowsPerPage;
             const end = start + rowsPerPage;
-            const pageData = attendanceData.slice(start, end);
+            const pageData = dashboardAttendanceData.slice(start, end);
             
             // Tính số dòng trống cần thêm để đạt đủ 5 dòng
             const emptyRowsNeeded = Math.max(0, rowsPerPage - pageData.length);
@@ -1135,11 +1139,33 @@
                     statusClass = 'status-rejected';
                 }
                 
+                // Xử lý hiển thị thông tin ca
+                let shiftText = '-';
+                if (record.shift_code) {
+                    switch(record.shift_code) {
+                        case '1':
+                            shiftText = 'Ca 1';
+                            break;
+                        case '2':
+                            shiftText = 'Ca 2';
+                            break;
+                        case '3':
+                            shiftText = 'Ca 3';
+                            break;
+                        case '4':
+                            shiftText = 'Ca 4';
+                            break;
+                        default:
+                            shiftText = `Ca ${record.shift_code}`;
+                    }
+                }
+                
                 row.innerHTML = `
                     <td style="height: 50px; width: 70px;">${formatDate(record.date)}</td>
                     <td style="height: 50px; width: 55px;">${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
                     <td style="height: 50px; width: 55px;">${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
-                    <td style="height: 50px; width: 36px;">${record.break_time || '0:00'}</td>
+                    <td style="height: 50px; width: 40px;">${shiftText}</td>
+                    <td style="height: 50px; width: 36px;">${formatHourMinute(record.break_time)}</td>
                     <td style="height: 50px; width: 60px;">${record.total_work_hours || '-'}</td>
                     <td style="height: 50px; width: 50px;">${record.work_hours_display || '-'}</td>
                     <td style="height: 50px; width: 50px;">${record.overtime_before_22 && record.overtime_before_22 !== 'NaN:NaN' ? record.overtime_before_22 : '0:00'}</td>
@@ -1177,6 +1203,7 @@
                     <td style="height: 50px; width: 70px;"></td>
                     <td style="height: 50px; width: 55px;"></td>
                     <td style="height: 50px; width: 55px;"></td>
+                    <td style="height: 50px; width: 40px;"></td>
                     <td style="height: 50px; width: 36px;"></td>
                     <td style="height: 50px; width: 60px;"></td>
                     <td style="height: 50px; width: 50px;"></td>
@@ -1221,7 +1248,7 @@
         }
 
         function renderAttendancePagination() {
-            const totalPages = Math.ceil(attendanceData.length / rowsPerPage);
+            const totalPages = Math.ceil(dashboardAttendanceData.length / rowsPerPage);
             const pagination = document.getElementById('attendancePagination');
             if (!pagination) {
                 console.log('attendancePagination element not found, skipping pagination render');
@@ -1292,7 +1319,7 @@
                         showToast(data.error, 'error');
                         return;
                     }
-                    attendanceData = data;
+                    dashboardAttendanceData = data;
                     currentPage = 1;
                     renderAttendancePage(currentPage);
                     renderAttendancePagination();
@@ -1391,169 +1418,9 @@
             return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
         }
 
-        // Function to handle attendance
-        function handleAttendanceSubmit() {
-            const dateInput = document.getElementById('attendanceDate');
-            const checkInTimeInput = document.getElementById('checkInTime');
-            const checkOutTimeInput = document.getElementById('checkOutTime');
-            const noteInput = document.getElementById('attendanceNote');
-            const breakTimeInput = document.getElementById('breakTime');
-            const dayTypeSelect = document.getElementById('dayType');
-            const editId = document.getElementById('editAttendanceId');
-
-            // Kiểm tra các element cần thiết có tồn tại không
-            if (!dateInput || !checkInTimeInput || !checkOutTimeInput) {
-                showToast('Không thể tìm thấy form chấm công', 'error');
-                return;
-            }
-
-            // Get values
-            let date = dateInput.value;
-            const checkIn = checkInTimeInput.value;
-            const checkOut = checkOutTimeInput.value;
-            const note = noteInput ? noteInput.value : '';
-            const breakTimeStr = breakTimeInput ? breakTimeInput.value : '01:00';
-            const dayType = dayTypeSelect ? dayTypeSelect.value : '';
-            const isHoliday = dayType !== 'normal';
-
-            // Validate inputs
-            if (!date || date.trim() === '') {
-                showToast('Vui lòng chọn ngày chấm công', 'warning');
-                return;
-            }
-            if (!dayType) {
-                showToast('Vui lòng chọn loại ngày', 'warning');
-                return;
-            }
-            if (!checkIn || !checkOut) {
-                showToast('Vui lòng nhập đầy đủ ngày và giờ vào/ra', 'warning');
-                return;
-            }
-
-            // Convert date format if using flatpickr
-            if (date.includes('/')) {
-                const [d, m, y] = date.split('/');
-                date = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            }
-
-            // Calculate break time in hours
-            let breakTime = 1.0;
-            if (breakTimeStr) {
-                const [hh, mm] = breakTimeStr.split(':').map(Number);
-                breakTime = hh + (mm / 60);
-            }
-
-            // Prepare data
-            const data = {
-                date: date,
-                check_in: checkIn,
-                check_out: checkOut,
-                note: note,
-                break_time: breakTime,
-                is_holiday: isHoliday,
-                holiday_type: dayType
-            };
-
-            console.log('Submitting data:', data);  // Debug log
-
-            // If editing, use PUT request
-            if (editId && editId.value) {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                fetch(`/api/attendance/${editId.value}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => {
-                    const contentType = response.headers.get('content-type') || '';
-                    if (contentType.includes('application/json')) {
-                        return response.json();
-                    } else {
-                        return response.text().then(text => { throw new Error('Server trả về dữ liệu không phải JSON: ' + text); });
-                    }
-                })
-                .then(data => {
-                    if (data.error) {
-                        showToast(data.error, 'error');
-                    } else {
-                        showToast('Cập nhật chấm công thành công', 'success');
-                        resetForm();
-                        updateAttendanceHistory();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast('Đã xảy ra lỗi khi cập nhật chấm công: ' + error.message, 'error');
-                });
-                return;
-            }
-
-            // If new record, use POST request
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            fetch('/api/attendance', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('application/json')) {
-                    return response.json();
-                } else {
-                    return response.text().then(text => { throw new Error('Server trả về dữ liệu không phải JSON: ' + text); });
-                }
-            })
-            .then(data => {
-                if (data.error) {
-                    showToast(data.error, 'error');
-                } else {
-                    showToast('Lưu chấm công thành công', 'success');
-                    resetForm();
-                    updateAttendanceHistory();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Đã xảy ra lỗi khi lưu chấm công: ' + error.message, 'error');
-            });
-        }
-
-        // Function to reset form
-        function resetForm() {
-            console.log('resetForm called - hiding cancel button');
-            const attendanceForm = document.getElementById('attendanceForm');
-            const editAttendanceId = document.getElementById('editAttendanceId');
-            const saveAttendanceBtn = document.getElementById('saveAttendanceBtn');
-            const cancelEditBtn = document.getElementById('cancelEditBtn');
-            const shiftSelect = document.getElementById('shiftSelect');
-            const attendanceDate = document.getElementById('attendanceDate');
-            
-            if (attendanceForm) attendanceForm.reset();
-            if (editAttendanceId) editAttendanceId.value = '';
-            if (saveAttendanceBtn) saveAttendanceBtn.innerHTML = '<i class="fas fa-save me-2"></i>Lưu đăng ký';
-            if (cancelEditBtn) cancelEditBtn.style.cssText = "display: none !important;";
-            if (shiftSelect) shiftSelect.value = "";
-            
-            // Xóa ngày đã chọn trong flatpickr và đặt lại placeholder
-            if (attendanceDate && attendanceDate._flatpickr) {
-                attendanceDate._flatpickr.clear();
-                attendanceDate.placeholder = 'Chọn ngày...';
-            }
-            // Đặt lại ngày về hôm nay sau khi reset
-            if (attendanceDate && attendanceDate._flatpickr) {
-                attendanceDate._flatpickr.setDate(new Date());
-            }
-        }
-
-        // Event listeners
-        document.getElementById('saveAttendanceBtn')?.addEventListener('click', handleAttendanceSubmit);
-        document.getElementById('cancelEditBtn')?.addEventListener('click', resetForm);
+        // Event listeners - Đã được xử lý trong dashboard.js
+        // document.getElementById('saveAttendanceBtn')?.addEventListener('click', handleAttendanceSubmit);
+        // document.getElementById('cancelEditBtn')?.addEventListener('click', resetForm);
         
         // Xử lý sự kiện khi chọn ca làm việc
         document.getElementById('shiftSelect')?.addEventListener('change', function() {
@@ -2307,6 +2174,14 @@
                 dateInput.value = `${yyyy}-${mm}-${dd}`;
             }
         });
+
+        // Thêm hàm chuyển đổi số thập phân sang H:MM
+        function formatHourMinute(decimalHour) {
+            if (!decimalHour || isNaN(decimalHour)) return '0:00';
+            const h = Math.floor(decimalHour);
+            const m = Math.round((decimalHour - h) * 60);
+            return `${h}:${m.toString().padStart(2, '0')}`;
+        }
     </script>
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

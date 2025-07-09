@@ -1,15 +1,14 @@
 // DOM Elements
 const timeAttendanceForm = document.getElementById('timeAttendanceForm');
-const attendanceList = document.getElementById('attendanceList');
 const roleSelect = document.getElementById('role-select');
 const currentRole = document.getElementById('current-role');
 
-// Global variables
-let attendanceData = [];
-let currentPage = 1;
-const rowsPerPage = 5;
-let approvalPage = 1;
-let approvalPerPage = 10;
+// Global variables are declared in the HTML template to avoid conflicts
+// let dashboardAttendanceData = [];
+// let currentPage = 1;
+// const rowsPerPage = 5;
+// let approvalPage = 1;
+// let approvalPerPage = 10;
 
 // CSRF token function with better error handling
 function getCSRFToken() {
@@ -112,7 +111,12 @@ function formatDate(dateString) {
 }
 
 // Enhanced loading spinner with better UX
-function showSpinner(container = attendanceList) {
+function showSpinner(container = null) {
+    if (!container) {
+        console.warn('Container not specified for spinner');
+        return;
+    }
+    
     const existingSpinner = container.querySelector('.spinner');
     if (existingSpinner) {
         existingSpinner.remove();
@@ -129,164 +133,34 @@ function showSpinner(container = attendanceList) {
     container.appendChild(spinner);
 }
 
+// Hide spinner function
+function hideSpinner(container = null) {
+    if (!container) {
+        console.warn('Container not specified for spinner');
+        return;
+    }
+    
+    const spinner = container.querySelector('.spinner');
+    if (spinner) {
+        spinner.remove();
+    }
+}
+
 // Enhanced alert system with better styling
 function showAlert(message, type = 'success') {
-    showToast(message, type);
-}
-
-// Enhanced toast system with better animations
-function showToast(message, type = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) {
-        console.warn('Toast container not found');
-        return;
+    // Chuyển đổi type để tương thích với SweetAlert2
+    let sweetAlertType = type;
+    if (type === 'danger') {
+        sweetAlertType = 'error';
     }
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <span class="toast-icon">${getToastIcon(type)}</span>
-            <span class="toast-message">${message}</span>
-        </div>
-    `;
-    
-    // Apply styles
-    Object.assign(toast.style, {
-        minWidth: '280px',
-        marginBottom: '12px',
-        background: getToastBackground(type),
-        color: getToastColor(type),
-        border: getToastBorder(type),
-        borderRadius: '8px',
-        padding: '16px 20px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        fontSize: '14px',
-        fontWeight: '500',
-        textAlign: 'left',
-        opacity: '0',
-        transform: 'translateY(-20px)',
-        transition: 'all 0.3s ease',
-        position: 'relative',
-        overflow: 'hidden'
-    });
-    
-    toastContainer.appendChild(toast);
-    
-    // Animate in
-    setTimeout(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-    }, 10);
-    
-    // Auto remove
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    showToast(message, sweetAlertType);
 }
 
-// Helper functions for toast styling
-function getToastIcon(type) {
-    const icons = {
-        success: '✓',
-        error: '✕',
-        warning: '⚠',
-        info: 'ℹ'
-    };
-    return icons[type] || icons.info;
-}
+// Load attendance history - REMOVED (using updateAttendanceHistory from HTML template instead)
+// async function loadAttendanceHistory() { ... }
 
-function getToastBackground(type) {
-    const backgrounds = {
-        success: '#f0f9ff',
-        error: '#fef2f2',
-        warning: '#fffbeb',
-        info: '#f0f9ff'
-    };
-    return backgrounds[type] || backgrounds.info;
-}
-
-function getToastColor(type) {
-    const colors = {
-        success: '#065f46',
-        error: '#dc2626',
-        warning: '#d97706',
-        info: '#1e40af'
-    };
-    return colors[type] || colors.info;
-}
-
-function getToastBorder(type) {
-    const borders = {
-        success: '1px solid #10b981',
-        error: '1px solid #ef4444',
-        warning: '1px solid #f59e0b',
-        info: '1px solid #3b82f6'
-    };
-    return borders[type] || borders.info;
-}
-
-// Load attendance history
-async function loadAttendanceHistory() {
-    showSpinner();
-    try {
-        const response = await apiCall('/api/attendance/history');
-        const data = await response.json();
-        
-        if (response.ok) {
-            displayAttendanceHistory(data);
-        } else {
-            showAlert(data.error || 'Lỗi khi tải lịch sử chấm công', 'danger');
-        }
-    } catch (error) {
-        showAlert('Lỗi kết nối server', 'danger');
-    } finally {
-        hideSpinner();
-    }
-}
-
-// Display attendance history
-function displayAttendanceHistory(history) {
-    attendanceList.innerHTML = '';
-    
-    if (history.length === 0) {
-        attendanceList.innerHTML = '<p>Chưa có lịch sử chấm công</p>';
-        return;
-    }
-    
-    const table = document.createElement('table');
-    table.className = 'table';
-    
-    // Table header
-    const thead = document.createElement('thead');
-    thead.innerHTML = `
-        <tr>
-            <th>Ngày</th>
-            <th>Giờ vào</th>
-            <th>Giờ ra</th>
-            <th>Trạng thái</th>
-        </tr>
-    `;
-    table.appendChild(thead);
-    
-    // Table body
-    const tbody = document.createElement('tbody');
-    history.forEach(record => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${formatDate(record.date)}</td>
-            <td>${record.check_in || '-'}</td>
-            <td>${record.check_out || '-'}</td>
-            <td><span class="badge badge-${getStatusBadgeClass(record.status)}">${record.status}</span></td>
-        `;
-        tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    
-    attendanceList.appendChild(table);
-}
+// Display attendance history - REMOVED (using renderAttendancePage from HTML template instead)
+// function displayAttendanceHistory(history) { ... }
 
 // Get status badge class
 function getStatusBadgeClass(status) {
@@ -329,36 +203,38 @@ function setupApprovalEventListeners() {
 
 // Function to approve/reject attendance - moved to HTML template to avoid conflicts
 
-// Handle form submission
-timeAttendanceForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(timeAttendanceForm);
-    const action = formData.get('checkIn') ? 'check_in' : 'check_out';
-    
-    try {
-        const response = await apiCall('/api/attendance', {
-            method: 'POST',
-            body: JSON.stringify({
-                action: action,
-                time: formData.get(action === 'check_in' ? 'checkIn' : 'checkOut'),
-                note: formData.get('note')
-            })
-        });
+// Handle form submission - chỉ chạy nếu form tồn tại
+if (timeAttendanceForm) {
+    timeAttendanceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const data = await response.json();
+        const formData = new FormData(timeAttendanceForm);
+        const action = formData.get('checkIn') ? 'check_in' : 'check_out';
         
-        if (response.ok) {
-            showAlert(data.message, 'success');
-            timeAttendanceForm.reset();
-            loadAttendanceHistory();
-        } else {
-            showAlert(data.error || 'Lỗi khi chấm công', 'danger');
+        try {
+            const response = await apiCall('/api/attendance', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: action,
+                    time: formData.get(action === 'check_in' ? 'checkIn' : 'checkOut'),
+                    note: formData.get('note')
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showAlert(data.message, 'success');
+                resetForm();
+                updateAttendanceHistory();
+            } else {
+                showAlert(data.error || 'Lỗi khi chấm công', 'danger');
+            }
+        } catch (error) {
+            showAlert('Lỗi kết nối server', 'danger');
         }
-    } catch (error) {
-        showAlert('Lỗi kết nối server', 'danger');
-    }
-});
+    });
+}
 
 // Auto refresh session every 25 minutes to prevent timeout
 function setupSessionRefresh() {
@@ -371,63 +247,9 @@ function setupSessionRefresh() {
     }, 25 * 60 * 1000); // 25 minutes
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    // Lấy vai trò hiện tại
-    const roleSelect = document.getElementById('role-select');
-    const currentRole = roleSelect ? roleSelect.value : 'EMPLOYEE';
-    
-    // Cập nhật giao diện theo vai trò hiện tại - moved to HTML template
-    
-    // Setup event listeners cho approval filters
-    setupApprovalEventListeners();
-    
-    // Setup event listeners cho form
-    setupFormEventListeners();
-    
-    // Set current time in datetime inputs
-    const checkInInput = document.getElementById('checkIn');
-    const checkOutInput = document.getElementById('checkOut');
-    
-    if (checkInInput) checkInInput.value = getCurrentTime();
-    if (checkOutInput) checkOutInput.value = getCurrentTime();
-    
-    // Load initial attendance history (chỉ khi là nhân viên)
-    if (currentRole === 'EMPLOYEE') {
-        loadAttendanceHistory();
-    }
-    
-    // Set up role switcher - moved to HTML template to avoid conflicts
-    
-    // Setup session refresh
-    setupSessionRefresh();
-
-    const today = new Date();
-    const dateInput = document.getElementById('attendanceDate');
-    const checkInTimeInput = document.getElementById('checkInTime');
-    const checkOutTimeInput = document.getElementById('checkOutTime');
-    const breakTimeInput = document.getElementById('breakTime');
-    const dayTypeSelect = document.getElementById('dayType');
-    
-    // Format date as YYYY-MM-DD
-    const formattedDate = today.toISOString().split('T')[0];
-    // Format time as HH:mm
-    const formattedTime = today.toTimeString().slice(0, 5);
-    
-    if (dateInput) dateInput.value = formattedDate;
-    if (checkInTimeInput) checkInTimeInput.value = formattedTime;
-    if (checkOutTimeInput) checkOutTimeInput.value = formattedTime;
-
-    // Set default break time based on day of week
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-        if (breakTimeInput) breakTimeInput.value = '01:00';
-        if (dayTypeSelect) dayTypeSelect.value = 'weekend';
-    } else {
-        if (breakTimeInput) breakTimeInput.value = '01:00';
-        if (dayTypeSelect) dayTypeSelect.value = 'normal';
-    }
-});
+// Initialize - REMOVED (already handled in HTML template)
+// The DOMContentLoaded event listener has been moved to the HTML template
+// to avoid conflicts and ensure proper initialization order
 
 // Function to setup form event listeners
 function setupFormEventListeners() {
@@ -534,151 +356,6 @@ window.addEventListener('DOMContentLoaded', function() {
         // window.switchRole = switchRole; // moved to HTML template
         // window.approveAttendance = approveAttendance; // moved to HTML template
 
-// Function to update attendance history
-function updateAttendanceHistory() {
-    console.log('Fetching attendance history...');  // Debug log
-    
-    // Kiểm tra xem element attendanceHistory có tồn tại không
-    const attendanceHistoryElement = document.getElementById('attendanceHistory');
-    if (!attendanceHistoryElement) {
-        console.log('attendanceHistory element not found, skipping update');
-        return;
-    }
-    
-    apiCall('/api/attendance/history')
-        .then(response => {
-            console.log('Response status:', response.status);  // Debug log
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Received data:', data);  // Debug log
-            if (data.error) {
-                showAlert(data.error, 'error');
-                return;
-            }
-            attendanceData = data;
-            currentPage = 1;
-            renderAttendancePage(currentPage);
-            renderAttendancePagination();
-        })
-        .catch(error => {
-            console.error('Error fetching attendance history:', error);
-            showAlert('Không thể tải lịch sử chấm công. Vui lòng thử lại sau.', 'error');
-        });
-}
-
-// Function to render attendance page
-function renderAttendancePage(page) {
-    const tbody = document.getElementById('attendanceHistory');
-    if (!tbody) {
-        console.log('attendanceHistory element not found, skipping render');
-        return;
-    }
-    
-    tbody.innerHTML = '';
-    
-    if (!attendanceData || attendanceData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center">Không có dữ liệu chấm công</td></tr>';
-        return;
-    }
-
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const pageData = attendanceData.slice(start, end);
-    
-    pageData.forEach(record => {
-        const row = document.createElement('tr');
-        let statusText = record.approved ? 'Đã phê duyệt' : 'Chờ phê duyệt';
-        
-        // Xử lý hiển thị loại ngày
-        let holidayTypeText = '-';
-        if (record.holiday_type) {
-            switch(record.holiday_type) {
-                case 'normal':
-                    holidayTypeText = 'Ngày thường';
-                    break;
-                case 'weekend':
-                    holidayTypeText = 'Cuối tuần';
-                    break;
-                case 'vietnamese_holiday':
-                    holidayTypeText = 'Lễ Việt Nam';
-                    break;
-                case 'japanese_holiday':
-                    holidayTypeText = 'Lễ Nhật Bản';
-                    break;
-                default:
-                    holidayTypeText = record.holiday_type;
-            }
-        }
-
-        // Xác định class cho trạng thái
-        let statusClass = record.approved ? 'status-approved' : 'status-pending';
-        if (record.status === 'rejected') {
-            statusText = 'Từ chối';
-            statusClass = 'status-rejected';
-        }
-        
-        row.innerHTML = `
-            <td>${formatDate(record.date)}</td>
-            <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
-            <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
-            <td>${record.break_time || '-'}</td>
-            <td>${record.total_work_hours || '-'}</td>
-            <td>${record.work_hours_display || '-'}</td>
-            <td>${record.overtime_before_22 || '0:00'}</td>
-            <td>${record.overtime_after_22 || '0:00'}</td>
-            <td>${holidayTypeText}</td>
-            <td><span class="${statusClass}">${statusText}</span></td>
-            <td>
-                ${!record.approved ? `
-                    <button class="btn btn-warning btn-sm" onclick="handleEditAttendance(${record.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteAttendance(${record.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                ` : '-'}
-            </td>
-            <td>${record.note || '-'}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Function to render attendance pagination
-function renderAttendancePagination() {
-    const totalPages = Math.ceil(attendanceData.length / rowsPerPage);
-    const pagination = document.getElementById('attendancePagination');
-    if (!pagination) {
-        console.log('attendancePagination element not found, skipping pagination render');
-        return;
-    }
-    
-    pagination.innerHTML = '';
-    
-    if (totalPages <= 1) return;
-    
-    for (let i = 1; i <= totalPages; i++) {
-        const li = document.createElement('li');
-        li.className = 'page-item' + (i === currentPage ? ' active' : '');
-        const a = document.createElement('a');
-        a.className = 'page-link';
-        a.href = '#';
-        a.textContent = i;
-        a.addEventListener('click', function(e) {
-            e.preventDefault();
-            currentPage = i;
-            renderAttendancePage(currentPage);
-            renderAttendancePagination();
-        });
-        li.appendChild(a);
-        pagination.appendChild(li);
-    }
-}
-
 // Function to handle edit attendance
 function handleEditAttendance(id) {
     apiCall(`/api/attendance/${id}`)
@@ -699,14 +376,16 @@ function handleEditAttendance(id) {
             const editIdInput = document.getElementById('editAttendanceId');
             const saveBtn = document.getElementById('saveAttendanceBtn');
             const cancelBtn = document.getElementById('cancelEditBtn');
+            const shiftSelect = document.getElementById('shiftSelect');
 
             if (dateInput) dateInput.value = data.date;
             if (checkInTimeInput) checkInTimeInput.value = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
             if (checkOutTimeInput) checkOutTimeInput.value = data.check_out ? data.check_out.split(' ')[1].substring(0, 5) : '';
-            if (breakTimeInput) breakTimeInput.value = formatTimeForInput(data.break_time);
+            if (breakTimeInput) breakTimeInput.value = data.break_time || "01:00";
             if (dayTypeSelect) dayTypeSelect.value = data.holiday_type || '';
             if (noteInput) noteInput.value = data.note || '';
             if (editIdInput) editIdInput.value = id;
+            if (shiftSelect) shiftSelect.value = data.shift_code || '';
             
             // Show cancel button and update save button text
             if (cancelBtn) cancelBtn.style.display = 'inline-block';
@@ -744,6 +423,8 @@ function deleteAttendance(id) {
 
 // Function to format time for input
 function formatTimeForInput(hours) {
+    if (typeof hours === 'string' && hours.includes(':')) return hours;
+    if (hours === undefined || hours === null || isNaN(hours)) return "01:00";
     const hh = Math.floor(hours);
     const mm = Math.round((hours - hh) * 60);
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -754,7 +435,8 @@ window.handleEditAttendance = handleEditAttendance;
 window.deleteAttendance = deleteAttendance;
 
 // Function to handle form submission
-function handleAttendanceSubmit() {
+function handleAttendanceSubmit(e) {
+    if (e) e.preventDefault();
     const dateInput = document.getElementById('attendanceDate');
     const checkInTimeInput = document.getElementById('checkInTime');
     const checkOutTimeInput = document.getElementById('checkOutTime');
@@ -762,6 +444,7 @@ function handleAttendanceSubmit() {
     const breakTimeInput = document.getElementById('breakTime');
     const dayTypeSelect = document.getElementById('dayType');
     const editIdInput = document.getElementById('editAttendanceId');
+    const shiftSelect = document.getElementById('shiftSelect');
 
     // Kiểm tra các element cần thiết có tồn tại không
     if (!dateInput || !checkInTimeInput || !checkOutTimeInput) {
@@ -777,10 +460,17 @@ function handleAttendanceSubmit() {
     const breakTimeStr = breakTimeInput ? breakTimeInput.value : '01:00';
     const dayType = dayTypeSelect ? dayTypeSelect.value : '';
     const isHoliday = dayType !== 'normal';
+    // Lấy lại shiftCode từ DOM mỗi lần submit
+    const shiftSelectEl = document.getElementById('shiftSelect');
+    const shiftCode = shiftSelectEl ? shiftSelectEl.value : '';
 
     // Validate inputs
     if (!date || !checkIn || !checkOut) {
         showAlert('Vui lòng nhập đầy đủ ngày và giờ vào/ra', 'warning');
+        return;
+    }
+    if (!shiftCode) {
+        showAlert('Vui lòng chọn ca làm việc!', 'warning');
         return;
     }
 
@@ -797,6 +487,33 @@ function handleAttendanceSubmit() {
         breakTime = hh + (mm / 60);
     }
 
+    // Calculate shift start and end times based on shift code
+    let shiftStart = null;
+    let shiftEnd = null;
+    if (shiftCode === '1') {
+        shiftStart = '07:30';
+        shiftEnd = '16:30';
+    } else if (shiftCode === '2') {
+        shiftStart = '08:00';
+        shiftEnd = '17:00';
+    } else if (shiftCode === '3') {
+        shiftStart = '09:00';
+        shiftEnd = '18:00';
+    } else if (shiftCode === '4') {
+        shiftStart = '11:00';
+        shiftEnd = '22:00';
+    }
+    // Nếu người dùng đã sửa giờ vào/ra, shiftStart/shiftEnd phải lấy từ input
+    if (!shiftStart || !shiftEnd) {
+        shiftStart = checkIn;
+        shiftEnd = checkOut;
+    }
+    shiftStart = shiftStart || '';
+    shiftEnd = shiftEnd || '';
+
+    // Log chi tiết để debug
+    console.log('shiftCode:', shiftCode, 'shiftStart:', shiftStart, 'shiftEnd:', shiftEnd);
+
     // Prepare data
     const data = {
         date: date,
@@ -805,7 +522,10 @@ function handleAttendanceSubmit() {
         note: note,
         break_time: breakTime,
         is_holiday: isHoliday,
-        holiday_type: dayType
+        holiday_type: dayType,
+        shift_code: shiftCode,
+        shift_start: shiftStart,
+        shift_end: shiftEnd
     };
 
     console.log('Submitting data:', data);  // Debug log
@@ -874,12 +594,11 @@ function resetForm() {
     const breakTimeInput = document.getElementById('breakTime');
     const dayTypeSelect = document.getElementById('dayType');
     
-    // Format date as YYYY-MM-DD
-    const formattedDate = today.toISOString().split('T')[0];
+    if (dateInput && dateInput._flatpickr) {
+        dateInput._flatpickr.setDate(today, true);
+    }
     // Format time as HH:mm
     const formattedTime = today.toTimeString().slice(0, 5);
-    
-    if (dateInput) dateInput.value = formattedDate;
     if (checkInTimeInput) checkInTimeInput.value = formattedTime;
     if (checkOutTimeInput) checkOutTimeInput.value = formattedTime;
 

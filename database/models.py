@@ -4,7 +4,8 @@ Database models for the attendance management system
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, time, timedelta
+import logging
 
 db = SQLAlchemy()
 
@@ -60,6 +61,7 @@ class Attendance(db.Model):
     is_holiday = db.Column(db.Boolean, nullable=False, default=False)
     holiday_type = db.Column(db.String(20), nullable=True)
     total_work_hours = db.Column(db.Float, nullable=True)
+    regular_work_hours = db.Column(db.Float, nullable=True)
     overtime_before_22 = db.Column(db.String(5), nullable=True)
     overtime_after_22 = db.Column(db.String(5), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -67,6 +69,9 @@ class Attendance(db.Model):
     approved = db.Column(db.Boolean, default=False)
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
+    shift_code = db.Column(db.String(10), nullable=True)  # Mã ca: 1,2,3,4
+    shift_start = db.Column(db.Time, nullable=True)       # Giờ vào ca chuẩn
+    shift_end = db.Column(db.Time, nullable=True)         # Giờ ra ca chuẩn
 
     # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('attendances', lazy=True))
@@ -78,6 +83,7 @@ class Attendance(db.Model):
             self.total_work_hours = None
             self.overtime_before_22 = "0:00"
             self.overtime_after_22 = "0:00"
+            self.regular_work_hours = None
             return
 
         def minutes_to_hhmm(minutes):
@@ -86,84 +92,171 @@ class Attendance(db.Model):
             mins = int(minutes % 60)
             return f"{hours}:{mins:02d}"
 
-        # Total work duration (minus break time)
-        total_work_duration_hours = (self.check_out - self.check_in).total_seconds() / 3600 - self.break_time
-        self.total_work_hours = round(max(0, total_work_duration_hours), 2)
+        # Định nghĩa 4 ca chuẩn
+        shift_map = {
+            '1': (time(7,30), time(16,30)),
+            '2': (time(8,0), time(17,0)),
+            '3': (time(9,0), time(18,0)),
+            '4': (time(11,0), time(22,0)),
+        }
         
-        # Logic for weekends and holidays
-        if self.holiday_type in ['weekend', 'vietnamese_holiday']:
-            # Tất cả thời gian làm việc trong ngày nghỉ/lễ đều là overtime
-            total_work_minutes = max(0, total_work_duration_hours * 60)
-            
-            # Chia overtime thành trước và sau 22:00
-            twenty_two_oclock = self.check_in.replace(hour=22, minute=0, second=0, microsecond=0)
-            
-            # Overtime after 22:00
-            ot_after_22_minutes = 0
-            if self.check_out > twenty_two_oclock:
-                ot_after_22_start = max(self.check_in, twenty_two_oclock)
-                ot_after_22_minutes = (self.check_out - ot_after_22_start).total_seconds() / 60
-            
-            # Overtime before 22:00
-            ot_before_22_minutes = total_work_minutes - ot_after_22_minutes
+        # Nếu có mã ca, chỉ tự động gán giờ vào/ra ca chuẩn nếu chưa có giá trị
+        if self.shift_code in shift_map:
+            if not self.shift_start:
+                self.shift_start = shift_map[self.shift_code][0]
+            if not self.shift_end:
+                self.shift_end = shift_map[self.shift_code][1]
 
-            self.overtime_before_22 = minutes_to_hhmm(ot_before_22_minutes)
-            self.overtime_after_22 = minutes_to_hhmm(ot_after_22_minutes)
+        # 1. Tổng giờ làm: thời gian thực tế trừ giờ nghỉ
+        # Đảm bảo check_in và check_out là datetime, cùng ngày hoặc check_out > check_in
+        logger = logging.getLogger("attendance_logic")
+        logger.setLevel(logging.DEBUG)
+        if not logger.handlers:
+            handler = logging.FileHandler("attendance_debug.log")
+            handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+            logger.addHandler(handler)
+
+        # Log giá trị đầu vào
+        logger.debug(f"check_in: {self.check_in} ({type(self.check_in)})")
+        logger.debug(f"check_out: {self.check_out} ({type(self.check_out)})")
+        logger.debug(f"break_time: {self.break_time}")
+
+        # Tính duration thực tế
+        duration = (self.check_out - self.check_in).total_seconds() / 3600
+        logger.debug(f"duration (giờ vào đến giờ ra): {duration}")
+        total_work = duration - self.break_time
+        logger.debug(f"total_work_hours (sau khi trừ nghỉ): {total_work}")
+        self.total_work_hours = round(max(0, total_work), 2)
+
+        if self.shift_start and self.shift_end:
+            ca_start = datetime.combine(self.date, self.shift_start)
+            if self.shift_end > self.shift_start:
+                ca_end = datetime.combine(self.date, self.shift_end)
+            else:
+                ca_end = datetime.combine(self.date, self.shift_end) + timedelta(days=1)
+            twenty_two = datetime.combine(self.date, time(22, 0))
+            if self.shift_end <= time(22, 0) and self.shift_end < self.shift_start:
+                twenty_two += timedelta(days=1)
+
+            # 2. Giờ công thường: xử lý theo loại ngày
+            overlap_start = max(self.check_in, ca_start)
+            overlap_end = min(self.check_out, ca_end)
+            time_in_shift = round(max(0, (overlap_end - overlap_start).total_seconds() / 3600), 2) if overlap_end > overlap_start else 0
+            
+            # Xử lý giờ công chính thức theo loại ngày
+            if self.holiday_type == 'vietnamese_holiday':
+                # Ngày lễ Việt Nam: luôn được tặng 8 giờ công chính thức
+                self.regular_work_hours = 8.0
+                break_time_for_overtime = self.break_time
+            elif self.holiday_type == 'weekend':
+                # Cuối tuần: giờ công chính thức = 0, giờ nghỉ trừ vào tăng ca
+                self.regular_work_hours = 0.0
+                break_time_for_overtime = self.break_time
+            else:
+                # Ngày thường: giờ nghỉ trừ vào giờ công thường, tối đa 8 giờ
+                regular_hours = round(max(0, time_in_shift - self.break_time), 2)
+                self.regular_work_hours = min(regular_hours, 8.0)  # Giới hạn tối đa 8 giờ cho ngày thường
+                break_time_for_overtime = 0
+
+            # 3. Tăng ca trước 22h: thời gian từ check_in đến 22:00 trừ giờ nghỉ
+            if self.holiday_type in ['vietnamese_holiday', 'weekend']:
+                # Ngày lễ và cuối tuần: tính thời gian từ check_in đến 22:00
+                check_in_time = self.check_in.time()
+                check_out_time = self.check_out.time()
+                
+                # Tính tăng ca trước 22h
+                if check_out_time <= time(22, 0):
+                    # Toàn bộ thời gian làm việc trước 22h
+                    overtime_before_22 = (self.check_out - self.check_in).total_seconds() / 3600
+                else:
+                    # Tính thời gian từ check_in đến 22:00
+                    if check_in_time < time(22, 0):
+                        # Có thời gian trước 22h
+                        end_time = time(22, 0)
+                        start_time = check_in_time
+                        overtime_before_22 = (end_time.hour - start_time.hour) + (end_time.minute - start_time.minute) / 60
+                    else:
+                        # Không có thời gian trước 22h
+                        overtime_before_22 = 0
+                
+                # Trừ giờ nghỉ vào tăng ca trước 22h
+                overtime_before_22 = max(0, overtime_before_22 - self.break_time)
+            else:
+                # Ngày thường: tính theo logic cũ
+                ot1_start = max(self.check_in, ca_end)
+                ot1_end = min(self.check_out, twenty_two)
+                overtime_before_22 = max(0, (ot1_end - ot1_start).total_seconds() / 3600) if ot1_end > ot1_start else 0
+            
+            self.overtime_before_22 = minutes_to_hhmm(overtime_before_22 * 60)
+
+            # 4. Tăng ca sau 22h: thời gian từ 22:00 đến khi ra
+            if self.holiday_type in ['vietnamese_holiday', 'weekend']:
+                # Ngày lễ và cuối tuần: tính thời gian sau 22h
+                if check_out_time > time(22, 0):
+                    # Có thời gian sau 22h
+                    start_time = time(22, 0)
+                    overtime_after_22 = (check_out_time.hour - start_time.hour) + (check_out_time.minute - start_time.minute) / 60
+                else:
+                    # Không có thời gian sau 22h
+                    overtime_after_22 = 0
+            else:
+                # Ngày thường: tính theo logic cũ
+                ot2_start = max(self.check_in, twenty_two)
+                ot2_end = self.check_out
+                overtime_after_22 = max(0, (ot2_end - ot2_start).total_seconds() / 3600) if ot2_end > ot2_start else 0
+            
+            self.overtime_after_22 = minutes_to_hhmm(overtime_after_22 * 60)
         else:
-            # Logic for regular days - Simplified and more accurate
-            # Standard work hours: 8 hours (9:00-18:00 with 1 hour break)
-            standard_start = self.check_in.replace(hour=9, minute=0, second=0, microsecond=0)
-            standard_end = self.check_in.replace(hour=18, minute=0, second=0, microsecond=0)
-            
-            # Calculate overtime before 22:00 (from 18:00 to 22:00)
-            overtime_start = max(self.check_in, standard_end)
-            overtime_end_22 = min(self.check_out, self.check_in.replace(hour=22, minute=0, second=0, microsecond=0))
-            overtime_before_22 = (overtime_end_22 - overtime_start).total_seconds() / 60 if overtime_end_22 > overtime_start else 0
-
-            # Calculate overtime after 22:00
-            after_22 = self.check_in.replace(hour=22, minute=0, second=0, microsecond=0)
-            overtime_after_22 = (self.check_out - after_22).total_seconds() / 60 if self.check_out > after_22 else 0
-            
-            self.overtime_before_22 = minutes_to_hhmm(overtime_before_22)
-            self.overtime_after_22 = minutes_to_hhmm(overtime_after_22)
+            # Nếu không có ca chuẩn, coi toàn bộ là giờ công thường (tối đa 8 giờ cho ngày thường)
+            if self.holiday_type == 'vietnamese_holiday':
+                self.regular_work_hours = 8.0
+            elif self.holiday_type == 'weekend':
+                self.regular_work_hours = 0.0
+            else:
+                # Ngày thường: tối đa 8 giờ
+                self.regular_work_hours = min(self.total_work_hours, 8.0) if self.total_work_hours else 0.0
+            self.overtime_before_22 = "0:00"
+            self.overtime_after_22 = "0:00"
 
     def calculate_regular_work_hours(self):
         """Calculate regular work hours (excluding overtime)"""
         if not self.check_in or not self.check_out:
             return 0.0
 
-        # If holiday or weekend, regular hours = 0
-        if self.holiday_type in ['weekend', 'vietnamese_holiday']:
-            return 0.0
+        if self.holiday_type == 'vietnamese_holiday':
+            return 8.0  # Ngày lễ Việt Nam luôn được tặng 8 giờ công chính thức
+        if self.holiday_type == 'weekend':
+            return 0.0  # Cuối tuần không có giờ công chính thức
 
-        # Logic for regular days: calculate work hours within standard shift (9:00-18:00)
-        standard_start = self.check_in.replace(hour=9, minute=0, second=0, microsecond=0)
-        standard_end = self.check_in.replace(hour=18, minute=0, second=0, microsecond=0)
-        
-        # Calculate actual work time within standard hours
-        overlap_start = max(self.check_in, standard_start)
-        overlap_end = min(self.check_out, standard_end)
-        
-        in_shift_duration_hours = 0
-        if overlap_end > overlap_start:
-            in_shift_duration_hours = (overlap_end - overlap_start).total_seconds() / 3600
-        
-        # Subtract break time from shift work time
-        regular_hours = max(0, in_shift_duration_hours - self.break_time)
-        
-        return round(regular_hours, 2)
+        # Ngày thường: tính giờ công và giới hạn tối đa 8 giờ
+        if self.shift_start and self.shift_end:
+            ca_start = datetime.combine(self.date, self.shift_start)
+            if self.shift_end > self.shift_start:
+                ca_end = datetime.combine(self.date, self.shift_end)
+            else:
+                ca_end = datetime.combine(self.date, self.shift_end) + timedelta(days=1)
+            # Lấy phần giao nhau giữa [check_in, check_out] và [shift_start, shift_end]
+            overlap_start = max(self.check_in, ca_start)
+            overlap_end = min(self.check_out, ca_end)
+            time_in_shift = round(max(0, (overlap_end - overlap_start).total_seconds() / 3600), 2) if overlap_end > overlap_start else 0
+            # Giờ công chính thức = thời gian trong ca - giờ nghỉ, tối đa 8 giờ
+            regular_hours = round(max(0, time_in_shift - self.break_time), 2)
+            return min(regular_hours, 8.0)  # Giới hạn tối đa 8 giờ cho ngày thường
+        else:
+            # Nếu không có ca chuẩn, tính theo cách cũ
+            actual_work_duration_hours = (self.check_out - self.check_in).total_seconds() / 3600 - self.break_time
+            regular_hours = round(max(0, actual_work_duration_hours), 2)
+            return min(regular_hours, 8.0)  # Giới hạn tối đa 8 giờ cho ngày thường
 
     def to_dict(self):
         """Convert attendance record to dictionary"""
         work_hours_val = self.calculate_regular_work_hours()
-
         return {
             'id': self.id,
             'date': self.date.strftime('%Y-%m-%d'),
-            'check_in': self.check_in.strftime('%H:%M:%S') if self.check_in else None,
-            'check_out': self.check_out.strftime('%H:%M:%S') if self.check_out else None,
-            'status': self.status,
-            'break_time': self._format_hours_minutes(self.break_time) if self.break_time is not None else "0:00",
+            'check_in': self.check_in.strftime('%H:%M') if self.check_in else None,
+            'check_out': self.check_out.strftime('%H:%M') if self.check_out else None,
+            'break_time': self.break_time,
             'is_holiday': self.is_holiday,
             'holiday_type': self._translate_holiday_type(self.holiday_type),
             'total_work_hours': self._format_hours_minutes(self.total_work_hours) if self.total_work_hours is not None else "0:00",
@@ -171,7 +264,14 @@ class Attendance(db.Model):
             'overtime_before_22': self.overtime_before_22,
             'overtime_after_22': self.overtime_after_22,
             'note': self.note,
-            'approved': self.approved
+            'status': self.status,
+            'approved': self.approved,
+            'approved_by': self.approved_by,
+            'approved_at': self.approved_at.strftime('%Y-%m-%d %H:%M:%S') if self.approved_at else None,
+            'approver_name': self.approver.name if self.approver else None,
+            'shift_code': self.shift_code,
+            'shift_start': self.shift_start.strftime('%H:%M') if self.shift_start else None,
+            'shift_end': self.shift_end.strftime('%H:%M') if self.shift_end else None
         }
 
     @staticmethod

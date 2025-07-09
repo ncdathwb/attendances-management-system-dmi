@@ -11,6 +11,8 @@ import re
 from collections import defaultdict
 import time
 import secrets
+from flask_migrate import Migrate
+
 
 # Import database models
 from database.models import db, User, Attendance, Request, Department, AuditLog
@@ -26,6 +28,7 @@ csrf = CSRFProtect(app)
 
 # Initialize database
 db.init_app(app)
+migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -172,6 +175,7 @@ def record_attendance():
         return jsonify({'error': 'Phiên đăng nhập đã hết hạn'}), 401
     update_session_activity()
     data = request.get_json()
+    print('DEBUG raw:', data)
     # Validate input
     date = validate_date(data.get('date'))
     check_in = validate_time(data.get('check_in'))
@@ -180,6 +184,10 @@ def record_attendance():
     break_time = validate_float(data.get('break_time', 1.0), min_val=0, max_val=8)
     is_holiday = bool(data.get('is_holiday', False))
     holiday_type = validate_holiday_type(data.get('holiday_type'))
+    shift_code = data.get('shift_code')
+    shift_start = validate_time(data.get('shift_start'))
+    shift_end = validate_time(data.get('shift_end'))
+    print('DEBUG validated:', 'shift_code:', shift_code, 'shift_start:', shift_start, 'shift_end:', shift_end)
     if not date:
         return jsonify({'error': 'Vui lòng chọn ngày chấm công hợp lệ'}), 400
     if not holiday_type:
@@ -188,6 +196,8 @@ def record_attendance():
         return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra hợp lệ'}), 400
     if break_time is None:
         return jsonify({'error': 'Thời gian nghỉ không hợp lệ!'}), 400
+    if not shift_code or not shift_start or not shift_end:
+        return jsonify({'error': 'Vui lòng chọn ca làm việc hợp lệ!'}), 400
     user = User.query.get(session['user_id'])
     if not user:
         return jsonify({'error': 'Không tìm thấy người dùng'}), 404
@@ -208,11 +218,14 @@ def record_attendance():
         holiday_type=holiday_type,
         status='pending',
         overtime_before_22="0:00",
-        overtime_after_22="0:00"
+        overtime_after_22="0:00",
+        shift_code=shift_code
     )
     db.session.add(attendance)
     attendance.check_in = datetime.combine(date, check_in)
     attendance.check_out = datetime.combine(date, check_out)
+    attendance.shift_start = shift_start
+    attendance.shift_end = shift_end
     attendance.note = note
     attendance.update_work_hours()
     try:
@@ -693,7 +706,10 @@ def get_attendance(attendance_id):
         'holiday_type': attendance.holiday_type,
         'note': attendance.note,
         'approved': attendance.approved,
-        'status': attendance.status
+        'status': attendance.status,
+        'shift_code': attendance.shift_code,
+        'shift_start': attendance.shift_start.strftime('%H:%M') if attendance.shift_start else None,
+        'shift_end': attendance.shift_end.strftime('%H:%M') if attendance.shift_end else None
     })
 
 @app.route('/api/attendance/<int:attendance_id>', methods=['PUT'])
@@ -720,6 +736,9 @@ def update_attendance(attendance_id):
     break_time = validate_float(data.get('break_time', 1.0), min_val=0, max_val=8)
     is_holiday = bool(data.get('is_holiday', False))
     holiday_type = validate_holiday_type(data.get('holiday_type'))
+    shift_code = data.get('shift_code')
+    shift_start = validate_time(data.get('shift_start'))
+    shift_end = validate_time(data.get('shift_end'))
     if not date:
         return jsonify({'error': 'Vui lòng chọn ngày chấm công hợp lệ'}), 400
     if not holiday_type:
@@ -728,6 +747,8 @@ def update_attendance(attendance_id):
         return jsonify({'error': 'Vui lòng nhập đầy đủ giờ vào và giờ ra hợp lệ'}), 400
     if break_time is None:
         return jsonify({'error': 'Thời gian nghỉ không hợp lệ!'}), 400
+    if not shift_code or not shift_start or not shift_end:
+        return jsonify({'error': 'Vui lòng chọn ca làm việc hợp lệ!'}), 400
     attendance.date = date
     attendance.check_in = datetime.combine(date, check_in)
     attendance.check_out = datetime.combine(date, check_out)
@@ -735,6 +756,9 @@ def update_attendance(attendance_id):
     attendance.break_time = break_time
     attendance.is_holiday = is_holiday
     attendance.holiday_type = holiday_type
+    attendance.shift_code = shift_code
+    attendance.shift_start = shift_start
+    attendance.shift_end = shift_end
     if attendance.status == 'rejected':
         attendance.status = 'pending'
     if date > datetime.now().date():
@@ -1025,7 +1049,13 @@ def validate_date(date_str):
 
 def validate_time(time_str):
     try:
-        return datetime.strptime(time_str, '%H:%M').time()
+        if not time_str:
+            return None
+        time_str = str(time_str).strip()
+        # Chỉ nhận đúng định dạng HH:MM
+        if len(time_str) == 5 and time_str[2] == ':':
+            return datetime.strptime(time_str, '%H:%M').time()
+        return None
     except Exception:
         return None
 
@@ -1086,6 +1116,23 @@ try:
     csrf.exempt(app.view_functions['debug_attendance_status'])
 except KeyError:
     pass  # Routes might not exist yet
+
+def safe_format_hours_minutes(hours):
+    try:
+        if hours is None or hours == "" or hours != hours or float(hours) < 0:
+            return "01:00"
+        if isinstance(hours, str) and ':' in hours:
+            return hours
+        if isinstance(hours, str):
+            hours = float(hours)
+        h = int(hours)
+        m = int(round((hours - h) * 60))
+        if m == 60:
+            h += 1
+            m = 0
+        return f"{h}:{m:02d}"
+    except Exception:
+        return "01:00"
 
 if __name__ == '__main__':
     with app.app_context():

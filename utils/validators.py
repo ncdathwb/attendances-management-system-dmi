@@ -51,9 +51,14 @@ def validate_time(time_str):
         return None
 
 def validate_float(val, min_val=None, max_val=None):
-    """Validate float value with optional min/max constraints"""
+    """Validate float value with optional min/max constraints. Hỗ trợ cả chuỗi H:MM."""
     try:
-        f = float(val)
+        if isinstance(val, str) and ':' in val:
+            # Nếu là chuỗi H:MM
+            hh, mm = val.split(':')
+            f = int(hh) + int(mm)/60
+        else:
+            f = float(val)
         if min_val is not None and f < min_val:
             return None
         if max_val is not None and f > max_val:
