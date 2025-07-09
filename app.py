@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -488,12 +488,50 @@ def require_employee(f):
 @app.route('/admin/users')
 @require_admin
 def admin_users():
-    users = User.query.all()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Mặc định 10/trang, không cho chọn
+    search = request.args.get('search', '', type=str).strip()
+    department_filter = request.args.get('department', '', type=str).strip()
+
+    query = User.query
+    if search:
+        query = query.filter((User.name.ilike(f'%{search}%')) | (User.employee_id.ilike(f'%{search}%')))
+    if department_filter:
+        query = query.filter(User.department == department_filter)
+    query = query.order_by(User.name.asc())
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    users = pagination.items
+
+    # Danh sách phòng ban duy nhất, sắp xếp theo tên
+    all_departments = User.query.with_entities(User.department).distinct().all()
+    departments = sorted(set([d[0] for d in all_departments if d[0]]))
+
     # Calculate statistics
     admin_count = sum(1 for user in users if 'ADMIN' in user.roles.split(','))
     active_count = sum(1 for user in users if user.is_active)
     department_count = len(set(user.department for user in users))
-    return render_template('admin/users.html', users=users, admin_count=admin_count, active_count=active_count, department_count=department_count)
+    # Tính toán phân trang đẹp (hiển thị 5 trang quanh trang hiện tại)
+    start_page = max(1, pagination.page - 2)
+    end_page = min(pagination.pages, pagination.page + 2)
+    if end_page - start_page < 4:
+        end_page = min(pagination.pages, start_page + 4)
+        start_page = max(1, end_page - 4)
+    page_range = range(start_page, end_page + 1)
+
+    return render_template(
+        'admin/users.html',
+        users=users,
+        admin_count=admin_count,
+        active_count=active_count,
+        department_count=department_count,
+        pagination=pagination,
+        search=search,
+        departments=departments,
+        department_filter=department_filter,
+        per_page=per_page,
+        page_range=page_range
+    )
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @require_admin
@@ -1275,6 +1313,48 @@ def safe_format_hours_minutes(hours):
         return f"{h}:{m:02d}"
     except Exception:
         return "01:00"
+
+@app.route('/admin/users/<int:user_id>/toggle_active', methods=['POST'])
+@require_admin
+def toggle_user_active(user_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Không có quyền truy cập'}), 401
+    if int(user_id) == int(session['user_id']):
+        return jsonify({'error': 'Không thể tự khoá tài khoản của mình!'}), 400
+    user = User.query.get_or_404(user_id)
+    user.is_active = not user.is_active
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'is_active': user.is_active,
+        'status_label': 'Hoạt Động' if user.is_active else 'Đã Khoá',
+        'status_class': 'bg-success' if user.is_active else 'bg-secondary'
+    })
+
+@app.route('/admin/users/delete_all', methods=['POST'])
+@require_admin
+def delete_all_users():
+    data = request.get_json()
+    password = data.get('password', '')
+    admin = User.query.get(session['user_id'])
+    if not admin or not admin.check_password(password):
+        return jsonify({'error': 'Mật khẩu không đúng!'}), 403
+    # Xoá tất cả user trừ admin hiện tại
+    User.query.filter(User.id != admin.id).delete()
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@require_admin
+def delete_user(user_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Không có quyền truy cập'}), 401
+    if int(user_id) == int(session['user_id']):
+        return jsonify({'error': 'Không thể tự xoá tài khoản của mình!'}), 400
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     with app.app_context():

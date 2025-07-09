@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Quản Lý Người Dùng - Hệ Thống Quản Lý Chấm Công</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -149,36 +150,47 @@
             {% endif %}
         {% endwith %}
 
-        <!-- Statistics Cards -->
-        <div class="row">
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <i class="fas fa-users fa-2x mb-2"></i>
-                    <div class="stats-number">{{ users|length }}</div>
-                    <div>Tổng Người Dùng</div>
-                </div>
+        <!-- Search & Filter -->
+        <form class="row g-2 align-items-center mb-4 justify-content-between flex-nowrap" method="get" action="" style="padding: 18px 24px 0 24px;">
+            <div class="col-auto flex-grow-1 d-flex gap-2 align-items-center" style="min-width:0;">
+                <input type="text" class="form-control" name="search" placeholder="Tìm kiếm tên, mã NV..." value="{{ search }}" style="max-width:220px;">
+                <select class="form-select" name="department" style="max-width:180px;">
+                    <option value="">Tất cả phòng ban</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept }}" {% if dept == department_filter %}selected{% endif %}>{{ dept }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <i class="fas fa-user-check fa-2x mb-2"></i>
-                    <div class="stats-number">{{ active_count }}</div>
-                    <div>Người Dùng Hoạt Động</div>
-                </div>
+            <div class="col-auto d-flex gap-2 align-items-center justify-content-end">
+                <button class="btn btn-primary" type="submit" style="min-width:100px;"><i class="fas fa-search me-1"></i>Tìm kiếm</button>
+                <a href="{{ url_for('create_user') }}" class="btn btn-success" style="min-width:100px;">
+                    <i class="fas fa-user-plus me-1"></i>Thêm mới
+                </a>
+                <button type="button" class="btn btn-danger" style="min-width:100px;" onclick="showDeleteAllModal()">
+                    <i class="fas fa-trash"></i> Xoá toàn bộ
+                </button>
             </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <i class="fas fa-user-tie fa-2x mb-2"></i>
-                    <div class="stats-number">{{ admin_count }}</div>
-                    <div>Quản Trị Viên</div>
-                </div>
+        </form>
+
+        <!-- Modal xác nhận xoá toàn bộ -->
+        <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAllModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xoá toàn bộ người dùng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p>Bạn có chắc chắn muốn <b>xóa toàn bộ người dùng</b> (trừ tài khoản của bạn)?<br>Hành động này không thể hoàn tác!</p>
+                <input type="password" class="form-control mt-3" id="deleteAllPassword" placeholder="Nhập mật khẩu để xác nhận">
+                <div class="invalid-feedback" id="deleteAllError"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">Xoá toàn bộ</button>
+              </div>
             </div>
-            <div class="col-md-3">
-                <div class="stats-card text-center">
-                    <i class="fas fa-building fa-2x mb-2"></i>
-                    <div class="stats-number">{{ department_count }}</div>
-                    <div>Phòng Ban</div>
-                </div>
-            </div>
+          </div>
         </div>
 
         <!-- Users Management Card -->
@@ -188,16 +200,13 @@
                     <i class="fas fa-users me-2"></i>
                     Quản Lý Người Dùng
                 </h4>
-                <a href="{{ url_for('create_user') }}" class="btn btn-light">
-                    <i class="fas fa-user-plus me-1"></i>Tạo Người Dùng Mới
-                </a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
+                    <table class="table table-hover align-middle mb-0" style="border-radius:12px;overflow:hidden;">
+                        <thead class="table-light sticky-top">
                             <tr>
-                                <th>ID</th>
+                                <!-- <th>ID</th> -->
                                 <th>Mã NV</th>
                                 <th>Họ và Tên</th>
                                 <th>Phòng Ban</th>
@@ -209,51 +218,49 @@
                         </thead>
                         <tbody>
                             {% for user in users %}
-                            <tr>
-                                <td>{{ user.id }}</td>
-                                <td>
-                                    <strong>{{ user.employee_id }}</strong>
-                                </td>
+                            <tr id="user-row-{{ user.id }}" class="user-row {% if not user.is_active %}table-secondary user-inactive{% endif %}">
+                                <!-- <td>{{ user.id }}</td> -->
+                                <td><strong>{{ user.employee_id }}</strong></td>
                                 <td>{{ user.name }}</td>
-                                <td>
-                                    <span class="badge badge-info">{{ user.department }}</span>
-                                </td>
+                                <td><span class="badge bg-info text-dark">{{ user.department }}</span></td>
                                 <td>
                                     {% for role in user.roles.split(',') %}
                                         {% if role == 'ADMIN' %}
-                                            <span class="badge badge-danger">{{ role }}</span>
+                                            <span class="badge bg-danger">{{ role }}</span>
                                         {% elif role == 'MANAGER' %}
-                                            <span class="badge badge-warning">{{ role }}</span>
+                                            <span class="badge bg-warning text-dark">{{ role }}</span>
                                         {% elif role == 'TEAM_LEADER' %}
-                                            <span class="badge badge-info">{{ role }}</span>
+                                            <span class="badge bg-primary">{{ role }}</span>
                                         {% else %}
-                                            <span class="badge badge-success">{{ role }}</span>
+                                            <span class="badge bg-success">{{ role }}</span>
                                         {% endif %}
                                     {% endfor %}
                                 </td>
                                 <td>
                                     {% if user.is_active %}
-                                        <span class="badge badge-success">Hoạt Động</span>
+                                        <span class="badge bg-success">Hoạt Động</span>
                                     {% else %}
-                                        <span class="badge badge-danger">Khóa</span>
+                                        <span class="badge bg-secondary">Đã Khoá</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a href="{{ url_for('edit_user', user_id=user.id) }}" 
-                                           class="btn btn-warning btn-sm" title="Chỉnh Sửa">
+                                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-warning btn-sm" title="Chỉnh Sửa">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        {% if user.is_active %}
-                                            <button class="btn btn-danger btn-sm" title="Khóa Tài Khoản"
-                                                    onclick="toggleUserStatus({{ user.id }}, false)">
-                                                <i class="fas fa-lock"></i>
-                                            </button>
-                                        {% else %}
-                                            <button class="btn btn-success btn-sm" title="Mở Khóa"
-                                                    onclick="toggleUserStatus({{ user.id }}, true)">
-                                                <i class="fas fa-unlock"></i>
+                                        {% if user.id != session['user_id'] %}
+                                            {% if user.is_active %}
+                                                <button class="btn btn-outline-warning btn-sm" title="Khóa tài khoản" onclick="toggleUserActive({{ user.id }}, this)">
+                                                    <i class="fas fa-user-lock"></i>
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-unlock btn-sm" title="Mở khóa tài khoản" onclick="toggleUserActive({{ user.id }}, this)">
+                                                    <i class="fas fa-user-check"></i>
+                                                </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-danger btn-sm" title="Xoá người dùng" onclick="deleteUser({{ user.id }}, this)">
+                                                <i class="fas fa-trash"></i>
                                             </button>
                                         {% endif %}
                                     </div>
@@ -264,11 +271,55 @@
                     </table>
                 </div>
             </div>
+            <div class="card-footer bg-white py-3">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                    <div class="mb-2 mb-md-0">
+                        Hiển thị <b>{{ users|length }}</b> / <b>{{ pagination.total }}</b> người dùng
+                        (Trang <b>{{ pagination.page }}</b> / <b>{{ pagination.pages }}</b>)
+                    </div>
+                    <nav>
+                        <ul class="pagination mb-0">
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">&laquo; Đầu</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.prev_num }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">&lsaquo; Trước</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo; Đầu</span></li>
+                                <li class="page-item disabled"><span class="page-link">&lsaquo; Trước</span></li>
+                            {% endif %}
+                            {% for p in page_range %}
+                                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ p }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">{{ p }}</a>
+                                </li>
+                            {% endfor %}
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.next_num }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">Tiếp &rsaquo;</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ pagination.pages }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">Cuối &raquo;</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Tiếp &rsaquo;</span></li>
+                                <li class="page-item disabled"><span class="page-link">Cuối &raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Get CSRF token from meta tag
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+
         // Auto-hide alerts after 5 seconds
         setTimeout(function() {
             var alerts = document.querySelectorAll('.alert');
@@ -286,6 +337,172 @@
                 alert('Chức năng này sẽ được implement sau!');
             }
         }
+
+        function showDeleteAllModal() {
+            document.getElementById('deleteAllPassword').value = '';
+            document.getElementById('deleteAllError').textContent = '';
+            document.getElementById('deleteAllError').style.display = 'none';
+            var modal = new bootstrap.Modal(document.getElementById('deleteAllModal'));
+            modal.show();
+        }
+        function confirmDeleteAll() {
+            var password = document.getElementById('deleteAllPassword').value;
+            var errorDiv = document.getElementById('deleteAllError');
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+            fetch('/admin/users/delete_all', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    location.reload();
+                }
+            });
+        }
+        function toggleUserActive(userId, btn) {
+            fetch(`/admin/users/${userId}/toggle_active`, { 
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(async res => {
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    location.reload();
+                    return {};
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    var row = document.getElementById('user-row-' + userId);
+                    var btnGroup = row.querySelector('td:last-child .btn-group');
+                    // Cập nhật class dòng
+                    if (data.is_active) {
+                        row.classList.remove('table-secondary', 'user-inactive');
+                    } else {
+                        row.classList.add('table-secondary', 'user-inactive');
+                    }
+                    // Cập nhật nút thao tác
+                    if (btnGroup) {
+                        btnGroup.innerHTML = `
+                            <a href="/admin/users/${userId}/edit" class="btn btn-warning btn-sm" title="Chỉnh Sửa">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            ${
+                                data.is_active
+                                ? `<button class="btn btn-outline-warning btn-sm" title="Khóa tài khoản" onclick="toggleUserActive(${userId}, this)">
+                                        <i class="fas fa-user-lock"></i>
+                                    </button>`
+                                : `<button class="btn btn-unlock btn-sm" title="Mở khóa tài khoản" onclick="toggleUserActive(${userId}, this)">
+                                        <i class="fas fa-user-check"></i>
+                                    </button>`
+                            }
+                            <button class="btn btn-outline-danger btn-sm" title="Xoá người dùng" onclick="deleteUser(${userId}, this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                    }
+                    // Sau khi cập nhật nút, cập nhật lại cell trạng thái
+                    var statusCell = row.querySelector('td:nth-child(5)');
+                    if (statusCell) {
+                        statusCell.innerHTML = `<span class="badge ${data.status_class}">${data.status_label}</span>`;
+                    }
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            });
+        }
+
+        function deleteUser(userId, btn) {
+            if (!confirm('Bạn có chắc chắn muốn xoá người dùng này?')) return;
+            fetch(`/admin/users/${userId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    var row = document.getElementById('user-row-' + userId);
+                    if (row) row.remove();
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            });
+        }
     </script>
+    <style>
+        .user-inactive {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+            transition: opacity 0.4s;
+        }
+        
+        .user-inactive .btn:not(.btn-unlock) {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .user-inactive .btn-unlock {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        
+        .btn-unlock {
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+            color: white !important;
+        }
+        
+        .btn-unlock:hover {
+            background-color: #218838 !important;
+            border-color: #1e7e34 !important;
+        }
+
+        /* Tăng chiều rộng input và dropdown cho đẹp hơn */
+        form .form-control[name="search"] {
+            min-width: 260px;
+            max-width: 340px;
+        }
+        form .form-select[name="department"] {
+            min-width: 180px;
+            max-width: 240px;
+        }
+        .btn-group .btn {
+            min-width: 40px;
+            min-height: 40px;
+            max-width: 40px;
+            max-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            font-size: 1.2rem;
+            border-radius: 8px !important;
+            margin-right: 4px;
+            margin-left: 0;
+            box-shadow: none !important;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        .btn-group {
+            gap: 0 !important;
+        }
+    </style>
 </body>
 </html> 

@@ -720,18 +720,27 @@
                     Trang chủ
                 </a>
             </li>
+            {% if 'ADMIN' in session.get('roles', []) %}
+            <li class="nav-item" id="adminUsersMenu" style="display: none;">
+                <a href="{{ url_for('admin_users') }}" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    Quản lý người dùng
+                </a>
+            </li>
+            {% endif %}
+            <li class="nav-item" id="attendanceHistoryMenuWrapper" style="display: none;">
+                <a href="#" class="nav-link" id="attendanceHistoryMenu">
+                    <i class="fas fa-calendar-alt"></i>
+                    Lịch sử chấm công
+                </a>
+            </li>
             <li class="nav-item">
                 <a href="#" class="nav-link">
                     <i class="fas fa-calendar-plus"></i>
                     Đăng ký nghỉ phép
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" id="attendanceHistoryMenu">
-                    <i class="fas fa-calendar-alt"></i>
-                    Lịch sử chấm công
-                </a>
-            </li>
+
             <li class="nav-item">
                 <a href="#" class="nav-link">
                     <i class="fas fa-chart-bar"></i>
@@ -744,14 +753,7 @@
                     Cài đặt
                 </a>
             </li>
-            {% if 'ADMIN' in session.get('roles', []) %}
-            <li class="nav-item" id="adminUsersMenu" style="display: none;">
-                <a href="{{ url_for('admin_users') }}" class="nav-link">
-                    <i class="fas fa-users"></i>
-                    Quản lý người dùng
-                </a>
-            </li>
-            {% endif %}
+
             <li class="nav-item">
                 <a href="/logout" class="nav-link">
                     <i class="fas fa-sign-out-alt"></i>
@@ -2022,6 +2024,7 @@
             const allAttendanceHistorySection = document.getElementById('allAttendanceHistorySection');
             const departmentFilterContainer = document.getElementById('departmentFilterContainer');
             const adminUsersMenu = document.getElementById('adminUsersMenu');
+            const attendanceHistoryMenuWrapper = document.getElementById('attendanceHistoryMenuWrapper');
             const pageTitle = document.querySelector('.page-title');
             
             // Ẩn tất cả các section trước
@@ -2035,6 +2038,8 @@
             
             // Ẩn menu quản lý users mặc định
             if (adminUsersMenu) adminUsersMenu.style.display = 'none';
+            // Ẩn menu lịch sử chấm công mặc định
+            if (attendanceHistoryMenuWrapper) attendanceHistoryMenuWrapper.style.display = 'none';
             
             if (role === 'EMPLOYEE') {
                 // Hiển thị form chấm công và lịch sử cho nhân viên
@@ -2055,6 +2060,10 @@
                 // Chỉ hiển thị menu quản lý users cho ADMIN
                 if (role === 'ADMIN' && adminUsersMenu) {
                     adminUsersMenu.style.display = 'block';
+                }
+                // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
+                if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
+                    attendanceHistoryMenuWrapper.style.display = 'block';
                 }
                 // Load dữ liệu phê duyệt
                 loadApprovalAttendance();
