@@ -161,21 +161,21 @@
             <div class="col-md-3">
                 <div class="stats-card text-center">
                     <i class="fas fa-user-check fa-2x mb-2"></i>
-                    <div class="stats-number">{{ users|selectattr('is_active', 'equalto', True)|list|length }}</div>
+                    <div class="stats-number">{{ active_count }}</div>
                     <div>Người Dùng Hoạt Động</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card text-center">
                     <i class="fas fa-user-tie fa-2x mb-2"></i>
-                    <div class="stats-number">{{ users|selectattr('roles', 'search', 'ADMIN')|list|length }}</div>
+                    <div class="stats-number">{{ admin_count }}</div>
                     <div>Quản Trị Viên</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card text-center">
                     <i class="fas fa-building fa-2x mb-2"></i>
-                    <div class="stats-number">{{ users|map(attribute='department')|unique|list|length }}</div>
+                    <div class="stats-number">{{ department_count }}</div>
                     <div>Phòng Ban</div>
                 </div>
             </div>

@@ -480,7 +480,11 @@ def require_employee(f):
 @require_admin
 def admin_users():
     users = User.query.all()
-    return render_template('admin/users.html', users=users)
+    # Calculate statistics
+    admin_count = sum(1 for user in users if 'ADMIN' in user.roles.split(','))
+    active_count = sum(1 for user in users if user.is_active)
+    department_count = len(set(user.department for user in users))
+    return render_template('admin/users.html', users=users, admin_count=admin_count, active_count=active_count, department_count=department_count)
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @require_admin
