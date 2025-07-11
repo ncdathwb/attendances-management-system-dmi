@@ -100,10 +100,8 @@ function formatDate(dateString) {
         return date.toLocaleDateString('vi-VN', {
             year: 'numeric',
             month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).replace(/\//g, '-');
+            day: '2-digit'
+        });
     } catch (error) {
         console.error('Date formatting error:', error);
         return 'Invalid Date';
@@ -446,6 +444,23 @@ function handleAttendanceSubmit(e) {
     const editIdInput = document.getElementById('editAttendanceId');
     const shiftSelect = document.getElementById('shiftSelect');
 
+    // Lấy chữ ký từ signature pad (canvas) nếu có
+    let signature = '';
+    if (window.signaturePad) {
+        if (window.signaturePad.isEmpty()) {
+            showAlert('Vui lòng ký tên xác nhận!', 'warning');
+            return;
+        }
+        signature = window.signaturePad.toDataURL();
+        // Gán vào input ẩn để backend nhận được
+        const signatureInput = document.getElementById('signature-input');
+        if (signatureInput) signatureInput.value = signature;
+    } else {
+        // Nếu không có signaturePad, lấy từ input ẩn (trường hợp sửa bản ghi)
+        const signatureInput = document.getElementById('signature-input');
+        signature = signatureInput ? signatureInput.value : '';
+    }
+
     // Kiểm tra các element cần thiết có tồn tại không
     if (!dateInput || !checkInTimeInput || !checkOutTimeInput) {
         showAlert('Không thể tìm thấy form chấm công', 'error');
@@ -525,10 +540,11 @@ function handleAttendanceSubmit(e) {
         holiday_type: dayType,
         shift_code: shiftCode,
         shift_start: shiftStart,
-        shift_end: shiftEnd
+        shift_end: shiftEnd,
+        signature: signature // LUÔN gửi chữ ký (có thể rỗng)
     };
 
-    console.log('Submitting data:', data);  // Debug log
+    console.log('Submitting data:', data);
 
     // If editing, use PUT request
     if (editIdInput && editIdInput.value) {
@@ -616,3 +632,197 @@ function resetForm() {
 // Make functions globally available
 window.handleAttendanceSubmit = handleAttendanceSubmit;
 window.resetForm = resetForm; 
+
+// Thêm vào trong renderAttendancePage hoặc renderApprovalAttendancePage
+function getOvertimePrintButton(attendanceId, approved, isAdmin) {
+    if (!approved || !isAdmin) return '';
+    return `<a href="/admin/attendance/${attendanceId}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class="fas fa-print"></i> In giấy tăng ca</a>`;
+}
+
+// Bulk Export Functions
+function setupBulkExport() {
+    const bulkExportSection = document.getElementById('bulkExportSection');
+    const bulkExportMonth = document.getElementById('bulkExportMonth');
+    const bulkExportYear = document.getElementById('bulkExportYear');
+    const btnBulkExport = document.getElementById('btnBulkExport');
+    const bulkExportType = document.getElementById('bulkExportType');
+    const monthSelection = document.getElementById('monthSelection');
+    const description = document.getElementById('bulkExportDescription');
+
+    if (!bulkExportSection || !bulkExportMonth || !bulkExportYear || !btnBulkExport || !bulkExportType || !monthSelection || !description) {
+        console.warn('Bulk export elements not found');
+        return;
+    }
+
+    // Populate year dropdown
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear - 2; year <= currentYear + 1; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) {
+            option.selected = true;
+        }
+        bulkExportYear.appendChild(option);
+    }
+
+    // Set current month
+    const currentMonth = new Date().getMonth() + 1;
+    bulkExportMonth.value = currentMonth;
+
+    // Show bulk export section for ADMIN role
+    const currentRole = document.getElementById('role-select')?.value || 'EMPLOYEE';
+    if (currentRole === 'ADMIN') {
+        bulkExportSection.style.display = 'block';
+    }
+
+    // Add event listener for bulk export button
+    btnBulkExport.addEventListener('click', handleBulkExport);
+    bulkExportType.addEventListener('change', handleBulkExportTypeChange);
+}
+
+// Hàm lấy tổng số bản ghi đã phê duyệt trong tháng/năm để ước lượng thời gian tạo ZIP
+async function estimateBulkExportTime(month, year, type = 'month') {
+    try {
+        let url = `/api/attendance/history?all=1&per_page=1`;
+        if (type === 'month') {
+            url += `&month=${month}&year=${year}`;
+        } else {
+            url += `&year=${year}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.total) {
+            // Giả sử mỗi bản ghi mất 0.5s để tạo PDF
+            const seconds = Math.ceil(data.total * 0.5);
+            return { total: data.total, seconds };
+        }
+    } catch (e) {}
+    return { total: 0, seconds: 5 };
+}
+
+// Hàm xử lý thay đổi loại xuất
+function handleBulkExportTypeChange() {
+    const exportType = document.getElementById('bulkExportType')?.value;
+    const monthSelection = document.getElementById('monthSelection');
+    const description = document.getElementById('bulkExportDescription');
+    
+    if (exportType === 'year') {
+        monthSelection.style.display = 'none';
+        description.textContent = 'Xuất tất cả giấy tăng ca của năm được chọn';
+    } else {
+        monthSelection.style.display = 'block';
+        description.textContent = 'Xuất tất cả giấy tăng ca của tháng được chọn';
+    }
+}
+
+// Sửa hàm handleBulkExport để hỗ trợ xuất theo năm
+async function handleBulkExport() {
+    const exportType = document.getElementById('bulkExportType')?.value;
+    const month = document.getElementById('bulkExportMonth')?.value;
+    const year = document.getElementById('bulkExportYear')?.value;
+
+    if (!year) {
+        showAlert('Vui lòng chọn năm!', 'warning');
+        return;
+    }
+    
+    if (exportType === 'month' && !month) {
+        showAlert('Vui lòng chọn tháng!', 'warning');
+        return;
+    }
+
+    const btnBulkExport = document.getElementById('btnBulkExport');
+    if (!btnBulkExport) return;
+    btnBulkExport.disabled = true;
+    const originalText = btnBulkExport.innerHTML;
+
+    // Ước lượng thời gian
+    const { total, seconds } = await estimateBulkExportTime(month, year, exportType);
+    let countdown = seconds;
+    btnBulkExport.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo ZIP... (${countdown}s)`;
+
+    // Đếm ngược
+    let countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+            btnBulkExport.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo ZIP... (${countdown}s)`;
+        } else {
+            btnBulkExport.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo ZIP...`;
+        }
+    }, 1000);
+
+    // Timeout fallback: nếu fetch không hoạt động, tự động reset sau thời gian ước lượng + 5s
+    let timeoutFallback = setTimeout(() => {
+        clearInterval(countdownInterval);
+        btnBulkExport.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Đã tải xong!';
+        setTimeout(() => {
+            btnBulkExport.innerHTML = originalText;
+            btnBulkExport.disabled = false;
+        }, 2000);
+    }, (seconds + 5) * 1000);
+
+    // Dùng fetch để bắt sự kiện khi server bắt đầu trả về response
+    let url = `/admin/attendance/export-overtime-bulk?year=${year}`;
+    if (exportType === 'month') {
+        url += `&month=${month}`;
+    }
+    
+    try {
+        const response = await fetch(url);
+        
+        // Khi server bắt đầu trả về response, dừng đếm ngược ngay lập tức
+        clearInterval(countdownInterval);
+        clearTimeout(timeoutFallback);
+        
+        if (response.ok) {
+            // Tạo blob và tải về
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            
+            // Tạo tên file
+            let filename;
+            if (exportType === 'month') {
+                filename = `tangca_${month.toString().padStart(2, '0')}_${year}.zip`;
+            } else {
+                filename = `tangca_${year}.zip`;
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            // Báo đã tải xong
+            btnBulkExport.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Đã tải xong!';
+            setTimeout(() => {
+                btnBulkExport.innerHTML = originalText;
+                btnBulkExport.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error('Server error');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        // Nếu fetch thất bại, dùng timeout fallback
+        clearInterval(countdownInterval);
+        btnBulkExport.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-2"></i>Lỗi tải file';
+        setTimeout(() => {
+            btnBulkExport.innerHTML = originalText;
+            btnBulkExport.disabled = false;
+        }, 3000);
+    }
+}
+
+// Initialize bulk export when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    setupBulkExport();
+});
+
+// Make functions globally available
+window.setupBulkExport = setupBulkExport;
+window.handleBulkExport = handleBulkExport; 

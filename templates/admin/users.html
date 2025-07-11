@@ -166,32 +166,8 @@
                 <a href="{{ url_for('create_user') }}" class="btn btn-success" style="min-width:100px;">
                     <i class="fas fa-user-plus me-1"></i>Thêm mới
                 </a>
-                <button type="button" class="btn btn-danger" style="min-width:100px;" onclick="showDeleteAllModal()">
-                    <i class="fas fa-trash"></i> Xoá toàn bộ
-                </button>
             </div>
         </form>
-
-        <!-- Modal xác nhận xoá toàn bộ -->
-        <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteAllModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xoá toàn bộ người dùng</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <p>Bạn có chắc chắn muốn <b>xóa toàn bộ người dùng</b> (trừ tài khoản của bạn)?<br>Hành động này không thể hoàn tác!</p>
-                <input type="password" class="form-control mt-3" id="deleteAllPassword" placeholder="Nhập mật khẩu để xác nhận">
-                <div class="invalid-feedback" id="deleteAllError"></div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
-                <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">Xoá toàn bộ</button>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Users Management Card -->
         <div class="card">
@@ -259,9 +235,6 @@
                                                     <i class="fas fa-user-check"></i>
                                                 </button>
                                             {% endif %}
-                                            <button class="btn btn-outline-danger btn-sm" title="Xoá người dùng" onclick="deleteUser({{ user.id }}, this)">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -338,36 +311,6 @@
             }
         }
 
-        function showDeleteAllModal() {
-            document.getElementById('deleteAllPassword').value = '';
-            document.getElementById('deleteAllError').textContent = '';
-            document.getElementById('deleteAllError').style.display = 'none';
-            var modal = new bootstrap.Modal(document.getElementById('deleteAllModal'));
-            modal.show();
-        }
-        function confirmDeleteAll() {
-            var password = document.getElementById('deleteAllPassword').value;
-            var errorDiv = document.getElementById('deleteAllError');
-            errorDiv.textContent = '';
-            errorDiv.style.display = 'none';
-            fetch('/admin/users/delete_all', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                },
-                body: JSON.stringify({ password })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    errorDiv.textContent = data.error;
-                    errorDiv.style.display = 'block';
-                } else {
-                    location.reload();
-                }
-            });
-        }
         function toggleUserActive(userId, btn) {
             fetch(`/admin/users/${userId}/toggle_active`, { 
                 method: 'POST',
@@ -408,9 +351,6 @@
                                         <i class="fas fa-user-check"></i>
                                     </button>`
                             }
-                            <button class="btn btn-outline-danger btn-sm" title="Xoá người dùng" onclick="deleteUser(${userId}, this)">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         `;
                     }
                     // Sau khi cập nhật nút, cập nhật lại cell trạng thái
@@ -418,25 +358,6 @@
                     if (statusCell) {
                         statusCell.innerHTML = `<span class="badge ${data.status_class}">${data.status_label}</span>`;
                     }
-                } else if (data.error) {
-                    alert(data.error);
-                }
-            });
-        }
-
-        function deleteUser(userId, btn) {
-            if (!confirm('Bạn có chắc chắn muốn xoá người dùng này?')) return;
-            fetch(`/admin/users/${userId}/delete`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCSRFToken()
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    var row = document.getElementById('user-row-' + userId);
-                    if (row) row.remove();
                 } else if (data.error) {
                     alert(data.error);
                 }

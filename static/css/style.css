@@ -809,3 +809,80 @@ body.login-bg, html.login-bg {
 .pagination {
     margin-top: 18px;
 } 
+
+.signature-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 180px;
+    max-width: 180px;
+}
+.signature-status .badge,
+.signature-status .badge.bg-success,
+.signature-status .badge.bg-warning,
+.signature-status .badge.bg-secondary {
+    margin: 0 !important;
+    line-height: 1.4 !important;
+    display: block !important;
+    width: 180px !important;
+    min-width: 180px !important;
+    max-width: 180px !important;
+    text-align: center !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 16px !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+}
+.signature-status br {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 0 !important;
+} 
+
+.signature-circles-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 80px;
+    margin: 0 auto;
+}
+.signature-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2.5px solid #222;
+    transition: border 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    position: relative;
+    color: #fff;
+    font-size: 15px;
+}
+.signature-circle.signed {
+    background: #219653;
+    border: 2.5px solid #219653;
+    color: #fff;
+}
+.signature-circle .fa-check,
+.signature-circle .fa-clock {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 15px;
+    color: #fff;
+    pointer-events: none;
+}
+.signature-circle:hover {
+    box-shadow: 0 0 0 2px #2196F3;
+    border-color: #2196F3;
+} 

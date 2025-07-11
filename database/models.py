@@ -72,6 +72,9 @@ class Attendance(db.Model):
     shift_code = db.Column(db.String(10), nullable=True)  # Mã ca: 1,2,3,4
     shift_start = db.Column(db.Time, nullable=True)       # Giờ vào ca chuẩn
     shift_end = db.Column(db.Time, nullable=True)         # Giờ ra ca chuẩn
+    signature = db.Column(db.Text, nullable=True)  # Lưu chữ ký base64
+    team_leader_signature = db.Column(db.Text, nullable=True)  # Chữ ký trưởng nhóm
+    manager_signature = db.Column(db.Text, nullable=True)  # Chữ ký quản lý
 
     # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('attendances', lazy=True))
@@ -253,10 +256,10 @@ class Attendance(db.Model):
         work_hours_val = self.calculate_regular_work_hours()
         return {
             'id': self.id,
-            'date': self.date.strftime('%Y-%m-%d'),
+            'date': self.date.strftime('%d/%m/%Y'),
             'check_in': self.check_in.strftime('%H:%M') if self.check_in else None,
             'check_out': self.check_out.strftime('%H:%M') if self.check_out else None,
-            'break_time': self.break_time,
+            'break_time': self._format_hours_minutes(self.break_time),
             'is_holiday': self.is_holiday,
             'holiday_type': self._translate_holiday_type(self.holiday_type),
             'total_work_hours': self._format_hours_minutes(self.total_work_hours) if self.total_work_hours is not None else "0:00",
@@ -267,11 +270,14 @@ class Attendance(db.Model):
             'status': self.status,
             'approved': self.approved,
             'approved_by': self.approved_by,
-            'approved_at': self.approved_at.strftime('%Y-%m-%d %H:%M:%S') if self.approved_at else None,
+            'approved_at': self.approved_at.strftime('%d/%m/%Y %H:%M:%S') if self.approved_at else None,
             'approver_name': self.approver.name if self.approver else None,
             'shift_code': self.shift_code,
             'shift_start': self.shift_start.strftime('%H:%M') if self.shift_start else None,
-            'shift_end': self.shift_end.strftime('%H:%M') if self.shift_end else None
+            'shift_end': self.shift_end.strftime('%H:%M') if self.shift_end else None,
+            'signature': self.signature,
+            'team_leader_signature': self.team_leader_signature,
+            'manager_signature': self.manager_signature
         }
 
     @staticmethod

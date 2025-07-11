@@ -1,4 +1,8 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages, abort
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages, abort, send_file, make_response
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,11 +11,28 @@ import os
 from functools import wraps
 from config import config
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import func
 import re
 from collections import defaultdict
 import time
 import secrets
 from flask_migrate import Migrate
+from jinja2 import Template
+import io
+from datetime import datetime
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import base64
+import traceback
+from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.pdfbase.pdfmetrics import registerFont
+import zipfile
 
 
 # Import database models
@@ -167,7 +188,7 @@ def dashboard():
     return render_template('dashboard.html', user=user)
 
 @app.route('/api/attendance', methods=['POST'])
-@rate_limit(max_requests=20, window_seconds=60)  # 20 requests per minute
+@rate_limit(max_requests=100, window_seconds=60)  # 20 requests per minute
 def record_attendance():
     if 'user_id' not in session:
         return jsonify({'error': 'Không có quyền truy cập'}), 401
@@ -176,6 +197,7 @@ def record_attendance():
     update_session_activity()
     data = request.get_json()
     print('DEBUG raw:', data)
+    print('DEBUG signature POST:', data.get('signature'))  # Thêm log signature
     # Validate input
     date = validate_date(data.get('date'))
     check_in = validate_time(data.get('check_in'))
@@ -210,6 +232,7 @@ def record_attendance():
             db.session.commit()
     if date > datetime.now().date():
         return jsonify({'error': 'Không thể chấm công cho ngày trong tương lai!'}), 400
+    signature = data.get('signature')
     attendance = Attendance(
         user_id=user.id,
         date=date,
@@ -219,8 +242,15 @@ def record_attendance():
         status='pending',
         overtime_before_22="0:00",
         overtime_after_22="0:00",
-        shift_code=shift_code
+        shift_code=shift_code,
+        signature=signature
     )
+    # Nếu user là TEAM_LEADER thì lưu luôn vào team_leader_signature
+    if 'TEAM_LEADER' in user.roles.split(','):
+        attendance.team_leader_signature = signature
+    # Nếu user là MANAGER thì lưu luôn vào manager_signature
+    if 'MANAGER' in user.roles.split(','):
+        attendance.manager_signature = signature
     db.session.add(attendance)
     attendance.check_in = datetime.combine(date, check_in)
     attendance.check_out = datetime.combine(date, check_out)
@@ -272,17 +302,30 @@ def get_attendance_history():
                 return jsonify({'error': 'Bạn không có quyền truy cập dữ liệu toàn bộ'}), 403
             page = validate_int(request.args.get('page', 1), min_val=1)
             per_page = validate_int(request.args.get('per_page', 10), min_val=1, max_val=100)
-            month = validate_int(request.args.get('month'), min_val=1, max_val=12) if request.args.get('month') else None
-            year = validate_int(request.args.get('year'), min_val=2000, max_val=2100) if request.args.get('year') else None
+            search = validate_input_sanitize(request.args.get('search', '').strip())
+            department = validate_input_sanitize(request.args.get('department', '').strip())
+            date_from = validate_date(request.args.get('date_from', '').strip()) if request.args.get('date_from') else None
+            date_to = validate_date(request.args.get('date_to', '').strip()) if request.args.get('date_to') else None
+            
             if page is None or per_page is None:
                 return jsonify({'error': 'Tham số phân trang không hợp lệ'}), 400
+                
             q = Attendance.query.filter_by(approved=True)
-            if month and year:
-                q = q.filter(db.extract('month', Attendance.date) == month, db.extract('year', Attendance.date) == year)
-            elif month:
-                q = q.filter(db.extract('month', Attendance.date) == month)
-            elif year:
-                q = q.filter(db.extract('year', Attendance.date) == year)
+            
+            # Filter theo tên nhân viên
+            if search:
+                search_lower = search.lower().strip()
+                q = q.join(Attendance.user).filter(func.lower(User.name).contains(search_lower))
+            
+            # Filter theo phòng ban
+            if department:
+                q = q.join(Attendance.user).filter(User.department == department)
+            
+            # Filter theo khoảng thời gian
+            if date_from:
+                q = q.filter(Attendance.date >= date_from)
+            if date_to:
+                q = q.filter(Attendance.date <= date_to)
             total = q.count()
             # Optimize with eager loading to prevent N+1 queries
             attendances = q.options(
@@ -356,14 +399,8 @@ def check_approval_permission(user_id, attendance_id, current_role):
     if not attendance:
         return False, "Không tìm thấy bản ghi chấm công"
     
-    # ADMIN có thể duyệt tất cả
-    if current_role == 'ADMIN':
-        return True, ""
-    
-    # MANAGER có thể duyệt nhân viên cùng phòng ban
-    if current_role == 'MANAGER':
-        if not attendance.user or attendance.user.department != user.department:
-            return False, "Bạn chỉ có thể phê duyệt chấm công của nhân viên cùng phòng ban"
+    # ADMIN và MANAGER có thể duyệt tất cả
+    if current_role in ['ADMIN', 'MANAGER']:
         return True, ""
     
     # TEAM_LEADER có thể duyệt nhân viên cùng phòng ban (bao gồm cả bản thân)
@@ -495,7 +532,12 @@ def admin_users():
 
     query = User.query
     if search:
-        query = query.filter((User.name.ilike(f'%{search}%')) | (User.employee_id.ilike(f'%{search}%')))
+        # Cải thiện tìm kiếm: chuyển về lowercase và sử dụng func.lower() để đảm bảo không phân biệt hoa thường
+        search_lower = search.lower().strip()
+        query = query.filter(
+            (func.lower(User.name).contains(search_lower)) | 
+            (func.lower(User.employee_id).contains(search_lower))
+        )
     if department_filter:
         query = query.filter(User.department == department_filter)
     query = query.order_by(User.name.asc())
@@ -599,7 +641,11 @@ def edit_user(user_id):
             print(f"Error updating user: {str(e)}")
             flash('Đã xảy ra lỗi khi cập nhật người dùng!', 'error')
             return redirect(url_for('edit_user', user_id=user_id))
-    return render_template('admin/edit_user.html', user=user)
+    # Danh sách phòng ban duy nhất, sắp xếp theo tên
+    all_departments = User.query.with_entities(User.department).distinct().all()
+    departments = sorted(set([d[0] for d in all_departments if d[0]]))
+    
+    return render_template('admin/edit_user.html', user=user, departments=departments)
 
 @app.route('/admin/users/create', methods=['GET', 'POST'])
 @require_admin
@@ -687,9 +733,16 @@ def create_user():
         except Exception as e:
             print(f"Error creating user: {str(e)}")
             flash('Đã xảy ra lỗi khi tạo người dùng!', 'error')
-            return render_template('admin/create_user.html')
+            # Danh sách phòng ban duy nhất, sắp xếp theo tên
+            all_departments = User.query.with_entities(User.department).distinct().all()
+            departments = sorted(set([d[0] for d in all_departments if d[0]]))
+            return render_template('admin/create_user.html', departments=departments)
     
-    return render_template('admin/create_user.html')
+    # Danh sách phòng ban duy nhất, sắp xếp theo tên
+    all_departments = User.query.with_entities(User.department).distinct().all()
+    departments = sorted(set([d[0] for d in all_departments if d[0]]))
+    
+    return render_template('admin/create_user.html', departments=departments)
 
 @app.route('/switch-role', methods=['POST'])
 def switch_role():
@@ -878,10 +931,10 @@ def get_attendance(attendance_id):
     
     return jsonify({
         'id': attendance.id,
-        'date': attendance.date.strftime('%Y-%m-%d'),
-        'check_in': attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else None,
-        'check_out': attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else None,
-        'break_time': attendance.break_time,
+        'date': attendance.date.strftime('%d/%m/%Y'),
+        'check_in': attendance.check_in.strftime('%d/%m/%Y %H:%M:%S') if attendance.check_in else None,
+        'check_out': attendance.check_out.strftime('%d/%m/%Y %H:%M:%S') if attendance.check_out else None,
+        'break_time': attendance._format_hours_minutes(attendance.break_time),
         'is_holiday': attendance.is_holiday,
         'holiday_type': attendance.holiday_type,
         'note': attendance.note,
@@ -908,6 +961,7 @@ def update_attendance(attendance_id):
     if attendance.approved:
         return jsonify({'error': 'Bản ghi đã được phê duyệt, không thể sửa!'}), 400
     data = request.get_json()
+    print('DEBUG signature PUT:', data.get('signature'))  # Thêm log signature
     # Validate input
     date = validate_date(data.get('date'))
     check_in = validate_time(data.get('check_in'))
@@ -919,6 +973,10 @@ def update_attendance(attendance_id):
     shift_code = data.get('shift_code')
     shift_start = validate_time(data.get('shift_start'))
     shift_end = validate_time(data.get('shift_end'))
+    # Xử lý signature: nếu không có trường signature hoặc rỗng thì giữ nguyên chữ ký cũ, nếu có thì cập nhật
+    if 'signature' in data and data.get('signature'):
+        attendance.signature = data.get('signature')
+    # Nếu không có trường signature hoặc rỗng thì giữ nguyên chữ ký cũ
     if not date:
         return jsonify({'error': 'Vui lòng chọn ngày chấm công hợp lệ'}), 400
     if not holiday_type:
@@ -996,8 +1054,15 @@ def approve_attendance(attendance_id):
     data = request.get_json()
     action = data.get('action')  # 'approve' hoặc 'reject'
     reason = validate_reason(data.get('reason', '')) if data.get('action') == 'reject' else ''
+    approver_signature = data.get('signature')  # Chữ ký người phê duyệt
+    
     if action not in ['approve', 'reject']:
         return jsonify({'error': 'Hành động không hợp lệ'}), 400
+    
+    # Kiểm tra chữ ký bắt buộc khi phê duyệt
+    if action == 'approve' and not approver_signature:
+        return jsonify({'error': 'Chữ ký là bắt buộc khi phê duyệt. Vui lòng ký tên để xác nhận.'}), 400
+    
     if action == 'reject' and not reason:
         return jsonify({'error': 'Lý do từ chối không hợp lệ'}), 400
     attendance = Attendance.query.get(attendance_id)
@@ -1013,6 +1078,12 @@ def approve_attendance(attendance_id):
             attendance.status = 'pending_manager'
             attendance.approved_by = user.id
             attendance.approved_at = datetime.now()
+            # Lưu chữ ký trưởng nhóm
+            if approver_signature:
+                attendance.team_leader_signature = approver_signature
+            # Nếu user đồng thời là MANAGER thì lưu luôn vào manager_signature
+            if 'MANAGER' in user.roles.split(',') and approver_signature:
+                attendance.manager_signature = approver_signature
             message = 'Đã chuyển lên Quản lý phê duyệt'
         elif current_role == 'MANAGER':
             if attendance.status != 'pending_manager':
@@ -1020,6 +1091,12 @@ def approve_attendance(attendance_id):
             attendance.status = 'pending_admin'
             attendance.approved_by = user.id
             attendance.approved_at = datetime.now()
+            # Lưu chữ ký quản lý
+            if approver_signature:
+                attendance.manager_signature = approver_signature
+            # Nếu user đồng thời là TEAM_LEADER thì lưu luôn vào team_leader_signature
+            if 'TEAM_LEADER' in user.roles.split(',') and approver_signature:
+                attendance.team_leader_signature = approver_signature
             message = 'Đã chuyển lên Admin phê duyệt'
         elif current_role == 'ADMIN':
             if attendance.status not in ['pending_manager', 'pending_admin']:
@@ -1148,7 +1225,8 @@ def get_pending_attendance():
     else:  # ADMIN
         query = Attendance.query.filter_by(approved=False, status='pending_admin')
     if search:
-        query = query.join(Attendance.user).filter(User.name.ilike(f'%{search}%'))
+        search_lower = search.lower().strip()
+        query = query.join(Attendance.user).filter(func.lower(User.name).contains(search_lower))
     if date_from:
         query = query.filter(Attendance.date >= date_from)
     if date_to:
@@ -1159,12 +1237,12 @@ def get_pending_attendance():
     for att in records:
         result.append({
             'id': att.id,
-            'date': att.date.strftime('%Y-%m-%d'),
+            'date': att.date.strftime('%d/%m/%Y'),
             'check_in': att.check_in.strftime('%H:%M') if att.check_in else None,
             'check_out': att.check_out.strftime('%H:%M') if att.check_out else None,
-            'break_time': format_hours_minutes(att.break_time),
-            'total_work_hours': format_hours_minutes(att.total_work_hours),
-            'work_hours_display': format_hours_minutes(att.calculate_regular_work_hours()),
+            'break_time': att._format_hours_minutes(att.break_time),
+            'total_work_hours': att._format_hours_minutes(att.total_work_hours) if att.total_work_hours is not None else "0:00",
+            'work_hours_display': att._format_hours_minutes(att.calculate_regular_work_hours()),
             'overtime_before_22': att.overtime_before_22,
             'overtime_after_22': att.overtime_after_22,
             'holiday_type': translate_holiday_type(att.holiday_type),
@@ -1172,7 +1250,10 @@ def get_pending_attendance():
             'department': att.user.department if att.user else '',
             'note': att.note,
             'status': att.status,
-            'approved': att.approved
+            'approved': att.approved,
+            'signature': att.signature,
+            'team_leader_signature': att.team_leader_signature,
+            'manager_signature': att.manager_signature
         })
     return jsonify({
         'total': total,
@@ -1208,7 +1289,7 @@ def debug_attendance_status():
             {
                 'id': r.id,
                 'user_id': r.user_id,
-                'date': r.date.strftime('%Y-%m-%d'),
+                'date': r.date.strftime('%d/%m/%Y'),
                 'status': r.status,
                 'approved': r.approved,
                 'user_name': r.user.name if r.user else 'Unknown'
@@ -1331,30 +1412,448 @@ def toggle_user_active(user_id):
         'status_class': 'bg-success' if user.is_active else 'bg-secondary'
     })
 
-@app.route('/admin/users/delete_all', methods=['POST'])
+@app.route('/admin/attendance/<int:attendance_id>/export-overtime-pdf')
 @require_admin
-def delete_all_users():
-    data = request.get_json()
-    password = data.get('password', '')
-    admin = User.query.get(session['user_id'])
-    if not admin or not admin.check_password(password):
-        return jsonify({'error': 'Mật khẩu không đúng!'}), 403
-    # Xoá tất cả user trừ admin hiện tại
-    User.query.filter(User.id != admin.id).delete()
-    db.session.commit()
-    return jsonify({'success': True})
+def export_overtime_pdf(attendance_id):
+    try:
+        # Tối ưu: chỉ load các trường cần thiết
+        attendance = Attendance.query.options(
+            joinedload(Attendance.user).load_only(User.name, User.employee_id, User.department)
+        ).get_or_404(attendance_id)
+        
+        buffer = io.BytesIO()
+        
+        # Sử dụng hàm create_overtime_pdf đã tách riêng
+        create_overtime_pdf(attendance, buffer)
+        
+        # Tạo tên file
+        import re
+        def make_safe_filename(s):
+            s = s.lower()
+            s = re.sub(r'[^a-z0-9]+', '', re.sub(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]', lambda m: {
+                'à':'a','á':'a','ạ':'a','ả':'a','ã':'a','â':'a','ầ':'a','ấ':'a','ậ':'a','ẩ':'a','ẫ':'a','ă':'a','ằ':'a','ắ':'a','ặ':'a','ẳ':'a','ẵ':'a',
+                'è':'e','é':'e','ẹ':'e','ẻ':'e','ẽ':'e','ê':'e','ề':'e','ế':'e','ệ':'e','ể':'e','ễ':'e',
+                'ì':'i','í':'i','ị':'i','ỉ':'i','ĩ':'i',
+                'ò':'o','ó':'o','ọ':'o','ỏ':'o','õ':'o','ô':'o','ồ':'o','ố':'o','ộ':'o','ổ':'o','ỗ':'o','ơ':'o','ờ':'o','ớ':'o','ợ':'o','ở':'o','ỡ':'o',
+                'ù':'u','ú':'u','ụ':'u','ủ':'u','ũ':'u','ư':'u','ừ':'u','ứ':'u','ự':'u','ử':'u','ữ':'u',
+                'ỳ':'y','ý':'y','ỵ':'y','ỷ':'y','ỹ':'y','đ':'d'
+            }[m.group(0)], s, flags=re.IGNORECASE))
+            return s
+        
+        safe_name = make_safe_filename(attendance.user.name)
+        safe_empid = str(attendance.user.employee_id)
+        safe_date = attendance.date.strftime('%d%m%Y')
+        filename = f"tangca_{safe_name}_{safe_empid}_{safe_date}.pdf"
+        
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        print('PDF export error:', e)
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': 'Lỗi khi sinh file PDF', 'detail': str(e)})
 
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+# Hàm wrap_text cho phần ghi chú (đặt phía trên đoạn sử dụng)
+def wrap_text(text, font_name, font_size, max_width, canvas_obj):
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    words = text.split(' ')
+    lines = []
+    current_line = ''
+    for word in words:
+        test_line = current_line + (' ' if current_line else '') + word
+        if stringWidth(test_line, font_name, font_size) <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+    return lines
+
+@app.route('/admin/attendance/export-overtime-bulk')
 @require_admin
-def delete_user(user_id):
-    if 'user_id' not in session:
-        return jsonify({'error': 'Không có quyền truy cập'}), 401
-    if int(user_id) == int(session['user_id']):
-        return jsonify({'error': 'Không thể tự xoá tài khoản của mình!'}), 400
-    user = User.query.get_or_404(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'success': True})
+def export_overtime_bulk():
+    try:
+        month = request.args.get('month')  # Có thể None nếu xuất theo năm
+        year = int(request.args.get('year', 0))
+        
+        if not (2000 <= year <= 2100):
+            return abort(400, 'Tham số năm không hợp lệ')
+        
+        # Xây dựng query filter
+        query_filter = [
+            db.extract('year', Attendance.date) == year,
+            Attendance.approved == True
+        ]
+        
+        # Thêm filter tháng nếu có
+        if month:
+            month = int(month)
+            if not (1 <= month <= 12):
+                return abort(400, 'Tham số tháng không hợp lệ')
+            query_filter.append(db.extract('month', Attendance.date) == month)
+        
+        # Lấy tất cả bản ghi Attendance đã được phê duyệt
+        # Tối ưu: chỉ lấy các trường cần thiết
+        attendances = Attendance.query.filter(*query_filter).options(
+            joinedload(Attendance.user).load_only(User.name, User.employee_id, User.department)
+        ).all()
+        
+        if not attendances:
+            if month:
+                return abort(404, 'Không có bản ghi nào trong tháng này')
+            else:
+                return abort(404, 'Không có bản ghi nào trong năm này')
+        
+        print(f'Creating ZIP for {len(attendances)} records...')
+        
+        # Tạo file ZIP trong bộ nhớ với compression level cao hơn
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+            for i, att in enumerate(attendances, 1):
+                try:
+                    # Tạo PDF cho từng bản ghi
+                    pdf_buffer = io.BytesIO()
+                    
+                    # Gọi hàm tạo PDF (tái sử dụng logic từ export_overtime_pdf)
+                    create_overtime_pdf(att, pdf_buffer)
+                    
+                    # Đặt tên file cho từng PDF
+                    safe_name = att.user.name.lower().replace(' ', '_') if att.user and att.user.name else str(att.id)
+                    safe_empid = str(att.user.employee_id) if att.user and att.user.employee_id else str(att.id)
+                    safe_date = att.date.strftime('%d%m%Y')
+                    filename = f"tangca_{safe_name}_{safe_empid}_{safe_date}.pdf"
+                    
+                    # Đảm bảo buffer ở đầu file
+                    pdf_buffer.seek(0)
+                    zipf.writestr(filename, pdf_buffer.read())
+                    
+                    # Log progress mỗi 10 records
+                    if i % 10 == 0:
+                        print(f'Processed {i}/{len(attendances)} records...')
+                    
+                except Exception as e:
+                    print(f'Error creating PDF for attendance {att.id}: {e}')
+                    continue
+        
+        zip_buffer.seek(0)
+        
+        # Tạo tên file ZIP
+        if month:
+            zip_filename = f"tangca_{month:02d}_{year}.zip"
+        else:
+            zip_filename = f"tangca_{year}.zip"
+            
+        print(f'ZIP creation completed: {zip_filename}')
+        return send_file(zip_buffer, as_attachment=True, download_name=zip_filename, mimetype='application/zip')
+        
+    except Exception as e:
+        print('Bulk export error:', e)
+        return jsonify({'error': 'Lỗi khi xuất file ZIP', 'detail': str(e)})
+
+# Cache fonts để tránh đăng ký lại mỗi lần
+_fonts_registered = False
+
+def register_pdf_fonts():
+    """Đăng ký fonts cho PDF một lần duy nhất"""
+    global _fonts_registered
+    if _fonts_registered:
+        return
+    
+    try:
+        registerFont(TTFont('DejaVuSans', 'static/fonts/DejaVuSans.ttf'))
+        registerFont(TTFont('NotoSansJP', 'static/fonts/NotoSansJP-Regular.ttf'))
+        registerFont(TTFont('NotoSansJP-Bold', 'static/fonts/NotoSansJP-Bold.ttf'))
+        registerFont(TTFont('NotoSansJP-Medium', 'static/fonts/NotoSansJP-Medium.ttf'))
+        registerFont(TTFont('NotoSansJP-Light', 'static/fonts/NotoSansJP-Light.ttf'))
+        registerFont(TTFont('NotoSansJP-Black', 'static/fonts/NotoSansJP-Black.ttf'))
+        registerFont(TTFont('NotoSansJP-ExtraBold', 'static/fonts/NotoSansJP-ExtraBold.ttf'))
+        registerFont(TTFont('NotoSansJP-ExtraLight', 'static/fonts/NotoSansJP-ExtraLight.ttf'))
+        registerFont(TTFont('NotoSansJP-SemiBold', 'static/fonts/NotoSansJP-SemiBold.ttf'))
+        registerFont(TTFont('NotoSansJP-Thin', 'static/fonts/NotoSansJP-Thin.ttf'))
+        _fonts_registered = True
+    except Exception as e:
+        print('PDF font register error:', e)
+
+def create_overtime_pdf(attendance, buffer):
+    """Tạo PDF giấy tăng ca cho một bản ghi attendance"""
+    # Đăng ký fonts một lần duy nhất
+    register_pdf_fonts()
+    
+    user = attendance.user
+    employee_signature = attendance.signature if attendance.signature else None
+    team_leader_signature = attendance.team_leader_signature if attendance.team_leader_signature else None
+    manager_signature = attendance.manager_signature if attendance.manager_signature else None
+
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    margin = 30
+    y = height - margin
+
+    # Header: Bảng 6 cột như trong hình
+    header_data = [
+        [
+            Paragraph('<b>DMI HUẾ</b>', ParagraphStyle('h', fontName='DejaVuSans', fontSize=9, alignment=1)),
+            Paragraph('<b>総務<br/>TỔNG VỤ</b>', ParagraphStyle('h', fontName='NotoSansJP', fontSize=8, alignment=1)),
+            Paragraph('<b>分類番号：<br/>Số hiệu phân loại：</b>', ParagraphStyle('h', fontName='NotoSansJP', fontSize=7, alignment=1)),
+            Paragraph('', ParagraphStyle('h', fontName='DejaVuSans', fontSize=8, alignment=1)),  # Ô trắng sau ô 3
+            Paragraph('<b>記入 FORM<br/>NHẬP FORM</b>', ParagraphStyle('h', fontName='NotoSansJP', fontSize=8, alignment=1)),
+            Paragraph('<b>Form作成：<br/>Tác thành：</b>', ParagraphStyle('h', fontName='NotoSansJP', fontSize=7, alignment=1)),
+            Paragraph('', ParagraphStyle('h', fontName='DejaVuSans', fontSize=8, alignment=1)),  # Ô trắng sau ô tác thành
+            Paragraph('', ParagraphStyle('h', fontName='DejaVuSans', fontSize=8, alignment=1)),  # Ô trắng thứ 2 sau ô tác thành
+        ]
+    ]
+    
+    col_widths = [60, 80, 100, 50, 80, 80, 50, 50]  # Tổng = 570, gần bằng width A4
+    header_table_width = sum(col_widths)
+    x_header = (width - header_table_width) / 2
+    header_table = Table(header_data, colWidths=col_widths, rowHeights=25)
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTNAME', (0,0), (-1,-1), 'DejaVuSans'),
+    ]))
+    header_table.wrapOn(c, width-2*margin, 30)
+    header_table.drawOn(c, x_header, y-25)
+    y -= 40
+
+    # Thông tin công ty
+    c.setFont("DejaVuSans", 10)
+    c.drawString(margin, y, "Công ty TNHH DMI HUẾ")
+    y -= 12
+    c.setFont("DejaVuSans", 8)
+    c.drawString(margin, y, "174 Bà Triệu- tòa nhà 4 tầng Phong Phú Plaza, phường Phú Hội, Thành phố Huế, Tỉnh Thừa Thiên Huế,Việt Nam.")
+    y -= 25
+
+    # Tiêu đề chính
+    c.setFont("DejaVuSans", 14)
+    c.drawCentredString(width/2, y, "GIẤY ĐỀ NGHỊ TĂNG CA/ĐI LÀM NGÀY NGHỈ")
+    y -= 16
+    c.setFont("NotoSansJP", 11)
+    c.drawCentredString(width/2, y, "(残業/休日出勤申請書)")
+    y -= 20
+    c.setFont("DejaVuSans", 9)
+    c.drawCentredString(width/2, y, "Nộp tại bộ phận tổng vụ")
+    c.setFont("NotoSansJP-Light", 9)
+    c.drawCentredString(width/2, y-10, "(総務部署で提出)")
+    y -= 30
+
+    # Phần checkbox và thông tin cá nhân
+    c.setFont("DejaVuSans", 10)
+    
+    # Dòng checkbox
+    checkbox_y = y
+    c.rect(margin, checkbox_y-3, 8, 8)  # Checkbox tăng ca
+    c.drawString(margin+15, checkbox_y, "Tăng ca /")
+    c.setFont("NotoSansJP", 10)
+    c.drawString(margin+70, checkbox_y, "残業")
+    
+    c.rect(margin+200, checkbox_y-3, 8, 8)  # Checkbox đi làm ngày nghỉ
+    c.setFont("DejaVuSans", 10)
+    c.drawString(margin+215, checkbox_y, "Đi làm ngày nghỉ /")
+    c.setFont("NotoSansJP", 10)
+    c.drawString(margin+320, checkbox_y, "休日出勤")
+    y -= 20
+
+    # Thông tin nhân viên
+    c.setFont("NotoSansJP-Light", 10)
+    c.drawString(margin, y, f"Họ tên (氏名)：{user.name}")
+    c.drawString(margin+200, y, f"Nhóm (チーム)：{user.department}")
+    c.drawString(margin+350, y, f"Mã NV (社員コード): {user.employee_id}")
+    y -= 15
+    
+    c.drawString(margin, y, f"Lý do tăng ca (理由): {attendance.note}")
+    y -= 15
+    
+    c.drawString(margin, y, "Đề nghị công ty chấp thuận cho tôi được tăng ca/đi làm vào ngày nghỉ.")
+    y -= 10
+    c.setFont("NotoSansJP-Light", 9)
+    c.drawString(margin, y, "残業/休日出勤を許可お願いします。")
+    y -= 25
+    
+    # Thêm khoảng cách trước khi vẽ bảng thời gian
+    y -= 15
+
+    # Bảng chấm công chi tiết
+    table_y = y
+    table_width = width - 2*margin
+    
+    # Định nghĩa style cho tiêu đề
+    header_style_vn = ParagraphStyle('header_vn', fontName='DejaVuSans', fontSize=8, alignment=1)
+    header_style_jp = ParagraphStyle('header_jp', fontName='NotoSansJP', fontSize=8, alignment=1)
+    
+    # Tạo chuỗi thời gian làm việc
+    time_str = f"{attendance.check_in.strftime('%H:%M') if attendance.check_in else '-'} - {attendance.check_out.strftime('%H:%M') if attendance.check_out else '-'}"
+    
+    # Xác định hình thức (1 hoặc 2)
+    form_type = "1" if getattr(attendance, 'holiday_type', None) == "normal" else "2"
+    
+    # Hàng 1: Tiếng Việt
+    header_row1 = [
+        Paragraph('No.', header_style_vn),
+        Paragraph('NGÀY THÁNG NĂM', header_style_vn),
+        Paragraph('HÌNH THỨC', header_style_vn),
+        Paragraph('CA LÀM VIỆC', header_style_vn),
+        Paragraph('THỜI GIAN', header_style_vn),
+        Paragraph('Nghỉ giải lao bị gián đoạn do đối ứng công việc', header_style_vn),
+        Paragraph('XÁC NHẬN', header_style_vn)
+    ]
+    # Hàng 2: Tiếng Nhật/Hán
+    header_row2 = [
+        Paragraph('', header_style_jp),
+        Paragraph('日付', header_style_jp),
+        Paragraph('種類', header_style_jp),
+        Paragraph('シフト', header_style_jp),
+        Paragraph('何時から何時まで', header_style_jp),
+        Paragraph('休憩途中勤務', header_style_jp),
+        Paragraph('ラボマネ承認', header_style_jp)
+    ]
+    # Hàng dữ liệu
+    row_data = [
+        '1',
+        attendance.date.strftime('%d/%m/%Y'),
+        form_type,
+        attendance.shift_code or '-',
+        time_str,
+        attendance._format_hours_minutes(attendance.break_time) if attendance.break_time else '0:00',
+        ''
+    ]
+    
+    table_data = [header_row1, header_row2, row_data]
+    col_widths = [30, 80, 50, 65, 80, 110, 70]  # Tổng nhỏ hơn width, luôn còn margin hai bên
+    row_heights = [40, 14, 18]  # Hàng 1 cao hơn nữa
+    
+    detail_table_width = sum(col_widths)
+    x_detail = (width - detail_table_width) / 2
+    table = Table(table_data, colWidths=col_widths, rowHeights=row_heights)
+    table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTNAME', (0,0), (-1,0), 'DejaVuSans'),
+        ('FONTNAME', (0,1), (-1,1), 'NotoSansJP'),
+        ('FONTSIZE', (0,0), (-1,1), 8),
+        ('FONTSIZE', (0,2), (-1,2), 9),
+        # Xóa dòng kẻ ngang giữa hàng 0 và 1
+        ('LINEBELOW', (0,0), (-1,0), 0, colors.white),
+    ]))
+    table.wrapOn(c, width-2*margin, 50)
+    table.drawOn(c, x_detail, table_y - 46)
+    y = table_y - 46 - 36  # cập nhật y cho phần tiếp theo
+    
+    # Ghi chú dưới bảng
+    note_sections = [
+        ("DejaVuSans", 8, "* Ghi chú: Tại cột Hình thức: Tăng ca ngày bình thường ghi số 1 Đi làm ngày nghỉ, tăng ca ghi số 2"),
+        ("NotoSansJP-Light", 8, "備考：平日の残業の場合：1番を記入してください。 休日出勤の場合：2番を記入してください。"),
+        ("DejaVuSans", 8, "*Về việc nghỉ giải lao (60 phút) ngày thường trong tuần, trường hợp nếu nghỉ dài hơn vì đối ứng công việc ：Hãy nộp đơn cho bộ phận văn phòng."),
+        ("NotoSansJP-Light", 8, "通常（1の場合）の昼休憩（60分）に、休憩途中で業務対応する場合、申請をして下さい。"),
+        ("DejaVuSans", 8, "*Trong trường hợp không xin phép trước, thì tăng ca và đi làm ngày nghỉ không được chấp nhận."),
+        ("DejaVuSans", 8, "Phải ghi giấy tăng ca sau khi tăng ca (chậm nhất là ngày mai) ,sang ngày mốt ghi tăng ca thì không được chấp nhận."),
+        ("NotoSansJP-Light", 8, "※1分単位で申請して下さい。申請をしない限り、残業と休日出勤は反映されません。"),
+        ("NotoSansJP-Light", 8, "必ず、残業をした日に申請すること。（次の日までの申請は認めますが、それ以外の申請は認めません）")
+    ]
+    max_note_width = width - 2*margin - 10
+    for i, (font_name, font_size, text) in enumerate(note_sections):
+        lines = wrap_text(text, font_name, font_size, max_note_width, c)
+        for line in lines:
+            c.setFont(font_name, font_size)
+            c.drawString(margin, y, line)
+            y -= font_size + 1
+        # Thêm dòng trắng sau mỗi đoạn bắt đầu bằng * (trừ đoạn cuối)
+        if text.startswith('*') and i < len(note_sections)-1:
+            y -= font_size + 1
+    
+    # Thêm khoảng cách giữa phần ghi chú và dòng ngày tháng
+    y -= 25
+    # Ngày tháng
+    c.setFont("DejaVuSans", 10)
+    c.drawRightString(width-margin, y, f"Huế, ngày {attendance.date.day} tháng {attendance.date.month} năm {attendance.date.year}")
+    y -= 10  # Đẩy dòng ngày tháng xuống thấp hơn
+    y -= 75  # Tăng thêm khoảng cách để không bị đè lên phần ghi chú
+    
+    # --- Căn chỉnh lại phần chữ ký và tiêu đề phía trên ---
+    # Số ô và kích thước
+    num_boxes = 3
+    box_width = 150
+    box_height = 50
+    box_spacing = 45  # khoảng cách giữa các ô
+    total_width = num_boxes * box_width + (num_boxes - 1) * box_spacing
+    start_x = (width - total_width) / 2
+    box_y = y  # y là vị trí đáy các ô
+    label_font_size = 10
+    sublabel_font_size = 8
+    # Tiêu đề các ô
+    box_titles = [
+        ("Quản lí", "ラボマネジャー"),
+        ("Cấp trên trực tiếp", "□室長　□リーダー　□他"),
+        ("Người xin phép", "申請者")
+    ]
+    # Vẽ tiêu đề và sublabel căn giữa trên mỗi ô
+    for i, (title, sublabel) in enumerate(box_titles):
+        x = start_x + i * (box_width + box_spacing)
+        # Căn giữa tiêu đề
+        c.setFont("DejaVuSans", label_font_size)
+        c.drawCentredString(x + box_width/2, box_y + box_height + 22, title)
+        c.setFont("NotoSansJP-Light", sublabel_font_size)
+        c.drawCentredString(x + box_width/2, box_y + box_height + 10, sublabel)
+    # Vẽ các ô chữ ký
+    for i in range(num_boxes):
+        x = start_x + i * (box_width + box_spacing)
+        c.rect(x, box_y, box_width, box_height)
+    # Hiển thị chữ ký hoặc (chưa ký) căn giữa trong từng ô
+    # Quản lý
+    x0 = start_x
+    center_y = box_y + box_height/2 - 8/2  # 8 là font size
+    if manager_signature:
+        try:
+            if isinstance(manager_signature, str) and manager_signature.startswith('data:image'):
+                manager_signature = manager_signature.split(',')[1]
+            img = ImageReader(io.BytesIO(base64.b64decode(manager_signature)))
+            c.drawImage(img, x0, box_y, width=box_width, height=box_height, mask='auto')
+        except Exception as e:
+            print('PDF manager signature error:', e)
+            c.setFont("DejaVuSans", 8)
+            c.drawCentredString(x0 + box_width/2, center_y, "(lỗi hiển thị chữ ký)")
+    else:
+        c.setFont("DejaVuSans", 8)
+        c.drawCentredString(x0 + box_width/2, center_y, "(chưa ký)")
+    # Trưởng nhóm
+    x1 = start_x + 1 * (box_width + box_spacing)
+    if team_leader_signature:
+        try:
+            if isinstance(team_leader_signature, str) and team_leader_signature.startswith('data:image'):
+                team_leader_signature = team_leader_signature.split(',')[1]
+            img = ImageReader(io.BytesIO(base64.b64decode(team_leader_signature)))
+            c.drawImage(img, x1, box_y, width=box_width, height=box_height, mask='auto')
+        except Exception as e:
+            print('PDF team leader signature error:', e)
+            c.setFont("DejaVuSans", 8)
+            c.drawCentredString(x1 + box_width/2, center_y, "(lỗi hiển thị chữ ký)")
+    else:
+        c.setFont("DejaVuSans", 8)
+        c.drawCentredString(x1 + box_width/2, center_y, "(chưa ký)")
+    # Nhân viên
+    x2 = start_x + 2 * (box_width + box_spacing)
+    if employee_signature:
+        try:
+            if isinstance(employee_signature, str) and employee_signature.startswith('data:image'):
+                employee_signature = employee_signature.split(',')[1]
+            img = ImageReader(io.BytesIO(base64.b64decode(employee_signature)))
+            c.drawImage(img, x2, box_y, width=box_width, height=box_height, mask='auto')
+        except Exception as e:
+            print('PDF employee signature error:', e)
+            c.setFont("DejaVuSans", 8)
+            c.drawCentredString(x2 + box_width/2, center_y, "(lỗi hiển thị chữ ký)")
+    else:
+        c.setFont("DejaVuSans", 8)
+        c.drawCentredString(x2 + box_width/2, center_y, "(chưa ký)")
+    
+    c.save()
 
 if __name__ == '__main__':
     with app.app_context():

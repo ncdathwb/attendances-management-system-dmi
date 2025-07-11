@@ -684,6 +684,54 @@
             height: 50px !important;
             vertical-align: middle !important;
         }
+
+        #signature-pad {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: border 0.2s;
+        }
+        .signature-status {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            align-items: center;
+        }
+        
+        .signature-status .badge {
+            font-size: 0.65rem;
+            padding: 0 2px;
+            white-space: nowrap;
+            margin: 0 !important;
+            display: block;
+            line-height: 1.2;
+        }
+        
+        .signature-status .badge.bg-success {
+            background-color: #28a745 !important;
+        }
+        
+        .signature-status .badge.bg-warning {
+            background-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        
+        .signature-status .badge.bg-secondary {
+            background-color: #6c757d !important;
+        }
+        
+        @media (max-width: 600px) {
+            #signature-pad {
+                width: 100% !important;
+                min-width: 220px;
+                max-width: 100%;
+                height: 90px !important;
+            }
+            
+            .signature-status {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -845,6 +893,16 @@
                     </div>
                     <div class="row mt-3">
                         <div class="col-12">
+                            <label class="form-label">Chữ ký xác nhận *</label>
+                            <div class="d-flex flex-column flex-md-row align-items-start gap-2">
+                                <canvas id="signature-pad" width="400" height="120" style="border:1.5px solid #bbb; border-radius:12px; background:#fff;"></canvas>
+                                <button type="button" class="btn btn-secondary btn-sm ms-md-3 mt-2 mt-md-0" onclick="clearSignature()">Xoá chữ ký</button>
+                            </div>
+                            <input type="hidden" name="signature" id="signature-input" required>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <button type="button" class="btn btn-primary btn-sm" id="saveAttendanceBtn" onclick="handleAttendanceSubmit()">
@@ -903,30 +961,87 @@
                         <i class="fas fa-arrow-left me-2"></i>Trở về
                     </button>
                 </div>
+                <!-- Filter Section -->
                 <div class="row mb-3">
                     <div class="col-auto">
-                        <select id="filterMonth" class="form-select form-select-sm">
-                            <option value="">-- Tháng --</option>
-                            <option value="1">Tháng 1</option>
-                            <option value="2">Tháng 2</option>
-                            <option value="3">Tháng 3</option>
-                            <option value="4">Tháng 4</option>
-                            <option value="5">Tháng 5</option>
-                            <option value="6">Tháng 6</option>
-                            <option value="7">Tháng 7</option>
-                            <option value="8">Tháng 8</option>
-                            <option value="9">Tháng 9</option>
-                            <option value="10">Tháng 10</option>
-                            <option value="11">Tháng 11</option>
-                            <option value="12">Tháng 12</option>
+                        <input type="text" id="allHistorySearchName" class="form-control form-control-sm" placeholder="Tìm theo tên nhân viên...">
+                    </div>
+                    <div class="col-auto">
+                        <select id="allHistoryDepartment" class="form-select form-select-sm">
+                            <option value="">-- Phòng ban --</option>
+                            <option value="BUD">BUD</option>
+                            <option value="SCOPE">SCOPE</option>
+                            <option value="KIRI">KIRI</option>
+                            <option value="CREEK&RIVER">CREEK&RIVER</option>
+                            <option value="COMO">COMO</option>
+                            <option value="OFFICE">OFFICE</option>
+                            <option value="YORK">YORK</option>
                         </select>
                     </div>
                     <div class="col-auto">
-                        <select id="filterYear" class="form-select form-select-sm"></select>
+                        <input type="text" id="allHistoryDateFrom" class="form-control form-control-sm" placeholder="Từ ngày">
                     </div>
                     <div class="col-auto">
-                        <button class="btn btn-sm btn-primary" id="btnFilterAttendance">Tìm kiếm</button>
-                        <button class="btn btn-sm btn-secondary" id="btnResetFilter">Xem tất cả</button>
+                        <input type="text" id="allHistoryDateTo" class="form-control form-control-sm" placeholder="Đến ngày">
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary btn-sm" id="btnAllHistoryFilter">Lọc</button>
+                        <button class="btn btn-secondary btn-sm" id="btnAllHistoryReset">Đặt lại</button>
+                    </div>
+                </div>
+                <!-- Bulk Export Section -->
+                <div class="row mb-3" id="bulkExportSection" style="display: none;">
+                    <div class="col-12">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-download me-2"></i>Xuất tăng ca hàng loạt</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row align-items-end">
+                                    <div class="col-md-2">
+                                        <label for="bulkExportType" class="form-label">Loại xuất</label>
+                                        <select id="bulkExportType" class="form-select form-select-sm">
+                                            <option value="month">Theo tháng</option>
+                                            <option value="year">Theo năm</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2" id="monthSelection">
+                                        <label for="bulkExportMonth" class="form-label">Tháng</label>
+                                        <select id="bulkExportMonth" class="form-select form-select-sm">
+                                            <option value="1">Tháng 1</option>
+                                            <option value="2">Tháng 2</option>
+                                            <option value="3">Tháng 3</option>
+                                            <option value="4">Tháng 4</option>
+                                            <option value="5">Tháng 5</option>
+                                            <option value="6">Tháng 6</option>
+                                            <option value="7">Tháng 7</option>
+                                            <option value="8">Tháng 8</option>
+                                            <option value="9">Tháng 9</option>
+                                            <option value="10">Tháng 10</option>
+                                            <option value="11">Tháng 11</option>
+                                            <option value="12">Tháng 12</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="bulkExportYear" class="form-label">Năm</label>
+                                        <select id="bulkExportYear" class="form-select form-select-sm">
+                                            <!-- Will be populated by JavaScript -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-success btn-sm" id="btnBulkExport">
+                                            <i class="fas fa-file-archive me-2"></i>Tải ZIP
+                                        </button>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <span id="bulkExportDescription">Xuất tất cả giấy tăng ca của tháng được chọn</span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
@@ -945,6 +1060,7 @@
                                 <th style="width: 80px;">Nhân viên</th>
                                 <th style="width: 80px;">Phòng ban</th>
                                 <th style="width: 80px;">Trạng thái</th>
+                                <th style="width: 120px;">Thao tác</th>
                                 <th style="width: 120px;">Ghi chú</th>
                             </tr>
                         </thead>
@@ -1004,6 +1120,7 @@
                                 <th style="width: 80px;">Nhân viên</th>
                                 <th style="width: 80px;">Phòng ban</th>
                                 <th style="width: 80px;">Trạng thái</th>
+                                <th style="width: 100px;">Chữ ký</th>
                                 <th style="width: 120px;">Thao tác</th>
                                 <th style="width: 120px;">Ghi chú</th>
                             </tr>
@@ -1030,7 +1147,26 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js?v=1.0.2"></script>
     <!-- Custom Dashboard JS -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.6/dist/signature_pad.umd.min.js"></script>
     <script>
+        var canvas = document.getElementById('signature-pad');
+        var signaturePad = new SignaturePad(canvas);
+
+        function clearSignature() {
+            signaturePad.clear();
+            document.getElementById('signature-input').value = '';
+        }
+
+        // Trước khi submit form
+        document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+            if (signaturePad.isEmpty()) {
+                alert('Vui lòng ký tên xác nhận!');
+                e.preventDefault();
+                return false;
+            }
+            document.getElementById('signature-input').value = signaturePad.toDataURL();
+        });
+
         // Function to show toast notification
         function showToast(message, type = 'success') {
             console.log('Showing toast:', message, type);  // Debug log
@@ -1065,12 +1201,22 @@
         let approvalPage = 1;
         let approvalPerPage = 10;
 
+        // Function to get overtime print button
+        function getOvertimePrintButton(attendanceId, approved, isAdmin) {
+    if (!approved || !isAdmin) return '';
+    return `<a href="/admin/attendance/${attendanceId}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class="fas fa-print"></i> In giấy tăng ca</a>`;
+}
+
         function renderAttendancePage(page) {
             const tbody = document.getElementById('attendanceHistory');
             if (!tbody) {
                 console.log('attendanceHistory element not found, skipping render');
                 return;
             }
+            
+            // Lấy vai trò hiện tại để kiểm tra quyền admin
+            const roleSelect = document.getElementById('role-select');
+            const isAdmin = roleSelect ? roleSelect.value === 'ADMIN' : false;
             
             tbody.innerHTML = '';
             
@@ -1195,7 +1341,11 @@
                                     <i class='fas fa-trash me-1'></i>Xóa
                                 </button>
                             </div>
-                        ` : '<div style="width:75px;">-</div>'}
+                        ` : `
+                            <div class="btn-action-container">
+                                ${getOvertimePrintButton(record.id, record.approved, isAdmin)}
+                            </div>
+                        `}
                         </div>
                     </td>
                     <td style="height: 50px;" class="note-cell" data-full-note="${record.note || ''}">
@@ -1518,6 +1668,23 @@
                 locale: "vn",
                 placeholder: "Đến ngày"
             });
+
+            // Khởi tạo flatpickr cho các ô lọc ngày trong phần lịch sử chấm công đã phê duyệt
+            flatpickr("#allHistoryDateFrom", {
+                altInput: true,
+                altFormat: "d/m/Y",
+                dateFormat: "Y-m-d",
+                locale: "vn",
+                placeholder: "Từ ngày"
+            });
+
+            flatpickr("#allHistoryDateTo", {
+                altInput: true,
+                altFormat: "d/m/Y",
+                dateFormat: "Y-m-d",
+                locale: "vn",
+                placeholder: "Đến ngày"
+            });
             
             // Initial load of attendance history (chỉ khi là nhân viên)
             if (currentRole === 'EMPLOYEE') {
@@ -1670,25 +1837,60 @@
         const allRowsPerPage = 10;
 
         function loadAllAttendanceHistory(page = 1) {
-            const month = document.getElementById('filterMonth').value;
-            const year = document.getElementById('filterYear').value;
-            let url = `/api/attendance/history?all=1&page=${page}&per_page=${allRowsPerPage}`;
-            if (month) url += `&month=${month}`;
-            if (year) url += `&year=${year}`;
+            const tbody = document.getElementById('allAttendanceHistoryBody');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="14">Đang tải dữ liệu...</td></tr>';
+            
+            // Lấy các filter
+            const search = document.getElementById('allHistorySearchName')?.value || '';
+            const department = document.getElementById('allHistoryDepartment')?.value || '';
+            const dateFrom = document.getElementById('allHistoryDateFrom')?.value || '';
+            const dateTo = document.getElementById('allHistoryDateTo')?.value || '';
+            
+            let url = `/api/attendance/history?all=1&page=${page}&per_page=10`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (department) url += `&department=${encodeURIComponent(department)}`;
+            if (dateFrom) url += `&date_from=${encodeURIComponent(dateFrom)}`;
+            if (dateTo) url += `&date_to=${encodeURIComponent(dateTo)}`;
             
             fetch(url)
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
-                    if (data.error) {
-                        showToast(data.error, 'error');
-                        return;
+                    if (data.data && data.data.length > 0) {
+                        tbody.innerHTML = '';
+                        data.data.forEach(record => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${record.date || '-'}</td>
+                                <td>${extractTime(record.check_in)}</td>
+                                <td>${extractTime(record.check_out)}</td>
+                                <td>${formatHourMinute(record.break_time) || '-'}</td>
+                                <td>${record.total_work_hours || '-'}</td>
+                                <td>${record.work_hours_display || '-'}</td>
+                                <td>${record.overtime_before_22 || '-'}</td>
+                                <td>${record.overtime_after_22 || '-'}</td>
+                                <td>${record.holiday_type || '-'}</td>
+                                <td>${record.user_name || '-'}</td>
+                                <td>${record.department || '-'}</td>
+                                <td>${translateStatus(record.status) || '-'}</td>
+                                <td><a href="/admin/attendance/${record.id}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class="fas fa-print"></i> In giấy tăng ca</a></td>
+                                <td>${record.note || '-'}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                        
+                        // Cập nhật phân trang
+                        if (data.total && data.total > 0) {
+                            const totalPages = Math.ceil(data.total / 10);
+                            renderAllAttendancePagination(page, totalPages);
+                        }
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="14" class="no-data-row">Không có dữ liệu chấm công đã phê duyệt</td></tr>';
+                        renderAllAttendancePagination(1, 1);
                     }
-                    renderAllAttendancePage(data.data);
-                    renderAllAttendancePagination(data.page, Math.ceil(data.total / data.per_page));
                 })
-                .catch(error => {
-                    console.error('Error fetching all attendance history:', error);
-                    showToast('Không thể tải lịch sử chấm công toàn bộ', 'error');
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="14" class="no-data-row">Lỗi tải dữ liệu</td></tr>';
                 });
         }
 
@@ -1736,6 +1938,8 @@
         }
 
         function renderAllAttendancePage(pageData) {
+            const roleSelect = document.getElementById('role-select');
+            const isAdmin = roleSelect ? roleSelect.value === 'ADMIN' : false;
             const tbody = document.getElementById('allAttendanceHistoryBody');
             tbody.innerHTML = '';
             if (!pageData || pageData.length === 0) {
@@ -1767,18 +1971,23 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${formatDate(record.date)}</td>
-                    <td>${record.check_in ? record.check_in : '--:--'}</td>
-                    <td>${record.check_out ? record.check_out : '--:--'}</td>
-                    <td>${record.break_time || '-'}</td>
+                    <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
+                    <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                    <td>${formatHourMinute(record.break_time) || '-'}</td>
                     <td>${record.total_work_hours || '-'}</td>
                     <td>${record.work_hours_display || '-'}</td>
                     <td>${record.overtime_before_22 || '0:00'}</td>
                     <td>${record.overtime_after_22 || '0:00'}</td>
-                    <td>${record.holiday_type}</td>
+                    <td>${translateHolidayType(record.holiday_type)}</td>
                     <td>${record.user_name || '-'}</td>
                     <td>${record.department || '-'}</td>
                     <td>${statusText}</td>
-                    <td>${record.note || '-'}</td>
+                    <td style="height: 50px; width: 120px; padding: 0 !important;">
+                        <div class="action-container">
+                            ${(record.approved && isAdmin) ? `<a href="/admin/attendance/${record.id}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class='fas fa-print'></i> In giấy tăng ca</a>` : ''}
+                        </div>
+                    </td>
+                    <td class="note-cell" data-full-note="${record.note || ''}">${record.note || '-'}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -1810,6 +2019,11 @@
             const approvalBody = document.getElementById('approvalAttendanceBody');
             if (!approvalBody) return;
             approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Đang tải dữ liệu...</td></tr>';
+            
+            // Lấy vai trò hiện tại để kiểm tra quyền admin
+            const roleSelect = document.getElementById('role-select');
+            const isAdmin = roleSelect ? roleSelect.value === 'ADMIN' : false;
+            
             const filters = getApprovalFilters();
             let url = `/api/attendance/pending?page=${page}&per_page=${approvalPerPage}`;
             if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
@@ -1821,7 +2035,7 @@
                 const result = await response.json();
                 approvalBody.innerHTML = '';
                 if (!result.data || result.data.length === 0) {
-                    approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Không có bản ghi chấm công chờ phê duyệt</td></tr>';
+                    approvalBody.innerHTML = '<tr><td colspan="15" class="no-data-row">Không có bản ghi chấm công chờ phê duyệt</td></tr>';
                     renderApprovalPagination(1, 1);
                     return;
                 }
@@ -1832,7 +2046,7 @@
                         <td>${formatDate(record.date)}</td>
                         <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
                         <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
-                        <td>${record.break_time || '-'}</td>
+                        <td>${formatHourMinute(record.break_time) || '-'}</td>
                         <td>${record.total_work_hours || '-'}</td>
                         <td>${record.work_hours_display || '-'}</td>
                         <td>${record.overtime_before_22 || '0:00'}</td>
@@ -1841,6 +2055,11 @@
                         <td>${record.user_name || '-'}</td>
                         <td>${record.department || '-'}</td>
                         <td>${translateStatus(record.status)}</td>
+                        <td style="height: 50px; width: 100px; text-align: center;">
+                            <div class="signature-status">
+                                ${getSignatureStatus(record)}
+                            </div>
+                        </td>
                         <td style="height: 50px; width: 120px; padding: 0 !important;">
                             <div class="action-container">
                             ${['pending', 'pending_manager', 'pending_admin'].includes(record.status) ? `
@@ -1851,7 +2070,11 @@
                                         <button class='btn btn-danger btn-sm reject-attendance-btn' data-id='${record.id}' title="Từ chối">
                                             <i class='fas fa-times me-1'></i>Từ chối
                                         </button>
-                            ` : `<span>-</span>`}
+                            ` : `
+                                <div class="btn-action-container">
+                                    ${getOvertimePrintButton(record.id, record.approved, isAdmin)}
+                                </div>
+                            `}
                             </div>
                         </td>
                         <td style="height: 50px; width: 120px;" class="note-cell" data-full-note="${record.note || ''}">
@@ -1878,7 +2101,7 @@
                     });
                 });
             } catch (e) {
-                approvalBody.innerHTML = '<tr><td colspan="14" class="no-data-row">Lỗi tải dữ liệu</td></tr>';
+                approvalBody.innerHTML = '<tr><td colspan="15" class="no-data-row">Lỗi tải dữ liệu</td></tr>';
                 renderApprovalPagination(1, 1);
             }
         }
@@ -1941,13 +2164,47 @@
 
         function translateStatus(status) {
             const translations = {
+                'approved': 'Đã phê duyệt',
                 'pending': 'Chờ phê duyệt',
-                'pending_manager': 'Chờ phê duyệt',
-                'pending_admin': 'Chờ phê duyệt',
-                'approved': 'Đã duyệt',
+                'pending_manager': 'Chờ quản lý duyệt',
+                'pending_admin': 'Chờ admin duyệt',
                 'rejected': 'Từ chối'
             };
             return translations[status] || status;
+        }
+
+        function getSignatureStatus(record) {
+            // 3 trạng thái: NV, TL, QL
+            const hasEmployeeSignature = record.signature && record.signature.trim() !== '';
+            const hasTeamLeaderSignature = record.team_leader_signature && record.team_leader_signature.trim() !== '';
+            const hasManagerSignature = record.manager_signature && record.manager_signature.trim() !== '';
+            // Màu: xanh lá #219653 (đã ký), xám #888 (chưa ký)
+            const circles = [
+                {
+                    signed: hasEmployeeSignature,
+                    label: 'Nhân viên',
+                    tooltip: hasEmployeeSignature ? 'Nhân viên đã ký' : 'Nhân viên chưa ký',
+                    icon: hasEmployeeSignature ? 'fa-check' : 'fa-clock'
+                },
+                {
+                    signed: hasTeamLeaderSignature,
+                    label: 'Trưởng nhóm',
+                    tooltip: hasTeamLeaderSignature ? 'Trưởng nhóm đã ký' : 'Trưởng nhóm chưa ký',
+                    icon: hasTeamLeaderSignature ? 'fa-check' : 'fa-clock'
+                },
+                {
+                    signed: hasManagerSignature,
+                    label: 'Quản lý',
+                    tooltip: hasManagerSignature ? 'Quản lý đã ký' : 'Quản lý chưa ký',
+                    icon: hasManagerSignature ? 'fa-check' : 'fa-clock'
+                }
+            ];
+            let html = '<div class="signature-circles-row">';
+            circles.forEach(c => {
+                html += `<span class="signature-circle${c.signed ? ' signed' : ''}" title="${c.tooltip}"><i class="fas ${c.icon}"></i></span>`;
+            });
+            html += '</div>';
+            return html;
         }
 
         // Gọi khi trang load nếu có approval section
@@ -2061,13 +2318,20 @@
                 if (role === 'ADMIN' && adminUsersMenu) {
                     adminUsersMenu.style.display = 'block';
                 }
-                // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
-                if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
-                    attendanceHistoryMenuWrapper.style.display = 'block';
-                }
-                // Load dữ liệu phê duyệt
-                loadApprovalAttendance();
-                if (pageTitle) pageTitle.textContent = 'Quản lý chấm công';
+                            // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
+            if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
+                attendanceHistoryMenuWrapper.style.display = 'block';
+            }
+            // Hiển thị bulk export section cho ADMIN
+            const bulkExportSection = document.getElementById('bulkExportSection');
+            if (role === 'ADMIN' && bulkExportSection) {
+                bulkExportSection.style.display = 'block';
+            } else if (bulkExportSection) {
+                bulkExportSection.style.display = 'none';
+            }
+            // Load dữ liệu phê duyệt
+            loadApprovalAttendance();
+            if (pageTitle) pageTitle.textContent = 'Quản lý chấm công';
             }
             
             // Cập nhật active state cho menu
@@ -2108,53 +2372,188 @@
             
             if (action === 'approve') {
                 console.log('Processing approval...');
-                // Xử lý phê duyệt trực tiếp
-                fetch(`/api/attendance/${attendanceId}/approve`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
+                
+                // Hiển thị popup để ký tên phê duyệt
+                const { value: signature } = await Swal.fire({
+                    title: '<i class="fas fa-signature me-2"></i>Ký tên phê duyệt',
+                    html: `
+                        <div style="text-align: center;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <p style="margin: 0; font-weight: 600; color: #495057;">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Vui lòng ký tên để xác nhận phê duyệt bản ghi chấm công
+                                </p>
+                            </div>
+                            <div style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+                                <canvas id="approval-signature-pad" width="400" height="200" style="border: 1px solid #ccc; border-radius: 5px; background: #fff;"></canvas>
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 10px;">
+                                <button type="button" id="clear-approval-signature" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-eraser me-1"></i>Xóa chữ ký
+                                </button>
+                                <button type="button" id="preview-approval-signature" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Xem chữ ký
+                                </button>
+                            </div>
+                            <div id="signature-preview" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <img id="preview-image" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 3px;">
+                            </div>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-check me-2"></i>Phê duyệt',
+                    cancelButtonText: '<i class="fas fa-times me-2"></i>Hủy',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    width: '500px',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        // Khởi tạo signature pad
+                        const canvas = document.getElementById('approval-signature-pad');
+                        const signaturePad = new SignaturePad(canvas, {
+                            backgroundColor: 'rgb(255, 255, 255)',
+                            penColor: 'rgb(0, 0, 0)',
+                            minWidth: 1,
+                            maxWidth: 2.5
+                        });
+                        
+                        // Xử lý nút xóa chữ ký
+                        document.getElementById('clear-approval-signature').addEventListener('click', () => {
+                            signaturePad.clear();
+                            document.getElementById('signature-preview').style.display = 'none';
+                        });
+                        
+                        // Xử lý nút xem chữ ký
+                        document.getElementById('preview-approval-signature').addEventListener('click', () => {
+                            if (!signaturePad.isEmpty()) {
+                                const previewDiv = document.getElementById('signature-preview');
+                                const previewImg = document.getElementById('preview-image');
+                                previewImg.src = signaturePad.toDataURL();
+                                previewDiv.style.display = 'block';
+                            } else {
+                                Swal.showValidationMessage('Chưa có chữ ký để xem!');
+                            }
+                        });
+                        
+                        // Lưu signature pad để sử dụng sau
+                        window.approvalSignaturePad = signaturePad;
+                        
+                        // Thêm hướng dẫn sử dụng
+                        setTimeout(() => {
+                            Swal.showValidationMessage('Vui lòng ký tên vào ô bên trên để tiếp tục');
+                        }, 100);
                     },
-                    body: JSON.stringify({ action: 'approve', reason: '' })
-                })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    if (data.error) {
-                        showToast(data.error, 'error');
-                    } else {
-                        showToast(data.message, 'success');
-                        loadApprovalAttendance();
+                    preConfirm: () => {
+                        const signaturePad = window.approvalSignaturePad;
+                        if (signaturePad.isEmpty()) {
+                            Swal.showValidationMessage('<i class="fas fa-exclamation-triangle me-2"></i>Vui lòng ký tên để xác nhận phê duyệt!');
+                            return false;
+                        }
+                        return signaturePad.toDataURL();
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
                 });
+
+                if (signature) {
+                    console.log('Sending approval with signature');
+                    // Hiển thị loading
+                    Swal.fire({
+                        title: 'Đang xử lý...',
+                        html: '<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi yêu cầu phê duyệt',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        showConfirmButton: false
+                    });
+                    
+                    // Gửi yêu cầu phê duyệt với chữ ký
+                    fetch(`/api/attendance/${attendanceId}/approve`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ action: 'approve', reason: '', signature: signature })
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Response data:', data);
+                        Swal.close(); // Đóng loading
+                        if (data.error) {
+                            showToast(data.error, 'error');
+                        } else {
+                            showToast(data.message, 'success');
+                            loadApprovalAttendance();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.close(); // Đóng loading
+                        showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
+                    });
+                }
             } else if (action === 'reject') {
                 console.log('Processing rejection...');
                 // Hiển thị popup để nhập lý do từ chối
                 const { value: reason } = await Swal.fire({
-                    title: 'Xác nhận từ chối',
-                    input: 'textarea',
-                    inputLabel: 'Lý do từ chối',
-                    inputPlaceholder: 'Nhập lý do từ chối ở đây...',
+                    title: '<i class="fas fa-times-circle me-2"></i>Xác nhận từ chối',
+                    html: `
+                        <div style="text-align: center;">
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffeaa7;">
+                                <p style="margin: 0; font-weight: 600; color: #856404;">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Vui lòng nhập lý do từ chối bản ghi chấm công
+                                </p>
+                            </div>
+                            <div style="text-align: left;">
+                                <label for="reject-reason" style="font-weight: 600; color: #495057; margin-bottom: 8px; display: block;">
+                                    <i class="fas fa-comment me-2"></i>Lý do từ chối:
+                                </label>
+                                <textarea id="reject-reason" 
+                                          style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid #ced4da; border-radius: 5px; font-size: 14px; resize: vertical;"
+                                          placeholder="Nhập lý do từ chối chi tiết ở đây..."></textarea>
+                            </div>
+                        </div>
+                    `,
                     showCancelButton: true,
-                    confirmButtonText: 'Xác nhận',
-                    cancelButtonText: 'Hủy',
+                    confirmButtonText: '<i class="fas fa-check me-2"></i>Xác nhận từ chối',
+                    cancelButtonText: '<i class="fas fa-times me-2"></i>Hủy',
                     confirmButtonColor: '#e74c3c',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Bạn cần nhập lý do từ chối!'
+                    cancelButtonColor: '#6c757d',
+                    width: '500px',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        // Focus vào textarea
+                        document.getElementById('reject-reason').focus();
+                    },
+                    preConfirm: () => {
+                        const reason = document.getElementById('reject-reason').value.trim();
+                        if (!reason) {
+                            Swal.showValidationMessage('<i class="fas fa-exclamation-triangle me-2"></i>Vui lòng nhập lý do từ chối!');
+                            return false;
                         }
+                        if (reason.length < 10) {
+                            Swal.showValidationMessage('<i class="fas fa-exclamation-triangle me-2"></i>Lý do từ chối phải có ít nhất 10 ký tự!');
+                            return false;
+                        }
+                        return reason;
                     }
                 });
 
                 if (reason) {
                     console.log('Sending rejection with reason:', reason);
+                    // Hiển thị loading
+                    Swal.fire({
+                        title: 'Đang xử lý...',
+                        html: '<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi yêu cầu từ chối',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        showConfirmButton: false
+                    });
+                    
                     // Gửi yêu cầu từ chối với lý do
                     fetch(`/api/attendance/${attendanceId}/approve`, {
                         method: 'POST',
@@ -2170,6 +2569,7 @@
                     })
                     .then(data => {
                         console.log('Rejection response data:', data);
+                        Swal.close(); // Đóng loading
                         if (data.error) {
                             showToast(data.error, 'error');
                         } else {
@@ -2179,6 +2579,7 @@
                     })
                     .catch(error => {
                         console.error('Error:', error);
+                        Swal.close(); // Đóng loading
                         showToast('Đã xảy ra lỗi khi từ chối', 'error');
                     });
                 }
@@ -2207,6 +2608,61 @@
             const m = Math.round((decimalHour - h) * 60);
             return `${h}:${m.toString().padStart(2, '0')}`;
         }
+
+        function extractTime(str) {
+            if (!str) return '--:--';
+            // Hỗ trợ cả dạng 'YYYY-MM-DD HH:MM:SS' và 'YYYY-MM-DDTHH:MM:SS'
+            const match = str.match(/T?(\d{2}:\d{2})/);
+            return match ? match[1] : '--:--';
+        }
+
+        function formatHourMinute(hours) {
+            if (hours == null || hours === '') return '';
+            if (typeof hours === 'string' && hours.includes(':')) return hours;
+            let h = Math.floor(Number(hours));
+            let m = Math.round((Number(hours) - h) * 60);
+            if (m === 60) { h += 1; m = 0; }
+            return `${h}:${m.toString().padStart(2, '0')}`;
+        }
+
+        // Event listeners cho filter lịch sử chấm công đã phê duyệt
+        document.addEventListener('DOMContentLoaded', function() {
+            // Filter button
+            const btnAllHistoryFilter = document.getElementById('btnAllHistoryFilter');
+            if (btnAllHistoryFilter) {
+                btnAllHistoryFilter.addEventListener('click', function() {
+                    allCurrentPage = 1;
+                    loadAllAttendanceHistory(allCurrentPage);
+                });
+            }
+            
+            // Reset button
+            const btnAllHistoryReset = document.getElementById('btnAllHistoryReset');
+            if (btnAllHistoryReset) {
+                btnAllHistoryReset.addEventListener('click', function() {
+                    // Reset các filter
+                    document.getElementById('allHistorySearchName').value = '';
+                    document.getElementById('allHistoryDepartment').value = '';
+                    document.getElementById('allHistoryDateFrom').value = '';
+                    document.getElementById('allHistoryDateTo').value = '';
+                    
+                    // Reload dữ liệu
+                    allCurrentPage = 1;
+                    loadAllAttendanceHistory(allCurrentPage);
+                });
+            }
+
+            // Enter key trong ô tìm kiếm
+            const allHistorySearchName = document.getElementById('allHistorySearchName');
+            if (allHistorySearchName) {
+                allHistorySearchName.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        allCurrentPage = 1;
+                        loadAllAttendanceHistory(allCurrentPage);
+                    }
+                });
+            }
+        });
     </script>
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

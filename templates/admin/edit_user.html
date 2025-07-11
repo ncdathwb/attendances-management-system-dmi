@@ -169,15 +169,9 @@
                                     </label>
                                     <select class="form-select" id="department" name="department" required>
                                         <option value="">Chọn phòng ban</option>
-                                        <option value="IT" {{ 'selected' if user.department == 'IT' }}>IT - Công Nghệ Thông Tin</option>
-                                        <option value="HR" {{ 'selected' if user.department == 'HR' }}>HR - Nhân Sự</option>
-                                        <option value="Finance" {{ 'selected' if user.department == 'Finance' }}>Finance - Tài Chính</option>
-                                        <option value="Marketing" {{ 'selected' if user.department == 'Marketing' }}>Marketing - Tiếp Thị</option>
-                                        <option value="Sales" {{ 'selected' if user.department == 'Sales' }}>Sales - Kinh Doanh</option>
-                                        <option value="Operations" {{ 'selected' if user.department == 'Operations' }}>Operations - Vận Hành</option>
-                                        <option value="Customer Service" {{ 'selected' if user.department == 'Customer Service' }}>Customer Service - Chăm Sóc Khách Hàng</option>
-                                        <option value="Legal" {{ 'selected' if user.department == 'Legal' }}>Legal - Pháp Lý</option>
-                                        <option value="Administration" {{ 'selected' if user.department == 'Administration' }}>Administration - Hành Chính</option>
+                                        {% for dept in departments %}
+                                            <option value="{{ dept }}" {{ 'selected' if user.department == dept }}>{{ dept }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                             </div>
