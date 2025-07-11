@@ -89,7 +89,7 @@ function getCurrentTime() {
     return localTime.toISOString().slice(0, 16);
 }
 
-// Enhanced date formatting with better locale support
+// Enhanced date formatting with consistent DD/MM/YYYY format
 function formatDate(dateString) {
     try {
         const date = new Date(dateString);
@@ -97,11 +97,11 @@ function formatDate(dateString) {
             return 'Invalid Date';
         }
         
-        return date.toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
+        // Manual formatting to ensure consistent DD/MM/YYYY format across all browsers
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
     } catch (error) {
         console.error('Date formatting error:', error);
         return 'Invalid Date';
