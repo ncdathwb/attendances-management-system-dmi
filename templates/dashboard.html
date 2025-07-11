@@ -1500,7 +1500,7 @@
                         return;
                     }
 
-                    // Format date to YYYY-MM-DD
+                    // Format date for input (keep YYYY-MM-DD for HTML5 date input internal value)
                     const date = new Date(data.date);
                     const formattedDate = date.toISOString().split('T')[0];
 
@@ -1561,14 +1561,13 @@
                 });
         }
 
-        // Function to format date for display
+        // Function to format date for display (DD/MM/YYYY)
         function formatDate(dateStr) {
             const date = new Date(dateStr);
-            return date.toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
         }
 
         // Function to format time for input
@@ -1861,7 +1860,7 @@
                         data.data.forEach(record => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                                <td>${record.date || '-'}</td>
+                                <td>${formatDate(record.date) || '-'}</td>
                                 <td>${extractTime(record.check_in)}</td>
                                 <td>${extractTime(record.check_out)}</td>
                                 <td>${formatHourMinute(record.break_time) || '-'}</td>
