@@ -2176,8 +2176,12 @@
         function getSignatureStatus(record) {
             // 3 trạng thái: NV, TL, QL
             const hasEmployeeSignature = record.signature && record.signature.trim() !== '';
-            const hasTeamLeaderSignature = record.team_leader_signature && record.team_leader_signature.trim() !== '';
-            const hasManagerSignature = record.manager_signature && record.manager_signature.trim() !== '';
+            // Chỉ hiển thị dấu V khi thực sự đã phê duyệt, không chỉ dựa vào có chữ ký
+            const hasTeamLeaderApproved = (record.team_leader_signature && record.team_leader_signature.trim() !== '') && 
+                                        !['pending'].includes(record.status);
+            const hasManagerApproved = (record.manager_signature && record.manager_signature.trim() !== '') && 
+                                     ['approved', 'completed'].includes(record.status);
+            
             // Màu: xanh lá #219653 (đã ký), xám #888 (chưa ký)
             const circles = [
                 {
@@ -2187,16 +2191,16 @@
                     icon: hasEmployeeSignature ? 'fa-check' : 'fa-clock'
                 },
                 {
-                    signed: hasTeamLeaderSignature,
+                    signed: hasTeamLeaderApproved,
                     label: 'Trưởng nhóm',
-                    tooltip: hasTeamLeaderSignature ? 'Trưởng nhóm đã ký' : 'Trưởng nhóm chưa ký',
-                    icon: hasTeamLeaderSignature ? 'fa-check' : 'fa-clock'
+                    tooltip: hasTeamLeaderApproved ? 'Trưởng nhóm đã phê duyệt' : 'Trưởng nhóm chưa phê duyệt',
+                    icon: hasTeamLeaderApproved ? 'fa-check' : 'fa-clock'
                 },
                 {
-                    signed: hasManagerSignature,
+                    signed: hasManagerApproved,
                     label: 'Quản lý',
-                    tooltip: hasManagerSignature ? 'Quản lý đã ký' : 'Quản lý chưa ký',
-                    icon: hasManagerSignature ? 'fa-check' : 'fa-clock'
+                    tooltip: hasManagerApproved ? 'Quản lý đã phê duyệt' : 'Quản lý chưa phê duyệt',
+                    icon: hasManagerApproved ? 'fa-check' : 'fa-clock'
                 }
             ];
             let html = '<div class="signature-circles-row">';

@@ -1086,12 +1086,9 @@ def approve_attendance(attendance_id):
             attendance.status = 'pending_manager'
             attendance.approved_by = user.id
             attendance.approved_at = datetime.now()
-            # Lưu chữ ký trưởng nhóm
+            # Chỉ lưu chữ ký vào field tương ứng với vai trò hiện tại
             if approver_signature:
                 attendance.team_leader_signature = approver_signature
-            # Nếu user đồng thời là MANAGER thì lưu luôn vào manager_signature
-            if 'MANAGER' in user.roles.split(',') and approver_signature:
-                attendance.manager_signature = approver_signature
             message = 'Đã chuyển lên Quản lý phê duyệt'
         elif current_role == 'MANAGER':
             if attendance.status != 'pending_manager':
@@ -1099,12 +1096,9 @@ def approve_attendance(attendance_id):
             attendance.status = 'pending_admin'
             attendance.approved_by = user.id
             attendance.approved_at = datetime.now()
-            # Lưu chữ ký quản lý
+            # Chỉ lưu chữ ký vào field tương ứng với vai trò hiện tại
             if approver_signature:
                 attendance.manager_signature = approver_signature
-            # Nếu user đồng thời là TEAM_LEADER thì lưu luôn vào team_leader_signature
-            if 'TEAM_LEADER' in user.roles.split(',') and approver_signature:
-                attendance.team_leader_signature = approver_signature
             message = 'Đã chuyển lên Admin phê duyệt'
         elif current_role == 'ADMIN':
             if attendance.status not in ['pending_manager', 'pending_admin']:
