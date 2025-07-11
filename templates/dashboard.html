@@ -1145,8 +1145,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11?v=1.0.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr?v=1.0.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js?v=1.0.2"></script>
-    <!-- Custom Dashboard JS -->
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1.0.2"></script>
+    <!-- Custom Dashboard JS with cache busting -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=20250107001"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.6/dist/signature_pad.umd.min.js"></script>
     <script>
         var canvas = document.getElementById('signature-pad');
