@@ -1059,15 +1059,23 @@ def approve_attendance(attendance_id):
     if action not in ['approve', 'reject']:
         return jsonify({'error': 'Hành động không hợp lệ'}), 400
     
-    # Kiểm tra chữ ký bắt buộc khi phê duyệt
-    if action == 'approve' and not approver_signature:
-        return jsonify({'error': 'Chữ ký là bắt buộc khi phê duyệt. Vui lòng ký tên để xác nhận.'}), 400
-    
-    if action == 'reject' and not reason:
-        return jsonify({'error': 'Lý do từ chối không hợp lệ'}), 400
+    # Lấy thông tin attendance để kiểm tra
     attendance = Attendance.query.get(attendance_id)
     if not attendance:
         return jsonify({'error': 'Không tìm thấy bản ghi chấm công'}), 404
+    
+    # Kiểm tra chữ ký bắt buộc khi phê duyệt
+    if action == 'approve':
+        # Nếu người phê duyệt chính là người tạo attendance và đã có chữ ký cũ
+        if user.id == attendance.user_id and attendance.signature:
+            # Tái sử dụng chữ ký cũ
+            approver_signature = attendance.signature
+        elif not approver_signature:
+            # Nếu không phải tự phê duyệt hoặc chưa có chữ ký cũ thì yêu cầu chữ ký mới
+            return jsonify({'error': 'Chữ ký là bắt buộc khi phê duyệt. Vui lòng ký tên để xác nhận.'}), 400
+    
+    if action == 'reject' and not reason:
+        return jsonify({'error': 'Lý do từ chối không hợp lệ'}), 400
     if attendance.approved:
         return jsonify({'error': 'Bản ghi đã được phê duyệt hoàn tất'}), 400
     if action == 'approve':
