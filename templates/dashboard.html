@@ -2180,7 +2180,7 @@
             const hasTeamLeaderApproved = (record.team_leader_signature && record.team_leader_signature.trim() !== '') && 
                                         !['pending'].includes(record.status);
             const hasManagerApproved = (record.manager_signature && record.manager_signature.trim() !== '') && 
-                                     ['approved', 'completed'].includes(record.status);
+                                     !['pending', 'pending_manager'].includes(record.status);
             
             // Màu: xanh lá #219653 (đã ký), xám #888 (chưa ký)
             const circles = [
