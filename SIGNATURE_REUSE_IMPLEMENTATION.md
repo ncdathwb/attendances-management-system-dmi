@@ -130,8 +130,8 @@ const hasManagerApproved = (record.manager_signature && record.manager_signature
 3. Chuyển vai trò Team Leader → Bấm phê duyệt → KHÔNG popup ✅
 4. Frontend hiển thị: 2 V ✅ (employee + TL)
 5. Chuyển vai trò Manager → Bấm phê duyệt → KHÔNG popup ✅
-6. Frontend hiển thị: 2 V ✅ (chờ Admin)
-7. Chuyển vai trò Admin → Bấm phê duyệt → Frontend hiển thị: 3 V ✅
+6. Frontend hiển thị: 3 V ✅ (Manager đã phê duyệt)
+7. Chuyển vai trò Admin → Bấm phê duyệt → Frontend hiển thị: 3 V ✅ (hoàn tất)
 ```
 
 ## 🧪 **Test Results**
@@ -220,7 +220,7 @@ const hasManagerApproved = (record.manager_signature && record.manager_signature
 3. **Manager phê duyệt:**
    - Status: `pending_admin`
    - manager_signature: `employee_signature` (tái sử dụng)
-   - Hiển thị: 2 V (vì status chưa approved)
+   - Hiển thị: 3 V (Manager đã phê duyệt)
 
 4. **Admin phê duyệt:**
    - Status: `approved`
@@ -234,6 +234,6 @@ hasEmployeeSignature = !!record.signature
 // Team Leader: hiển thị nếu có signature VÀ status != 'pending'
 hasTeamLeaderApproved = !!record.team_leader_signature && !['pending'].includes(record.status)
 
-// Manager: hiển thị nếu có signature VÀ status in ['approved', 'completed']
-hasManagerApproved = !!record.manager_signature && ['approved', 'completed'].includes(record.status)
+// Manager: hiển thị nếu có signature VÀ status NOT IN ['pending', 'pending_manager']
+hasManagerApproved = !!record.manager_signature && !['pending', 'pending_manager'].includes(record.status)
 ```
