@@ -375,6 +375,8 @@ function handleEditAttendance(id) {
             const saveBtn = document.getElementById('saveAttendanceBtn');
             const cancelBtn = document.getElementById('cancelEditBtn');
             const shiftSelect = document.getElementById('shiftSelect');
+            const signatureInput = document.getElementById('signature-input');
+            const newRecordBtn = document.getElementById('newRecordBtn');
 
             if (dateInput) dateInput.value = data.date;
             if (checkInTimeInput) checkInTimeInput.value = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
@@ -385,9 +387,27 @@ function handleEditAttendance(id) {
             if (editIdInput) editIdInput.value = id;
             if (shiftSelect) shiftSelect.value = data.shift_code || '';
             
+            // Cập nhật chữ ký từ dữ liệu cũ
+            if (data.signature && signatureInput) {
+                signatureInput.value = data.signature;
+                // Nếu có signature pad, hiển thị chữ ký cũ
+                if (window.signaturePad) {
+                    window.signaturePad.clear();
+                    // Tạo image từ data URL và vẽ lên canvas
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = window.signaturePad.canvas;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = data.signature;
+                }
+            }
+            
             // Show cancel button and update save button text
             if (cancelBtn) cancelBtn.style.display = 'inline-block';
             if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cập nhật đăng ký';
+            if (newRecordBtn) newRecordBtn.style.display = 'none';
             
             if (checkInTimeInput) checkInTimeInput.focus();
         })
@@ -558,7 +578,8 @@ function handleAttendanceSubmit(e) {
                 showAlert(data.error, 'error');
             } else {
                 showAlert('Cập nhật chấm công thành công', 'success');
-                resetForm();
+                // KHÔNG reset form khi cập nhật thành công
+                // resetForm();
                 updateAttendanceHistory();
             }
         })
@@ -580,7 +601,8 @@ function handleAttendanceSubmit(e) {
             showAlert(data.error, 'error');
         } else {
             showAlert('Lưu chấm công thành công', 'success');
-            resetForm();
+            // KHÔNG reset form khi lưu thành công
+            // resetForm();
             updateAttendanceHistory();
         }
     })
@@ -596,11 +618,20 @@ function resetForm() {
     const editAttendanceId = document.getElementById('editAttendanceId');
     const saveAttendanceBtn = document.getElementById('saveAttendanceBtn');
     const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const newRecordBtn = document.getElementById('newRecordBtn');
     
     if (attendanceForm) attendanceForm.reset();
     if (editAttendanceId) editAttendanceId.value = '';
     if (saveAttendanceBtn) saveAttendanceBtn.innerHTML = '<i class="fas fa-save me-2"></i>Lưu đăng ký';
     if (cancelEditBtn) cancelEditBtn.style.display = 'none';
+    if (newRecordBtn) newRecordBtn.style.display = 'inline-block';
+    
+    // Clear signature pad
+    if (window.signaturePad) {
+        window.signaturePad.clear();
+    }
+    const signatureInput = document.getElementById('signature-input');
+    if (signatureInput) signatureInput.value = '';
     
     // Set default values
     const today = new Date();

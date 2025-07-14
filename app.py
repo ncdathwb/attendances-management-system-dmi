@@ -987,6 +987,25 @@ def update_attendance(attendance_id):
         return jsonify({'error': 'Thời gian nghỉ không hợp lệ!'}), 400
     if not shift_code or not shift_start or not shift_end:
         return jsonify({'error': 'Vui lòng chọn ca làm việc hợp lệ!'}), 400
+    
+    # Kiểm tra xem có bản ghi khác cùng ngày không (trừ bản ghi hiện tại)
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({'error': 'Không tìm thấy người dùng'}), 404
+    
+    existing_attendance = Attendance.query.filter(
+        Attendance.user_id == user.id,
+        Attendance.date == date,
+        Attendance.id != attendance_id
+    ).first()
+    
+    if existing_attendance:
+        if existing_attendance.status != 'rejected':
+            return jsonify({'error': 'Bạn đã chấm công cho ngày này rồi, không thể chấm công 2 lần trong 1 ngày.'}), 400
+        else:
+            db.session.delete(existing_attendance)
+            db.session.commit()
+    
     attendance.date = date
     attendance.check_in = datetime.combine(date, check_in)
     attendance.check_out = datetime.combine(date, check_out)

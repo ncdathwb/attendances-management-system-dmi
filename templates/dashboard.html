@@ -913,6 +913,10 @@
                                         <i class="fas fa-times" style="margin-right: 8px; font-size: 14px;"></i>
                                         Hủy sửa
                                     </button>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" onclick="resetForm()" id="newRecordBtn">
+                                        <i class="fas fa-plus me-2"></i>
+                                        Tạo mới
+                                    </button>
                                 </div>
                                 <input type="hidden" id="editAttendanceId">
                             </div>
@@ -1151,21 +1155,15 @@
     <script>
         var canvas = document.getElementById('signature-pad');
         var signaturePad = new SignaturePad(canvas);
+        // Make signaturePad globally available
+        window.signaturePad = signaturePad;
 
         function clearSignature() {
             signaturePad.clear();
             document.getElementById('signature-input').value = '';
         }
 
-        // Trước khi submit form
-        document.getElementById('attendanceForm').addEventListener('submit', function(e) {
-            if (signaturePad.isEmpty()) {
-                alert('Vui lòng ký tên xác nhận!');
-                e.preventDefault();
-                return false;
-            }
-            document.getElementById('signature-input').value = signaturePad.toDataURL();
-        });
+        // Form submission is handled in dashboard.js to avoid conflicts
 
         // Function to show toast notification
         function showToast(message, type = 'success') {
@@ -1490,76 +1488,7 @@
                 });
         }
 
-        // Function to handle edit attendance
-        function handleEditAttendance(id) {
-            fetch(`/api/attendance/${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        showToast(data.error, 'error');
-                        return;
-                    }
-
-                    // Format date for input (keep YYYY-MM-DD for HTML5 date input internal value)
-                    const date = new Date(data.date);
-                    const formattedDate = date.toISOString().split('T')[0];
-
-                    // Fill form with attendance data
-                    const dateInput = document.getElementById('attendanceDate');
-                    const checkInTimeInput = document.getElementById('checkInTime');
-                    const checkOutTimeInput = document.getElementById('checkOutTime');
-                    const breakTimeInput = document.getElementById('breakTime');
-                    const dayTypeSelect = document.getElementById('dayType');
-                    const noteInput = document.getElementById('attendanceNote');
-                    const editIdInput = document.getElementById('editAttendanceId');
-                    const saveBtn = document.getElementById('saveAttendanceBtn');
-                    const cancelBtn = document.getElementById('cancelEditBtn');
-                    const shiftSelect = document.getElementById('shiftSelect');
-
-                    if (dateInput) dateInput.value = formattedDate;
-                    if (checkInTimeInput) checkInTimeInput.value = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
-                    if (checkOutTimeInput) checkOutTimeInput.value = data.check_out ? data.check_out.split(' ')[1].substring(0, 5) : '';
-                    if (breakTimeInput) breakTimeInput.value = formatTimeForInput(data.break_time);
-                    if (dayTypeSelect) dayTypeSelect.value = data.holiday_type || '';
-
-                    // Nếu bản ghi bị từ chối, xóa trống ô ghi chú để người dùng nhập lại.
-                    // Lý do từ chối có thể xem ở bảng bên dưới.
-                    if (data.status === 'rejected') {
-                        if (noteInput) noteInput.value = '';
-                    } else {
-                        if (noteInput) noteInput.value = data.note || '';
-                    }
-                    
-                    if (editIdInput) editIdInput.value = id;
-                    
-                    // Xác định và thiết lập ca làm việc dựa trên giờ vào
-                    const checkInTime = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
-                    if (shiftSelect) {
-                        if (checkInTime === '07:30') {
-                            shiftSelect.value = '1';
-                        } else if (checkInTime === '08:00') {
-                            shiftSelect.value = '2';
-                        } else if (checkInTime === '09:00') {
-                            shiftSelect.value = '3';
-                        } else if (checkInTime === '11:00') {
-                            shiftSelect.value = '4';
-                        }
-                    }
-
-                    // Chỉ hiện nút hủy sửa khi đang sửa
-                    if (cancelBtn) {
-                        cancelBtn.style.cssText = "display: inline-flex !important; background: #f44336; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; padding: 0.5rem 1.2rem; min-width: 100px; margin-left: 18px; box-shadow: 0 2px 8px rgba(244,67,54,0.08); outline: none; align-items: center; justify-content: center;";
-                    }
-                    if (saveBtn) {
-                        saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Cập nhật đăng ký';
-                    }
-                    if (checkInTimeInput) checkInTimeInput.focus();
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast('Không thể tải thông tin chấm công', 'error');
-                });
-        }
+        // Function to handle edit attendance - moved to dashboard.js to avoid conflicts
 
         // Function to format date for display (DD/MM/YYYY)
         function formatDate(dateStr) {
@@ -1570,12 +1499,7 @@
             return `${day}/${month}/${year}`;
         }
 
-        // Function to format time for input
-        function formatTimeForInput(hours) {
-            const hh = Math.floor(hours);
-            const mm = Math.round((hours - hh) * 60);
-            return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-        }
+        // Function to format time for input - moved to dashboard.js to avoid conflicts
 
         // Event listeners - Đã được xử lý trong dashboard.js
         // document.getElementById('saveAttendanceBtn')?.addEventListener('click', handleAttendanceSubmit);
@@ -2638,13 +2562,7 @@
             }
         });
 
-        // Thêm hàm chuyển đổi số thập phân sang H:MM
-        function formatHourMinute(decimalHour) {
-            if (!decimalHour || isNaN(decimalHour)) return '0:00';
-            const h = Math.floor(decimalHour);
-            const m = Math.round((decimalHour - h) * 60);
-            return `${h}:${m.toString().padStart(2, '0')}`;
-        }
+        // Function formatHourMinute is defined below
 
         function extractTime(str) {
             if (!str) return '--:--';
