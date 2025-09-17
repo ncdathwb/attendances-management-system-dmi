@@ -1,0 +1,9 @@
+﻿=== VALIDATION for Vietnamese Holiday ===
+Block comp_time_regular: True -> Ng├áy nghß╗ë (cuß╗æi tuß║ºn/Lß╗à VN) kh├┤ng ─æ╞░ß╗úc ph├⌐p d├╣ng ─æß╗æi ß╗⌐ng trong ca (comp_time_regular). Chß╗ë ─æ╞░ß╗úc d├╣ng ─æß╗æi ß╗⌐ng t─âng ca.
+Block comp_time_overtime: True -> Ng├áy nghß╗ë (cuß╗æi tuß║ºn/Lß╗à VN) kh├┤ng ─æ╞░ß╗úc ph├⌐p d├╣ng ─æß╗æi ß╗⌐ng t─âng ca tß╗òng (comp_time_overtime). Chß╗ë ─æ╞░ß╗úc d├╣ng ─æß╗æi ß╗⌐ng t─âng ca tr╞░ß╗¢c/sau 22h.
+
+=== CALCULATION for Vietnamese Holiday ===
+A 08-17 break1h comp_before22=1.5: Regular=8.00h, Before22=6.50h, After22=0.00h, Total=6.50h
+B 20-23:30 break0.5 comp_before22=1.0 after22=0.5: Regular=8.00h, Before22=0.50h, After22=1.00h, Total=1.50h
+C 21:30-02:00 break0.5 comp_before22=0.5 after22=1.0: Regular=8.00h, Before22=0.00h, After22=3.00h, Total=2.50h
+D 09-18 break1h comp_regular=2.0 (ignored): Regular=8.00h, Before22=8.00h, After22=0.00h, Total=8.00h

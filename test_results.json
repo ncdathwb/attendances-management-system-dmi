@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-09-17T08:58:46.303420",
+  "total_tests": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "test": "Server Running",
+      "success": false,
+      "message": "Connection error: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001690D878230>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
+      "timestamp": "2025-09-17T08:58:46.278487"
+    }
+  ]
+}

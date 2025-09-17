@@ -1,90 +1,194 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session, get_flashed_messages
-from flask_login import login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-import os
-from functools import wraps
+"""
+Authentication routes
+"""
+from flask import Blueprint, request, session, redirect, url_for, render_template, flash, jsonify
+from werkzeug.security import check_password_hash, generate_password_hash
+from database.models import db, User, PasswordResetToken
+from utils.session import check_session_timeout, update_session_activity
+from utils.security import generate_csrf_token
+from utils.validators import validate_email
+from email_utils import send_password_reset_email
 import secrets
-from database.models import db, User, AuditLog
-from utils.validators import validate_employee_id, validate_input_sanitize
-from utils.decorators import rate_limit
-from utils.session import check_session_timeout, update_session_activity, log_audit_action
+from datetime import datetime, timedelta
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
 def login():
+    """Đăng nhập"""
     if request.method == 'POST':
-        employee_id_str = request.form.get('username')
-        password = request.form.get('password')
-        remember = request.form.get('remember') == 'on'
+        employee_id = request.form.get('employee_id', '').strip()
+        password = request.form.get('password', '')
         
-        # Validate input
-        if not employee_id_str or not password:
-            flash('Vui lòng nhập đầy đủ mã nhân viên và mật khẩu!', 'error')
-            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        if not employee_id or not password:
+            flash('Vui lòng nhập đầy đủ thông tin!', 'error')
+            return render_template('login.html')
         
-        employee_id = validate_employee_id(employee_id_str)
-        if not employee_id:
-            flash('Mã nhân viên không hợp lệ!', 'error')
-            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        user = User.query.filter_by(employee_id=employee_id).first()
         
-        if not validate_input_sanitize(password):
-            flash('Mật khẩu không hợp lệ!', 'error')
-            return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+        if not user:
+            flash('Mã nhân viên không tồn tại!', 'error')
+            return render_template('login.html')
         
-        try:
-            user = User.query.filter_by(employee_id=employee_id).first()
-            
-            if user and user.check_password(password):
-                session['user_id'] = user.id
-                session['name'] = user.name
-                session['employee_id'] = user.employee_id
-                session['roles'] = user.roles.split(',')
-                session['current_role'] = user.roles.split(',')[0]
-                session['last_activity'] = datetime.now().isoformat()
-                response = redirect(url_for('dashboard'))
-                
-                log_audit_action(
-                    user_id=user.id,
-                    action='LOGIN',
-                    table_name='users',
-                    record_id=user.id,
-                    new_values={'login_time': datetime.now().isoformat()}
-                )
-                
-                if remember:
-                    # Generate secure remember token instead of storing password
-                    remember_token = secrets.token_urlsafe(32)
-                    user.remember_token = remember_token
-                    user.remember_token_expires = datetime.now() + timedelta(days=30)
-                    db.session.commit()
-                    response.set_cookie('remember_token', remember_token, max_age=30*24*60*60, httponly=True, secure=False)  # Set secure=False for development
-                else:
-                    response.delete_cookie('remember_username')
-                    response.delete_cookie('remember_password')
-                
-                flash('Đăng nhập thành công!', 'success')
-                return response
-            
-            flash('Mã nhân viên hoặc mật khẩu không đúng!', 'error')
-        except Exception as e:
-            print(f"Login error: {str(e)}")
-            flash('Đã xảy ra lỗi khi đăng nhập!', 'error')
+        if not user.is_active:
+            flash('Tài khoản đã bị khóa!', 'error')
+            return render_template('login.html')
+        
+        if not user.check_password(password):
+            flash('Mật khẩu không đúng!', 'error')
+            return render_template('login.html')
+        
+        session['user_id'] = user.id
+        session['employee_id'] = user.employee_id
+        session['name'] = user.name
+        session['roles'] = user.roles
+        session['current_role'] = user.roles.split(',')[0]
+        session['department'] = user.department
+        session['last_activity'] = datetime.now().isoformat()
+        session['csrf_token'] = generate_csrf_token()
+        
+        flash(f'Chào mừng {user.name}!', 'success')
+        return redirect(url_for('dashboard'))
     
-    return render_template('login.html', messages=get_flashed_messages(with_categories=False))
+    return render_template('login.html')
 
 @auth_bp.route('/logout')
 def logout():
-    # Log logout if user was logged in
-    if 'user_id' in session:
-        log_audit_action(
-            user_id=session['user_id'],
-            action='LOGOUT',
-            table_name='users',
-            record_id=session['user_id'],
-            new_values={'logout_time': datetime.now().isoformat()}
-        )
+    """Đăng xuất"""
     session.clear()
-    return redirect(url_for('auth.login')) 
+    flash('Đã đăng xuất thành công!', 'success')
+    return redirect(url_for('auth.login'))
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Quên mật khẩu"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Vui lòng nhập email!', 'error')
+            return render_template('forgot_password.html')
+        
+        if not validate_email(email):
+            flash('Email không hợp lệ!', 'error')
+            return render_template('forgot_password.html')
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            token = secrets.token_urlsafe(32)
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+            
+            reset_token = PasswordResetToken(
+                user_id=user.id,
+                token=token,
+                expires_at=expires_at
+            )
+            
+            try:
+                db.session.add(reset_token)
+                db.session.commit()
+                
+                send_password_reset_email(user.email, user.name, token)
+                flash('Email đặt lại mật khẩu đã được gửi!', 'success')
+                
+            except Exception as e:
+                db.session.rollback()
+                flash('Có lỗi xảy ra khi gửi email!', 'error')
+        else:
+            flash('Email không tồn tại trong hệ thống!', 'error')
+    
+    return render_template('forgot_password.html')
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Đặt lại mật khẩu"""
+    reset_token = PasswordResetToken.query.filter_by(
+        token=token,
+        used=False
+    ).first()
+    
+    if not reset_token or reset_token.is_expired():
+        flash('Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn!', 'error')
+        return redirect(url_for('auth.forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not password or not confirm_password:
+            flash('Vui lòng nhập đầy đủ thông tin!', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        if len(password) < 6:
+            flash('Mật khẩu phải có ít nhất 6 ký tự!', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        if password != confirm_password:
+            flash('Mật khẩu xác nhận không khớp!', 'error')
+            return render_template('reset_password.html', token=token)
+        
+        try:
+            user = User.query.get(reset_token.user_id)
+            user.set_password(password)
+            reset_token.used = True
+            
+            db.session.commit()
+            flash('Đặt lại mật khẩu thành công!', 'success')
+            return redirect(url_for('auth.login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Có lỗi xảy ra khi đặt lại mật khẩu!', 'error')
+    
+    return render_template('reset_password.html', token=token)
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    """Đổi mật khẩu (yêu cầu đăng nhập)"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    
+    if check_session_timeout():
+        flash('Phiên đăng nhập đã hết hạn!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    update_session_activity()
+    
+    user = db.session.get(User, session['user_id'])
+    if not user:
+        session.clear()
+        flash('Phiên đăng nhập không hợp lệ!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not current_password or not new_password or not confirm_password:
+            flash('Vui lòng điền đầy đủ thông tin!', 'error')
+            return render_template('change_password.html', user=user)
+        
+        if not user.check_password(current_password):
+            flash('Mật khẩu hiện tại không đúng!', 'error')
+            return render_template('change_password.html', user=user)
+        
+        if len(new_password) < 6:
+            flash('Mật khẩu mới phải có ít nhất 6 ký tự!', 'error')
+            return render_template('change_password.html', user=user)
+        
+        if new_password != confirm_password:
+            flash('Mật khẩu mới và xác nhận mật khẩu không khớp!', 'error')
+            return render_template('change_password.html', user=user)
+        
+        try:
+            user.set_password(new_password)
+            db.session.commit()
+            flash('Đổi mật khẩu thành công!', 'success')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Đã xảy ra lỗi khi đổi mật khẩu!', 'error')
+    
+    return render_template('change_password.html', user=user)
