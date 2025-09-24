@@ -10,7 +10,7 @@
         .no-border { border: none !important; }
         .center { text-align: center; }
         .bold { font-weight: bold; }
-        .signature-box { height: 60px; width: 120px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+        .signature-box { height: 60px; width: 120px; border: none; background: #fff; }
         .sign-img { max-width: 120px; max-height: 60px; display: block; margin: 0 auto; }
         .small { font-size: 11px; }
     </style>
@@ -44,15 +44,19 @@
             <th>Ca làm việc</th>
             <th>Thời gian từ</th>
             <th>Thời gian đến</th>
-            <th>Nghỉ giải lao</th>
+            <th>Nghỉ giải lao + Đối ứng</th>
         </tr>
         <tr class="center">
             <td>{{ attendance.date.strftime('%d/%m/%Y') }}</td>
-            <td>{{ attendance.holiday_type|default('-') }}</td>
+            <td>{{ attendance._translate_holiday_type(attendance.holiday_type) if attendance.holiday_type else '-' }}</td>
             <td>{{ attendance.shift_code|default('-') }}</td>
             <td>{{ attendance.check_in.strftime('%H:%M') if attendance.check_in else '-' }}</td>
             <td>{{ attendance.check_out.strftime('%H:%M') if attendance.check_out else '-' }}</td>
-            <td>{{ attendance._format_hours_minutes(attendance.break_time) if attendance.break_time else '-' }}</td>
+            <td>
+                {{ attendance._format_hours_minutes(attendance.break_time) if attendance.break_time is not none else '0:00' }}
+                + Đối ứng trong ca: {{ attendance._format_hours_minutes(attendance.comp_time_regular) if attendance.comp_time_regular is not none else '0:00' }}
+                + Đối ứng tăng ca: {{ attendance._format_hours_minutes(attendance.comp_time_overtime) if attendance.comp_time_overtime is not none else '0:00' }}
+            </td>
         </tr>
     </table>
     <br>

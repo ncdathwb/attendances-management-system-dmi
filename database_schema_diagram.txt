@@ -1,0 +1,393 @@
+================================================================================
+                    SƠ ĐỒ CƠ SỞ DỮ LIỆU HỆ THỐNG QUẢN LÝ CHẤM CÔNG
+================================================================================
+
+📊 TỔNG QUAN HỆ THỐNG:
+- Hệ thống quản lý chấm công và nghỉ phép cho công ty
+- Hỗ trợ nhiều vai trò: nhân viên, trưởng nhóm, quản lý, admin
+- Quản lý ca làm việc, tăng ca, nghỉ phép, chữ ký điện tử
+- Hỗ trợ lễ Việt Nam, lễ Nhật, cuối tuần với logic tính toán khác nhau
+
+================================================================================
+                                BẢNG NGƯỜI DÙNG (USERS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                USERS                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 🔐 password_hash         │ VARCHAR(120) NOT NULL                          │
+│ 👤 name                  │ VARCHAR(100) NOT NULL                          │
+│ 🆔 employee_id           │ INTEGER UNIQUE NOT NULL                        │
+│ 🎭 roles                 │ VARCHAR(100) NOT NULL                          │
+│ 🏢 department            │ VARCHAR(50) NOT NULL                           │
+│ 📧 email                 │ VARCHAR(120) UNIQUE NULLABLE                   │
+│ 📱 phone                 │ VARCHAR(20) NULLABLE                           │
+│ ✍️ personal_signature    │ TEXT NULLABLE                                  │
+│ 🔄 remember_token        │ VARCHAR(255) NULLABLE                          │
+│ ⏰ remember_token_expires│ DATETIME NULLABLE                              │
+│ ✅ is_active             │ BOOLEAN DEFAULT TRUE                            │
+│ 🗑️ is_deleted            │ BOOLEAN DEFAULT FALSE (Soft Delete)            │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+│ 📅 updated_at            │ DATETIME DEFAULT NOW() ON UPDATE NOW()         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Lưu thông tin tất cả người dùng trong hệ thống
+- Hỗ trợ nhiều vai trò: employee, team_leader, manager, admin
+- Soft delete để bảo toàn dữ liệu lịch sử
+- Chữ ký cá nhân cho xác thực điện tử
+
+================================================================================
+                            BẢNG CHẤM CÔNG (ATTENDANCES)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ATTENDANCES                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 👤 user_id               │ INTEGER FK → users.id                          │
+│ ⏰ check_in              │ DATETIME NULLABLE                               │
+│ ⏰ check_out             │ DATETIME NULLABLE                               │
+│ 📅 date                  │ DATE NOT NULL                                   │
+│ 📊 status                │ VARCHAR(20) DEFAULT 'pending'                  │
+│ 📝 note                  │ TEXT NULLABLE                                   │
+│ ☕ break_time             │ FLOAT DEFAULT 1.0 (giờ nghỉ)                   │
+│ ⏱️ total_work_hours       │ FLOAT NULLABLE (tổng giờ làm)                  │
+│ ⏱️ regular_work_hours     │ FLOAT NULLABLE (giờ công thường)               │
+│ 🌅 overtime_before_22     │ VARCHAR(5) NULLABLE (tăng ca trước 22h)        │
+│ 🌙 overtime_after_22      │ VARCHAR(5) NULLABLE (tăng ca sau 22h)          │
+│ 🏖️ is_holiday            │ BOOLEAN DEFAULT FALSE                           │
+│ 🎊 holiday_type          │ VARCHAR(20) NULLABLE                           │
+│ 🏷️ shift_code            │ VARCHAR(10) NULLABLE (1,2,3,4,5)               │
+│ ⏰ shift_start            │ TIME NULLABLE (giờ vào ca chuẩn)               │
+│ ⏰ shift_end              │ TIME NULLABLE (giờ ra ca chuẩn)                │
+│ ✍️ signature             │ TEXT NULLABLE (chữ ký nhân viên)               │
+│ 👨‍💼 team_leader_signature │ TEXT NULLABLE (chữ ký trưởng nhóm)              │
+│ 👔 manager_signature      │ TEXT NULLABLE (chữ ký quản lý)                 │
+│ 👨‍💼 team_leader_signer_id │ INTEGER FK → users.id                          │
+│ 👔 manager_signer_id      │ INTEGER FK → users.id                          │
+│ ✅ approved               │ BOOLEAN DEFAULT FALSE                           │
+│ 👤 approved_by            │ INTEGER FK → users.id                          │
+│ 📅 approved_at            │ DATETIME NULLABLE                              │
+│ 📅 created_at             │ DATETIME DEFAULT NOW()                         │
+│ 📅 updated_at             │ DATETIME DEFAULT NOW() ON UPDATE NOW()         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Lưu tất cả bản ghi chấm công của nhân viên
+- Hỗ trợ 5 loại ca: Ca 1-4 (ca chuẩn), Ca 5 (tự do)
+- Tính toán tự động giờ công, tăng ca theo loại ngày
+- Hỗ trợ chữ ký điện tử 3 cấp: nhân viên, trưởng nhóm, quản lý
+
+================================================================================
+                        BẢNG ĐƠN XIN NGHỈ PHÉP (LEAVE_REQUESTS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           LEAVE_REQUESTS                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 👤 user_id               │ INTEGER FK → users.id                          │
+│ 👤 employee_name         │ VARCHAR(100) NOT NULL                          │
+│ 🏢 team                  │ VARCHAR(50) NOT NULL                            │
+│ 🆔 employee_code         │ VARCHAR(20) NOT NULL                            │
+│ 📝 leave_reason          │ TEXT NOT NULL (lý do nghỉ phép)                │
+│ 📎 attachments           │ TEXT NULLABLE (file đính kèm JSON)             │
+│ ⏰ leave_from_hour       │ INTEGER NOT NULL (giờ bắt đầu)                 │
+│ ⏰ leave_from_minute     │ INTEGER NOT NULL (phút bắt đầu)                │
+│ 📅 leave_from_day        │ INTEGER NOT NULL (ngày bắt đầu)                │
+│ 📅 leave_from_month      │ INTEGER NOT NULL (tháng bắt đầu)               │
+│ 📅 leave_from_year       │ INTEGER NOT NULL (năm bắt đầu)                 │
+│ ⏰ leave_to_hour         │ INTEGER NOT NULL (giờ kết thúc)                │
+│ ⏰ leave_to_minute       │ INTEGER NOT NULL (phút kết thúc)               │
+│ 📅 leave_to_day          │ INTEGER NOT NULL (ngày kết thúc)               │
+│ 📅 leave_to_month        │ INTEGER NOT NULL (tháng kết thúc)              │
+│ 📅 leave_to_year         │ INTEGER NOT NULL (năm kết thúc)                │
+│ 🏖️ annual_leave_days     │ FLOAT DEFAULT 0.0 (phép năm)                   │
+│ 💰 unpaid_leave_days     │ FLOAT DEFAULT 0.0 (nghỉ không lương)           │
+│ ⭐ special_leave_days     │ FLOAT DEFAULT 0.0 (nghỉ đặc biệt)              │
+│ 🏷️ special_leave_type    │ VARCHAR(50) NULLABLE (loại nghỉ đặc biệt)      │
+│ 👤 substitute_name       │ VARCHAR(100) NULLABLE (người thay thế)         │
+│ 🆔 substitute_employee_id│ VARCHAR(20) NULLABLE (mã người thay thế)       │
+│ 📊 status                │ VARCHAR(20) DEFAULT 'pending'                  │
+│ ✅ manager_approval      │ BOOLEAN DEFAULT FALSE                           │
+│ ✍️ manager_signature     │ TEXT NULLABLE (chữ ký quản lý)                 │
+│ 👔 manager_signer_id     │ INTEGER FK → users.id                          │
+│ ✅ direct_superior_approval│ BOOLEAN DEFAULT FALSE                        │
+│ 🏷️ direct_superior_type  │ VARCHAR(20) NULLABLE (loại cấp trên)           │
+│ ✍️ direct_superior_signature│ TEXT NULLABLE (chữ ký cấp trên)            │
+│ 👨‍💼 direct_superior_signer_id│ INTEGER FK → users.id                    │
+│ ✍️ applicant_signature   │ TEXT NULLABLE (chữ ký người xin phép)          │
+│ 🏷️ shift_code            │ VARCHAR(10) NULLABLE (ca làm việc)             │
+│ 📝 notes                 │ TEXT NULLABLE (ghi chú)                        │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+│ 📅 updated_at            │ DATETIME DEFAULT NOW() ON UPDATE NOW()         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Quản lý đơn xin nghỉ phép của nhân viên
+- Hỗ trợ 3 loại nghỉ: phép năm, nghỉ không lương, nghỉ đặc biệt
+- Quy trình phê duyệt 2 cấp: cấp trên trực tiếp + quản lý
+- Hỗ trợ chữ ký điện tử cho tất cả bên liên quan
+
+================================================================================
+                            BẢNG PHÒNG BAN (DEPARTMENTS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            DEPARTMENTS                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 🏢 name                  │ VARCHAR(50) UNIQUE NOT NULL                    │
+│ 🏷️ code                  │ VARCHAR(10) UNIQUE NOT NULL                    │
+│ 📝 description           │ TEXT NULLABLE                                   │
+│ 👔 manager_id            │ INTEGER FK → users.id                          │
+│ ✅ is_active             │ BOOLEAN DEFAULT TRUE                            │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+│ 📅 updated_at            │ DATETIME DEFAULT NOW() ON UPDATE NOW()         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Cấu trúc tổ chức của công ty
+- Mỗi phòng ban có quản lý riêng
+- Hỗ trợ mã phòng ban để dễ quản lý
+
+================================================================================
+                            BẢNG YÊU CẦU (REQUESTS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              REQUESTS                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 👤 user_id               │ INTEGER FK → users.id                          │
+│ 🏷️ request_type          │ VARCHAR(50) NOT NULL                           │
+│ 📅 start_date            │ DATE NOT NULL                                   │
+│ 📅 end_date              │ DATE NOT NULL                                   │
+│ 📝 reason                │ TEXT NOT NULL                                   │
+│ 📊 status                │ VARCHAR(20) DEFAULT 'pending'                  │
+│ 👤 current_approver_id   │ INTEGER FK → users.id                          │
+│ 🏷️ step                  │ VARCHAR(20) DEFAULT 'leader'                   │
+│ 📝 reject_reason         │ TEXT NULLABLE                                   │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+│ 📅 updated_at            │ DATETIME DEFAULT NOW() ON UPDATE NOW()         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Bảng tổng quát cho các loại yêu cầu khác (tăng ca, đổi ca, etc.)
+- Quy trình phê duyệt linh hoạt
+- Có thể mở rộng cho các loại yêu cầu mới
+
+================================================================================
+                            BẢNG AUDIT LOG (AUDIT_LOGS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            AUDIT_LOGS                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 👤 user_id               │ INTEGER FK → users.id                          │
+│ 🎬 action                │ VARCHAR(50) NOT NULL                            │
+│ 🗂️ table_name            │ VARCHAR(50) NOT NULL                            │
+│ 🔍 record_id             │ INTEGER NULLABLE                                │
+│ 📜 old_values            │ JSON NULLABLE                                   │
+│ 📜 new_values            │ JSON NULLABLE                                   │
+│ 🌐 ip_address            │ VARCHAR(45) NULLABLE                            │
+│ 🖥️ user_agent            │ TEXT NULLABLE                                   │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Ghi lại tất cả thay đổi trong hệ thống
+- Hỗ trợ truy vết và bảo mật
+- Lưu trữ dữ liệu cũ và mới dưới dạng JSON
+
+================================================================================
+                    BẢNG TOKEN ĐẶT LẠI MẬT KHẨU (PASSWORD_RESET_TOKENS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      PASSWORD_RESET_TOKENS                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id                    │ INTEGER PRIMARY KEY                             │
+│ 👤 user_id               │ INTEGER FK → users.id                          │
+│ 🔐 token                 │ VARCHAR(255) UNIQUE NOT NULL                   │
+│ ⏰ expires_at            │ DATETIME NOT NULL                               │
+│ ✅ used                  │ BOOLEAN DEFAULT FALSE                           │
+│ 📅 created_at            │ DATETIME DEFAULT NOW()                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Quản lý token đặt lại mật khẩu
+- Bảo mật với thời hạn và trạng thái sử dụng
+- Hỗ trợ chức năng quên mật khẩu
+
+================================================================================
+                                QUAN HỆ GIỮA CÁC BẢNG
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RELATIONSHIPS                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  👤 USERS (1) ──────────── (N) 👥 ATTENDANCES                              │
+│     │                           │                                           │
+│     │                           ├─ user_id → users.id                       │
+│     │                           ├─ approved_by → users.id                   │
+│     │                           ├─ team_leader_signer_id → users.id         │
+│     │                           └─ manager_signer_id → users.id             │
+│     │                                                                       │
+│     │ (1) ──────────── (N) 📋 LEAVE_REQUESTS                               │
+│     │                     │                                                 │
+│     │                     ├─ user_id → users.id                            │
+│     │                     ├─ manager_signer_id → users.id                   │
+│     │                     └─ direct_superior_signer_id → users.id           │
+│     │                                                                       │
+│     │ (1) ──────────── (N) 🏢 DEPARTMENTS (manager)                        │
+│     │                     │                                                 │
+│     │                     └─ manager_id → users.id                          │
+│     │                                                                       │
+│     │ (1) ──────────── (N) 📋 REQUESTS                                     │
+│     │                     │                                                 │
+│     │                     ├─ user_id → users.id                            │
+│     │                     └─ current_approver_id → users.id                 │
+│     │                                                                       │
+│     │ (1) ──────────── (N) 📊 AUDIT_LOGS                                   │
+│     │                     │                                                 │
+│     │                     └─ user_id → users.id                            │
+│     │                                                                       │
+│     │ (1) ──────────── (N) 🔐 PASSWORD_RESET_TOKENS                        │
+│     │                     │                                                 │
+│     │                     └─ user_id → users.id                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                                CÁC LOẠI CA LÀM VIỆC
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            SHIFT CODES                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🏷️ Ca 1: 07:30 - 16:30 (nghỉ 11:30-12:30)                                │
+│ 🏷️ Ca 2: 09:00 - 18:00 (nghỉ 13:00-14:00)                                │
+│ 🏷️ Ca 3: 11:00 - 20:00 (nghỉ 15:00-16:00)                                │
+│ 🏷️ Ca 4: 08:00 - 17:00 (nghỉ 12:00-13:00)                                │
+│ 🏷️ Ca 5: 00:00 - 23:59 (ca tự do, cho ngày nghỉ)                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                            CÁC LOẠI NGÀY LỄ
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            HOLIDAY TYPES                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🏢 normal: Ngày thường                                                    │
+│ 🏖️ weekend: Cuối tuần (không lương)                                       │
+│ 🇻🇳 vietnamese_holiday: Lễ Việt Nam (có lương 8h)                         │
+│ 🇯🇵 japanese_holiday: Lễ Nhật Bản (có lương theo giờ làm)                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                                CÁC VAI TRÒ
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                               ROLES                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 👤 employee: Nhân viên thường                                              │
+│ 👨‍💼 team_leader: Trưởng nhóm                                              │
+│ 👔 manager: Quản lý                                                        │
+│ 👑 admin: Quản trị viên                                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                            CÁC TRẠNG THÁI
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            STATUS VALUES                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 📊 ATTENDANCES:                                                            │
+│   • pending: Chờ phê duyệt                                                 │
+│   • approved: Đã phê duyệt                                                 │
+│   • rejected: Từ chối                                                      │
+│                                                                             │
+│ 📋 LEAVE_REQUESTS:                                                         │
+│   • pending: Chờ phê duyệt                                                 │
+│   • approved: Đã phê duyệt                                                 │
+│   • rejected: Từ chối                                                      │
+│                                                                             │
+│ 📋 REQUESTS:                                                               │
+│   • pending: Chờ phê duyệt                                                 │
+│   • approved: Đã phê duyệt                                                 │
+│   • rejected: Từ chối                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                  BẢNG TRẠNG THÁI GỬI EMAIL (EMAIL_STATUS_RECORDS)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EMAIL_STATUS_RECORDS                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔑 id             │ INTEGER PRIMARY KEY                                     │
+│ 📝 request_id     │ INTEGER UNIQUE NOT NULL (FK logic → leave_requests.id)  │
+│ 📊 status         │ VARCHAR(20) NOT NULL ('sending'|'success'|'error')      │
+│ 📨 message        │ TEXT NULLABLE                                           │
+│ ⏰ updated_at     │ DATETIME DEFAULT NOW() ON UPDATE NOW()                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📝 MÔ TẢ:
+- Lưu trạng thái gửi email bền vững, không phụ thuộc tiến trình.
+- Cho phép mọi trang kiểm tra kết quả mà không cần `request_id` trên URL.
+
+================================================================================
+                            TÍNH NĂNG ĐẶC BIỆT
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          SPECIAL FEATURES                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ✍️ Chữ ký điện tử:                                                        │
+│   • Lưu trữ dưới dạng base64                                               │
+│   • Hỗ trợ 3 cấp: nhân viên, trưởng nhóm, quản lý                         │
+│   • Xác thực người ký qua user_id                                          │
+│                                                                             │
+│ 🏖️ Logic ngày lễ đặc biệt:                                                │
+│   • Lễ Việt Nam: Tự động 8h công dù không đi làm                           │
+│   • Cuối tuần: Tất cả thời gian tính tăng ca                               │
+│   • Lễ Nhật: Tính theo giờ làm thực tế                                     │
+│                                                                             │
+│ ⏰ Tính toán giờ công thông minh:                                          │
+│   • Tự động trừ giờ nghỉ trưa                                             │
+│   • Phân biệt tăng ca trước/sau 22h                                        │
+│   • Hỗ trợ giờ đối ứng (comp time)                                        │
+│                                                                             │
+│ 🗑️ Soft Delete:                                                           │
+│   • Bảo toàn dữ liệu lịch sử                                              │
+│   • Hỗ trợ khôi phục người dùng                                            │
+│                                                                             │
+│ 📊 Audit Trail:                                                            │
+│   • Ghi lại mọi thay đổi                                                   │
+│   • Hỗ trợ truy vết và bảo mật                                             │
+│   • Lưu trữ IP và User Agent                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                                KẾT LUẬN
+================================================================================
+
+Hệ thống cơ sở dữ liệu được thiết kế để:
+✅ Hỗ trợ đầy đủ các chức năng quản lý chấm công
+✅ Tích hợp chữ ký điện tử và phê duyệt đa cấp
+✅ Xử lý logic phức tạp cho các loại ngày lễ khác nhau
+✅ Bảo mật và audit trail đầy đủ
+✅ Mở rộng dễ dàng cho các tính năng mới
+✅ Tối ưu hiệu suất với các index và relationship phù hợp
+
+📅 Cập nhật lần cuối: $(date)
+👨‍💻 Tác giả: AI Assistant
+📧 Liên hệ: Hệ thống quản lý chấm công DMI

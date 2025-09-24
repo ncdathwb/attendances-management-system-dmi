@@ -1,0 +1,785 @@
+
+
+<!DOCTYPE html> <html lang="vi"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <meta name="csrf-token" content="{{ csrf_token() }}"> <title>Danh sách đơn nghỉ phép - Hệ thống quản lý chấm công</title> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.
+
+    pasted
+    
+    CẦN SỬA CÁI LIST ĐỂ CHUYÊN NGHIỆP VỀ CĂN CHỈNH CÁC CỘT, ĐỘ RỘNG HƠP LÝ, 3 NÚT THAO TÁC CẦN ĐẸP VÀ RÕ RÀNG ĐỂ CLICK
+    
+    Tôi sẽ cải thiện bảng danh sách để trông chuyên nghiệp hơn với căn chỉnh hợp lý và các nút thao tác đẹp mắt.
+    
+    Danh sách đơn nghỉ phép - Phiên bản chuyên nghiệp
+    Interactive artifact 
+    
+    
+    5-hour limit reached ∙ resets 6:00 PM
+    Upgrade
+    MÀU SẮC CÁC CỘT CẦN ĐỂ NHƯ CŨ VÀ SỬA LẠI ĐỂ KHÔNG BỊ XUỐNG HIỆN THÀNH CUỘN NGANG BÊN DƯỚI CHỨ
+    
+    
+    <!DOCTYPE html> <html lang="vi"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <meta name="csrf-token" content="{{ csrf_token() }}"> <title>Danh sách đơn nghỉ phép - Hệ thống quản lý chấm công</title> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.
+    
+    pasted
+    
+    
+    
+    
+    27.76 KB •545 lines
+    •
+    Formatting may be inconsistent from source
+    
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Danh sách đơn nghỉ phép - Hệ thống quản lý chấm công</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            :root {
+                --primary-color: #2c3e50;
+                --accent-color: #3498db;
+            }
+            .status-badge {
+                font-size: 0.8em;
+                border-radius: 999px; /* tránh bị vuông góc */
+                display: inline-block;
+            }
+            .status-pending {
+                background-color: #ffc107;
+                color: #000;
+            }
+            .status-approved {
+                background-color: #28a745;
+                color: #fff;
+            }
+            .status-rejected {
+                background-color: #dc3545;
+                color: #fff;
+            }
+            .filter-section {
+                background-color: #f8f9fa;
+                padding: 1rem;
+                border-radius: 0.375rem;
+                margin-bottom: 1rem;
+            }
+            .table-responsive {
+                border-radius: 0.375rem;
+            }
+            
+            /* Sidebar styling aligned with other leave pages */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 220px;
+                background-color: var(--primary-color);
+                padding: 15px;
+                color: white;
+                box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+                z-index: 1000;
+            }
+            .sidebar-header { padding: 20px 0; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            .sidebar-title { color:#fff; font-size:1.1rem; font-weight:600; margin:0; }
+            .sidebar-subtitle { color:rgba(255,255,255,0.7); font-size:0.85rem; margin:0; }
+            .sidebar .nav-link { display:flex; align-items:center; padding:12px 14px; color:rgba(255,255,255,0.85); border-radius:6px; margin:5px 0; transition:all .25s ease; text-decoration:none; }
+            .sidebar .nav-link:hover { color:#fff; background:rgba(255,255,255,0.12); }
+            .sidebar .nav-link.active { background:rgba(255,255,255,0.2); color:#fff; border-left:3px solid var(--accent-color); }
+            .sidebar .nav-link i { width:20px; margin-right:10px; text-align:center; }
+            
+            /* Main content styling */
+            .main-content {
+                margin: 0 auto 0 220px; /* chừa chỗ cho sidebar và canh giữa phần còn lại */
+                background-color:#f8f9fa;
+                min-height:100vh;
+                overflow-x: hidden;
+                max-width: 1500px; /* tăng độ rộng nội dung */
+                padding-right: 12px;
+                padding-left: 12px;
+            }
+            @media (max-width: 1366px) {
+                .main-content { max-width: 1280px; }
+            }
+            /* Bù margin âm của .row để tránh tràn ngang */
+            .container-fluid { padding-left: 1rem; padding-right: 1rem; overflow-x: hidden; }
+            .filter-section { background-color:#fff; border-radius:.375rem; padding:1rem; box-shadow:0 4px 12px rgba(0,0,0,0.04); }
+            .table-responsive { border-radius:.5rem; background:#fff; box-shadow: 0 6px 18px rgba(0,0,0,0.05); overflow-x: auto; overflow-y: auto; }
+            .table.fixed { table-layout: fixed; }
+            .data-table thead th { position: sticky; top: 0; background:#1f2937; color:#fff; z-index: 1; font-size: .8rem; text-transform: uppercase; letter-spacing: .02em; }
+            .data-table tbody td, .data-table thead th { padding: .75rem .85rem; vertical-align: middle; }
+            .data-table tbody tr:hover { background-color: #f6f9ff; }
+            .data-table tbody td.small-text { font-size: .9rem; color: #444; }
+            /* Cân bằng tổng 100% để không che cột Thao tác */
+            .data-table .col-empname { width: 8%; max-width: 50px;}
+            .data-table .col-team    { width: 3%; }
+            .data-table .col-time    { width: 8%; }
+            .data-table .col-reason  { width: 3%;  max-width: 100px; }
+            .data-table .col-notes   { width: 3%; max-width: 100px; }
+            .data-table .col-type    { width: 5%; }
+            .data-table .col-substitute { width: 8%; }
+            .data-table .col-status  { width: 5%; }
+            .data-table .col-created { width: 7%; }
+            .data-table .col-actions { width: 10%; }
+            .data-table .col-docs    { width: 3%; }
+            .btn-action { min-width: 72px; justify-content: center; }
+            /* Approval mode emphasis for approver roles */
+            .approval-mode .btn-approve { font-weight: 600; min-width: 88px; }
+            .approval-mode .btn-reject { font-weight: 600; min-width: 88px; }
+            .approval-mode .data-table tbody tr.pending { background-color: #fffdf3; }
+            .approval-banner { background:#fff; border-left:4px solid #0d6efd; padding:.5rem .75rem; border-radius:.375rem; }
+            /* Truncate long text cells and show ellipsis */
+            .truncate-cell { display: block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+            /* Tránh cắt góc badge ở cột Trạng thái */
+            .data-table .col-status .truncate-cell { overflow: visible; }
+            /* Khi cần wrap (mobile), cho phép xuống dòng để tránh tràn ngang */
+            @media (max-width: 992px) {
+                .data-table .col-reason, .data-table .col-notes { max-width: 65vw; }
+                .truncate-cell { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+            }
+            .truncate-cell.small { display:block; width:100%; }
+            
+            /* Additional enhancements */
+            .sidebar .nav-link {
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .sidebar .nav-link::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                transition: left 0.5s;
+            }
+            
+            .sidebar .nav-link:hover::before {
+                left: 100%;
+            }
+            
+            .sidebar-header {
+                position: relative;
+            }
+            
+            .sidebar-header::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 50px;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            }
+            
+            /* Responsive */
+            @media (max-width: 768px) {
+                .sidebar { width:0; padding:0; overflow:hidden; position:fixed; }
+                
+                .sidebar .nav-link {
+                    margin: 0.1rem 0.25rem;
+                    padding: 0.5rem 0.75rem;
+                }
+                .main-content { margin-left: 0; }
+            }
+            
+            @media (max-width: 576px) {
+                .sidebar-header {
+                    padding: 1rem 0.75rem;
+                }
+                
+                .sidebar-title {
+                    font-size: 1rem;
+                }
+                
+                .sidebar-subtitle {
+                    font-size: 0.8rem;
+                }
+            }
+        </style>
+    </head>
+    <body data-request-id="{% if request_id %}{{ request_id }}{% endif %}">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <div class="position-sticky pt-3">
+                        <!-- Sidebar Header -->
+                        <div class="sidebar-header">
+                            <h5 class="sidebar-title">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                Nghỉ Phép
+                            </h5>
+                            <p class="sidebar-subtitle">Quản lý đơn xin nghỉ</p>
+                        </div>
+                        
+                        <!-- Navigation Menu -->
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('back_to_dashboard') }}">
+                                    <i class="fas fa-home"></i>
+                                    Trang chủ
+                                </a>
+                            </li>
+                            {% if current_role == 'EMPLOYEE' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('leave_history') }}">
+                                    <i class="fas fa-history"></i>
+                                    Lịch sử nghỉ phép
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{{ url_for('leave_requests_list') }}">
+                                    <i class="fas fa-calendar-check"></i>
+                                    Nghỉ phép cần phê duyệt
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+    
+                <!-- Main content -->
+                <main class="px-md-4 main-content {% if current_role in ['TEAM_LEADER','MANAGER','ADMIN'] %}approval-mode{% endif %}">
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2">Danh sách đơn nghỉ phép</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            <a href="{{ url_for('leave_request_form') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Tạo đơn mới
+                            </a>
+                        </div>
+                    </div>
+                    {% if current_role in ['TEAM_LEADER','MANAGER','ADMIN'] %}
+                    <div class="approval-banner mb-3 d-flex align-items-center gap-2">
+                        <i class="fas fa-shield-check text-primary"></i>
+                        <div><strong>Chế độ phê duyệt</strong> — Bạn có thể phê duyệt hoặc từ chối các đơn đang chờ.</div>
+                    </div>
+                    {% endif %}
+    
+                    <!-- Filter section -->
+                    <div class="filter-section">
+                        <form method="GET" class="row g-3">
+                            <div class="col-md-3">
+                                <label for="status" class="form-label">Trạng thái</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="">Tất cả</option>
+                                    <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>Chờ phê duyệt</option>
+                                    <option value="approved" {% if request.args.get('status') == 'approved' %}selected{% endif %}>Đã phê duyệt</option>
+                                    <option value="rejected" {% if request.args.get('status') == 'rejected' %}selected{% endif %}>Từ chối</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="employee" class="form-label">Nhân viên</label>
+                                <input type="text" class="form-control" id="employee" name="employee" 
+                                       value="{{ request.args.get('employee', '') }}" placeholder="Tên hoặc mã NV">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date_from" class="form-label">Từ ngày</label>
+                                <input type="date" class="form-control" id="date_from" name="date_from" 
+                                       value="{{ request.args.get('date_from', '') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date_to" class="form-label">Đến ngày</label>
+                                <input type="date" class="form-control" id="date_to" name="date_to" 
+                                       value="{{ request.args.get('date_to', '') }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="fas fa-search"></i> Lọc
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="per_page" class="form-label">Hiển thị</label>
+                                <select class="form-select" id="per_page" name="per_page">
+                                    {% set pp = request.args.get('per_page', '20') %}
+                                    <option value="10" {% if pp=='10' %}selected{% endif %}>10</option>
+                                    <option value="20" {% if pp=='20' %}selected{% endif %}>20</option>
+                                    <option value="50" {% if pp=='50' %}selected{% endif %}>50</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <a class="btn btn-outline-secondary w-100" href="{{ url_for('leave_requests_list') }}">
+                                    Reset
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+    
+                    <!-- Results -->
+                    <div class="table-responsive">
+                        <table class="table table-hover fixed data-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="col-empname">Nhân viên</th>
+                                    <th class="col-team">Nhóm</th>
+                                    <th class="col-time">Thời gian nghỉ</th>
+                                    <th class="col-reason">Lý do</th>
+                                    <th class="col-notes">Ghi chú</th>
+                                    <th class="col-type">Loại nghỉ</th>
+                                    <th class="col-docs">Chứng từ</th>
+                                    <th class="col-substitute">Người thay thế</th>
+                                    <th class="col-status">
+                                        {% set cur_dir = request.args.get('sort_dir','desc') %}
+                                        {% set next_dir = 'asc' if request.args.get('sort_by')=='status' and cur_dir=='desc' else 'desc' %}
+                                        <a href="{{ url_for('leave_requests_list', sort_by='status', sort_dir=next_dir, **request.args) }}" class="text-white text-decoration-none">Trạng thái</a>
+                                    </th>
+                                    <th class="col-created">
+                                        {% set cur_dir2 = request.args.get('sort_dir','desc') %}
+                                        {% set next_dir2 = 'asc' if request.args.get('sort_by')=='created_at' and cur_dir2=='desc' else 'desc' %}
+                                        <a href="{{ url_for('leave_requests_list', sort_by='created_at', sort_dir=next_dir2, **request.args) }}" class="text-white text-decoration-none">Ngày tạo</a>
+                                    </th>
+                                    <th class="col-actions">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if leave_requests %}
+                                    {% for request in leave_requests %}
+                                    <tr class="{% if request.status == 'pending' %}pending{% endif %}">
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Nhân viên" data-fulltext="{{ (request.employee_code or request.employee_id) }} - {{ request.employee_name|e }}">
+                                                <small>{{ (request.employee_code or request.employee_id) }} - {{ request.employee_name }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Nhóm" data-fulltext="{{ request.team or '-' }}">
+                                                <small>{{ request.team or '-' }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Thời gian nghỉ" data-fulltext="{{ get_cached_from_datetime(request).strftime('%d/%m/%Y %H:%M') }} – {{ get_cached_to_datetime(request).strftime('%d/%m/%Y %H:%M') }}">
+                                                <small>{{ get_cached_from_datetime(request).strftime('%d/%m/%Y %H:%M') }} – {{ get_cached_to_datetime(request).strftime('%d/%m/%Y %H:%M') }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Lý do nghỉ phép" data-fulltext="{{ get_cached_reason_text(request)|e }}">
+                                            <small>{{ get_cached_reason_text(request) }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell small" data-title="Ghi chú" data-fulltext="{{ (request.notes or '')|e }}">
+                                                <small>{{ request.notes or '-' }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text" style="white-space: pre-line;">
+                                            <span class="truncate-cell small" data-title="Loại nghỉ" data-fulltext="{{ get_cached_leave_type_text(request).replace(', ', '\n')|e }}">
+                                            <small>{{ get_cached_leave_type_text(request).replace(', ', '\n') }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            {% set has_docs = request.attachments %}
+                                            <span class="truncate-cell" data-title="Chứng từ" data-fulltext="{{ 'Có' if has_docs else 'Không' }}">
+                                                <small>{{ 'Có' if has_docs else 'Không' }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Người thay thế" data-fulltext="{{ (request.substitute_employee_id or '') ~ (' - ' if request.substitute_employee_id and request.substitute_name else '') ~ (request.substitute_name or '') }}">
+                                                <small>{{ request.substitute_employee_id or '-' }}{{ ' - ' if request.substitute_employee_id and request.substitute_name else (request.substitute_name and ' - ' or '') }}{{ request.substitute_name or '' }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            {% set status_text = 'Chờ TL duyệt' if request.status == 'pending' else ('Chờ QL duyệt' if request.status == 'pending_manager' else ('Chờ AD duyệt' if request.status == 'pending_admin' else ('Đã phê duyệt' if request.status == 'approved' else ('Từ chối' if request.status == 'rejected' else request.status)))) %}
+                                            <span data-title="Trạng thái" data-fulltext="{{ status_text }}" style="display:inline-block; cursor:pointer;">
+                                            {% if request.status == 'pending' %}
+                                                <span class="badge status-badge status-pending">Chờ TL duyệt</span>
+                                            {% elif request.status == 'pending_manager' %}
+                                                <span class="badge status-badge bg-warning">Chờ QL duyệt</span>
+                                            {% elif request.status == 'pending_admin' %}
+                                                <span class="badge status-badge bg-info">Chờ AD duyệt</span>
+                                            {% elif request.status == 'approved' %}
+                                                <span class="badge status-badge status-approved">Đã phê duyệt</span>
+                                            {% elif request.status == 'rejected' %}
+                                                <span class="badge status-badge status-rejected">Từ chối</span>
+                                            {% else %}
+                                                <span class="badge status-badge bg-secondary">{{ request.status }}</span>
+                                            {% endif %}
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <span class="truncate-cell" data-title="Ngày tạo" data-fulltext="{{ format_local(request.created_at) }}">
+                                                <small>{{ format_local(request.created_at) }}</small>
+                                            </span>
+                                        </td>
+                                        <td class="small-text">
+                                            <div class="btn-group" role="group" aria-label="Hành động">
+                                            {% if current_role in ['TEAM_LEADER','MANAGER','ADMIN'] %}
+                                                {% if current_role == 'TEAM_LEADER' and request.status == 'pending' %}
+                                                    <button type="button" class="btn btn-sm btn-success btn-action btn-approve" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-check"></i> Duyệt
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action btn-reject" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-times"></i> Từ chối
+                                                    </button>
+                                                {% elif current_role == 'MANAGER' and request.status == 'pending_manager' %}
+                                                    <button type="button" class="btn btn-sm btn-success btn-action btn-approve" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-check"></i> Duyệt
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action btn-reject" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-times"></i> Từ chối
+                                                    </button>
+                                                {% elif current_role == 'ADMIN' and request.status in ['pending_manager', 'pending_admin'] %}
+                                                    <button type="button" class="btn btn-sm btn-success btn-action btn-approve" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-check"></i> Duyệt
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action btn-reject" data-request-id="{{ request.id }}">
+                                                        <i class="fas fa-times"></i> Từ chối
+                                                    </button>
+                                                {% else %}
+                                                    <span class="text-muted small">Không có hành động</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <a href="{{ url_for('view_leave_request', request_id=request.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary btn-action">
+                                                    <i class="fas fa-eye"></i> Xem
+                                                </a>
+                                                {% if request.status == 'pending' and user.id == request.user_id %}
+                                                    <a href="{{ url_for('edit_leave_request', request_id=request.id) }}" 
+                                                       class="btn btn-sm btn-outline-warning btn-action">
+                                                        <i class="fas fa-edit"></i> Sửa
+                                                    </a>
+                                                    <button type="button" 
+                                                       class="btn btn-sm btn-outline-danger btn-action btn-delete"
+                                                       data-request-id="{{ request.id }}"
+                                                       data-employee-name="{{ request.employee_name|e }}">
+                                                        <i class="fas fa-trash"></i> Xóa
+                                                    </button>
+                                                {% endif %}
+                                            {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-4">
+                                            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                            Không có đơn nghỉ phép nào
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+    
+                    <!-- Modal hiển thị nội dung đầy đủ -->
+                    <div class="modal fade" id="fullTextModal" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="fullTextModalLabel">Chi tiết</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <pre class="mb-0" style="white-space: pre-wrap; word-wrap: break-word;"><code id="fullTextContent"></code></pre>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <!-- Pagination -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('leave_requests_list', page=pagination.prev_num, **request.args) }}">Trước</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != pagination.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('leave_requests_list', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('leave_requests_list', page=pagination.next_num, **request.args) }}">Sau</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </main>
+            </div>
+        </div>
+    
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- SweetAlert2 -->
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <!-- Global Email Notification -->
+        <script src="{{ url_for('static', filename='js/global-email-notification.js') }}"></script>
+        <script>
+            // Lưu current_role vào global variable
+            window.currentRole = '{{ current_role }}';
+            console.log('Template variables:');
+            console.log('- Current role:', '{{ current_role }}');
+            console.log('- Request ID:', '{{ request_id }}');
+            console.log('- Request ID type:', typeof '{{ request_id }}');
+        </script>
+        
+        <!-- Toast Container -->
+        <div class="toast-container position-fixed top-0 end-0 p-3">
+            <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto" id="toastTitle">Thông báo</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body" id="toastBody">
+                    <!-- Nội dung thông báo sẽ được chèn vào đây -->
+                </div>
+            </div>
+        </div>
+    
+        <!-- Delete Confirmation Modal -->
+        <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteConfirmModalLabel">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            Xác nhận xóa đơn nghỉ phép
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Bạn có chắc chắn muốn xóa đơn nghỉ phép của <strong id="deleteEmployeeName"></strong>?</p>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Lưu ý:</strong> Hành động này không thể hoàn tác!
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Hủy
+                        </button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                            <i class="fas fa-trash me-1"></i> Xóa đơn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reject Reason Modal -->
+        <div class="modal fade" id="rejectReasonModal" tabindex="-1" aria-labelledby="rejectReasonModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rejectReasonModalLabel">Lý do từ chối</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <textarea id="rejectionReasonInput" class="form-control" rows="3" placeholder="Nhập lý do từ chối (không bắt buộc)"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-danger" id="confirmRejectBtn">Từ chối</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <script>
+            // Hàm hiển thị Toast
+            function showToast(message, title = 'Thông báo', type = 'info') {
+                const toastElement = document.getElementById('liveToast');
+                const toastTitle = document.getElementById('toastTitle');
+                const toastBody = document.getElementById('toastBody');
+    
+                toastTitle.textContent = title;
+                toastBody.textContent = message;
+    
+                // Cập nhật màu sắc header dựa trên type
+                const toastHeader = toastElement.querySelector('.toast-header');
+                toastHeader.className = 'toast-header'; // Reset classes
+                if (type === 'error') {
+                    toastHeader.classList.add('bg-danger', 'text-white');
+                } else if (type === 'warning') {
+                    toastHeader.classList.add('bg-warning', 'text-dark');
+                } else if (type === 'success') {
+                    toastHeader.classList.add('bg-success', 'text-white');
+                } else {
+                    toastHeader.classList.add('bg-primary', 'text-white');
+                }
+    
+                const toast = new bootstrap.Toast(toastElement);
+                toast.show();
+            }
+    
+            // Gắn event delegation cho nút Xóa để tránh inline JS và lỗi cú pháp
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-delete');
+                if (!btn) return;
+                const requestId = btn.getAttribute('data-request-id');
+                const employeeName = btn.getAttribute('data-employee-name') || '';
+                document.getElementById('deleteEmployeeName').textContent = employeeName;
+                document.getElementById('confirmDeleteBtn').onclick = function() {
+                    deleteLeaveRequest(requestId);
+                };
+                const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+                modal.show();
+            });
+
+            // Phê duyệt đơn nghỉ phép
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-approve');
+                if (!btn) return;
+                const requestId = btn.getAttribute('data-request-id');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch(`/leave-request/${requestId}/approve`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({ action: 'approve' })
+                }).then(r => {
+                    if (r.ok) {
+                        showToast('Đã phê duyệt đơn nghỉ phép', 'Thành công', 'success');
+                        setTimeout(() => window.location.reload(), 800);
+                    } else {
+                        showToast('Phê duyệt thất bại', 'Lỗi', 'error');
+                    }
+                }).catch(() => showToast('Phê duyệt thất bại', 'Lỗi', 'error'));
+            });
+
+            // Từ chối đơn nghỉ phép (mở modal nhập lý do)
+            let pendingRejectRequestId = null;
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-reject');
+                if (!btn) return;
+                pendingRejectRequestId = btn.getAttribute('data-request-id');
+                document.getElementById('rejectionReasonInput').value = '';
+                const modal = new bootstrap.Modal(document.getElementById('rejectReasonModal'));
+                modal.show();
+            });
+
+            // Xác nhận từ chối
+            document.getElementById('confirmRejectBtn').addEventListener('click', function() {
+                if (!pendingRejectRequestId) return;
+                const reason = document.getElementById('rejectionReasonInput').value || '';
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch(`/leave-request/${pendingRejectRequestId}/approve`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({ action: 'reject', rejection_reason: reason })
+                }).then(r => {
+                    if (r.ok) {
+                        showToast('Đã từ chối đơn nghỉ phép', 'Thành công', 'success');
+                        const modalEl = document.getElementById('rejectReasonModal');
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                        setTimeout(() => window.location.reload(), 800);
+                    } else {
+                        showToast('Từ chối thất bại', 'Lỗi', 'error');
+                    }
+                }).catch(() => showToast('Từ chối thất bại', 'Lỗi', 'error'));
+            });
+    
+            // Hàm xóa đơn nghỉ phép
+            function deleteLeaveRequest(requestId) {
+                // Hiển thị toast đang xóa
+                showToast('Đang xóa đơn nghỉ phép...', 'Thông báo', 'info');
+                
+                // Gửi request xóa
+                fetch(`/leave-request/${requestId}/delete`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showToast('Đơn nghỉ phép đã được xóa thành công!', 'Thành công', 'success');
+                        // Đóng modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+                        modal.hide();
+                        // Reload trang sau 1 giây
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showToast('Có lỗi xảy ra khi xóa đơn nghỉ phép!', 'Lỗi', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Có lỗi xảy ra khi xóa đơn nghỉ phép!', 'Lỗi', 'error');
+                });
+            }
+    
+            // Click to open modal with full text (supports .truncate-cell or any element with data-fulltext)
+            document.addEventListener('click', function(e) {
+                const target = e.target.closest('[data-fulltext], .truncate-cell');
+                if (!target) return;
+                const title = target.getAttribute('data-title') || 'Chi tiết';
+                const fullText = target.getAttribute('data-fulltext') || target.textContent;
+                document.getElementById('fullTextModalLabel').textContent = title;
+                document.getElementById('fullTextContent').textContent = fullText;
+                const modal = new bootstrap.Modal(document.getElementById('fullTextModal'));
+                modal.show();
+            });
+
+            // Kiểm tra trạng thái email gửi
+            function checkEmailStatus(requestId) {
+                if (!requestId) return;
+                
+                fetch(`/api/email-status/${requestId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showToast(data.message, 'Thành công', 'success');
+                            // Dừng polling sau khi thành công
+                            clearInterval(window.emailPollingInterval);
+                        } else if (data.status === 'error') {
+                            showToast(data.message, 'Lỗi', 'error');
+                            // Dừng polling sau khi lỗi
+                            clearInterval(window.emailPollingInterval);
+                        }
+                        // Nếu status là 'sending' hoặc 'unknown', tiếp tục polling
+                    })
+                    .catch(error => {
+                        console.error('Error checking email status:', error);
+                    });
+            }
+
+            // Debug: Kiểm tra xem global script có hoạt động không
+            console.log('Leave requests list page loaded');
+            console.log('Request ID from data attribute:', document.body.getAttribute('data-request-id'));
+            console.log('Current role:', window.currentRole);
+            
+            // Kiểm tra xem global script có được load không
+            if (typeof checkGlobalEmailStatus === 'function') {
+                console.log('Global email notification script is loaded');
+            } else {
+                console.error('Global email notification script is NOT loaded');
+            }
+        </script>
+    </body>
+    </html>

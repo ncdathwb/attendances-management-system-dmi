@@ -6,7 +6,7 @@ Professional automated setup - just run and everything will be ready!
 import os
 import sys
 import subprocess
-import time
+import time as time_module
 from pathlib import Path
 
 class AutoSetup:
@@ -408,7 +408,7 @@ For issues and questions, check the logs or contact the development team.
                 print(f"\n❌ Setup failed at: {step_name}")
                 print("Please check the error messages above and try again.")
                 return False
-            time.sleep(1)  # Small delay for better UX
+            time_module.sleep(1)  # Small delay for better UX
             
         self.show_success_message()
         return True

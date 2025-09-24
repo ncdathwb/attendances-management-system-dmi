@@ -52,13 +52,43 @@ def seed_users():
         ten = random.choice(ten_list)
         return f"{ho} {tendem} {ten}"
     
+    def generate_email(name, employee_id):
+        """Generate email from name and employee ID"""
+        # Remove diacritics and convert to lowercase
+        name_parts = name.lower().split()
+        # Use the last name (ten) for email
+        last_name = name_parts[-1]
+        # Remove Vietnamese diacritics
+        diacritics_map = {
+            'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
+            'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
+            'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
+            'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
+            'ê': 'e', 'ề': 'e', 'ế': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
+            'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
+            'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
+            'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
+            'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
+            'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
+            'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
+            'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
+            'đ': 'd'
+        }
+        
+        clean_name = ''
+        for char in last_name:
+            clean_name += diacritics_map.get(char, char)
+        
+        return f"{clean_name}{employee_id}@gmail.com"
+    
     # Default admin user
     admin_user = {
         'name': 'Nguyễn Công Đạt',
         'employee_id': 1395,
-        'password': 'dat123',
+        'password': '123456',
         'roles': 'EMPLOYEE,TEAM_LEADER,MANAGER,ADMIN',
-        'department': 'OFFICE'
+        'department': 'OFFICE',
+        'email': 'n-congdat@dmi-acraft.net'
     }
     
     users_data = [admin_user]
@@ -82,12 +112,15 @@ def seed_users():
             emp_id = employee_id_counter
             employee_id_counter += 1
             
+            email = generate_email(name, emp_id)
+            
             dept_users.append({
                 'name': name,
                 'employee_id': emp_id,
                 'password': '123456',
                 'roles': 'EMPLOYEE',
-                'department': dept
+                'department': dept,
+                'email': email
             })
         
         # Assign one team leader per department
@@ -102,7 +135,13 @@ def seed_users():
             # Check if user already exists
             existing_user = User.query.filter_by(employee_id=user_data['employee_id']).first()
             if existing_user:
-                print(f"User {user_data['name']} (ID: {user_data['employee_id']}) already exists, skipping...")
+                # Nếu là admin thì cập nhật email
+                if user_data['employee_id'] == 1395:
+                    existing_user.email = user_data['email']
+                    db.session.commit()
+                    print(f"Updated email for admin: {user_data['email']}")
+                else:
+                    print(f"User {user_data['name']} (ID: {user_data['employee_id']}) already exists, skipping...")
                 continue
             
             # Create new user
@@ -110,12 +149,13 @@ def seed_users():
                 name=user_data['name'],
                 employee_id=user_data['employee_id'],
                 roles=user_data['roles'],
-                department=user_data['department']
+                department=user_data['department'],
+                email=user_data['email']
             )
             user.set_password(user_data['password'])
             
             db.session.add(user)
-            print(f"Created user: {user_data['name']} (ID: {user_data['employee_id']}) - {user_data['department']}")
+            print(f"Created user: {user_data['name']} (ID: {user_data['employee_id']}) - {user_data['department']} - {user_data['email']}")
         
         try:
             db.session.commit()
@@ -132,11 +172,11 @@ def seed_users():
 def generate_user_list_file(users_data):
     """Generate a text file with user information"""
     with open('user_list.txt', 'w', encoding='utf-8') as f:
-        f.write('Tên | Mã NV | Mật khẩu | Phòng ban | Vai trò\n')
-        f.write('-' * 80 + '\n')
+        f.write('Tên | Mã NV | Email | Mật khẩu | Phòng ban | Vai trò\n')
+        f.write('-' * 100 + '\n')
         
         for user in users_data:
-            f.write(f"{user['name']} | {user['employee_id']} | {user['password']} | {user['department']} | {user['roles']}\n")
+            f.write(f"{user['name']} | {user['employee_id']} | {user['email']} | {user['password']} | {user['department']} | {user['roles']}\n")
     
     print("📄 Generated user_list.txt file")
 

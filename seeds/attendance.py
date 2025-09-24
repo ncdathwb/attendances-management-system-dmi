@@ -9,7 +9,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from app import app, db, User, Attendance
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import random
 
 # Fix Unicode output for Windows terminals
@@ -104,16 +104,16 @@ def generate_attendance_record(user, date):
     # Choose work shift
     shifts = [
         (7, 30, 16, 30),  # 7:30 - 16:30
-        (8, 0, 17, 0),    # 8:00 - 17:00
         (9, 0, 18, 0),    # 9:00 - 18:00
-        (11, 0, 22, 0)    # 11:00 - 22:00 (night shift)
+        (11, 0, 20, 0),   # 11:00 - 20:00
+        (8, 0, 17, 0),    # 8:00 - 17:00
     ]
     
     shift = random.choice(shifts)
     
     # Base check-in and check-out times
-    base_check_in = datetime.combine(date, datetime.min.time().replace(hour=shift[0], minute=shift[1]))
-    base_check_out = datetime.combine(date, datetime.min.time().replace(hour=shift[2], minute=shift[3]))
+    base_check_in = datetime.combine(date, time(shift[0], shift[1]))
+    base_check_out = datetime.combine(date, time(shift[2], shift[3]))
     
     # Add some randomness to check-in time (late arrival)
     late_minutes = random.choice([0, 0, 0, 5, 10, 15, 30])  # Mostly on time, sometimes late
@@ -161,6 +161,9 @@ def generate_attendance_record(user, date):
         check_in=check_in,
         check_out=check_out,
         break_time=break_time,
+        comp_time_regular=round(random.choice([0.0, 0.0, 0.0, 0.5, 1.0]), 2),
+        comp_time_overtime=round(random.choice([0.0, 0.0, 0.0, 0.5, 1.0]), 2),
+        overtime_comp_time=round(random.choice([0.0, 0.0, 0.0, 0.5, 1.0]), 2),  # Giữ lại để tương thích
         is_holiday=is_holiday,
         holiday_type=holiday_type,
         note=note,

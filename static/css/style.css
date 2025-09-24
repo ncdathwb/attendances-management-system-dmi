@@ -5,25 +5,48 @@
     box-sizing: border-box;
 }
 
-/* Variables */
+/* Variables - Thống nhất màu sắc toàn hệ thống */
 :root {
-    --primary-color: #2196F3;
-    --secondary-color: #1976D2;
-    --success-color: #4CAF50;
-    --danger-color: #f44336;
-    --warning-color: #ff9800;
-    --text-color: #333;
-    --light-gray: #f5f5f5;
-    --border-color: #ddd;
-    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --primary-color: #1976D2;
+    --secondary-color: #1565C0;
+    --accent-color: #2196F3;
+    --success-color: #388E3C;
+    --danger-color: #D32F2F;
+    --warning-color: #F57C00;
+    --info-color: #1976D2;
+    --text-color: #212121;
+    --text-secondary: #757575;
+    --light-gray: #F5F5F5;
+    --border-color: #E0E0E0;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --border-radius-sm: 4px;
+    --border-radius-lg: 12px;
+    --font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
 }
 
 /* Global Styles */
 body.login-bg, html.login-bg {
     height: 100%;
     margin: 0;
-    font-family: 'Roboto', Arial, sans-serif;
+    font-family: var(--font-family);
     background: #f4f7f9;
+}
+
+body {
+    font-family: var(--font-family);
+    color: var(--text-color);
+    line-height: 1.6;
 }
 
 /* Login Page */
@@ -198,6 +221,358 @@ body.login-bg, html.login-bg {
     margin-bottom: 14px;
     text-align: center;
     min-height: 32px;
+}
+
+/* Forgot Password Page Styles */
+.forgot-password-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f7f9;
+    padding: 20px;
+}
+
+.forgot-password-box {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    padding: 48px 44px 32px 44px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.forgot-password-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1976d2;
+    text-align: center;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+}
+
+.forgot-password-subtitle {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 28px;
+    line-height: 1.5;
+}
+
+.forgot-password-form .form-group {
+    margin-bottom: 20px;
+}
+
+.forgot-password-form .form-group label {
+    display: block;
+    font-size: 14px;
+    color: #444;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.forgot-password-form .form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #f6f8fa;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.forgot-password-form .form-control:focus {
+    outline: none;
+    border-color: #1976d2;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.forgot-password-form .btn-primary {
+    width: 100%;
+    padding: 14px 0;
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.2px;
+}
+
+.forgot-password-form .btn-primary:hover {
+    background: #1565c0;
+}
+
+.forgot-password-form .btn-primary:active {
+    transform: translateY(1px);
+}
+
+.back-to-login {
+    text-align: center;
+    margin-top: 24px;
+}
+
+.back-to-login a {
+    color: #1976d2;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.back-to-login a:hover {
+    color: #1565c0;
+    text-decoration: underline;
+}
+
+.forgot-password-form .alert {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.forgot-password-form .alert-success {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.forgot-password-form .alert-danger {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+/* Reset Password Page Styles */
+.reset-password-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f7f9;
+    padding: 20px;
+}
+
+.reset-password-box {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    padding: 48px 44px 32px 44px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.reset-password-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1976d2;
+    text-align: center;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+}
+
+.reset-password-subtitle {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    margin-bottom: 28px;
+    line-height: 1.5;
+}
+
+.reset-password-form .form-group {
+    margin-bottom: 20px;
+}
+
+.reset-password-form .form-group label {
+    display: block;
+    font-size: 14px;
+    color: #444;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.reset-password-form .form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #f6f8fa;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.reset-password-form .form-control:focus {
+    outline: none;
+    border-color: #1976d2;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.reset-password-form .btn-success {
+    width: 100%;
+    padding: 14px 0;
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.2px;
+}
+
+.reset-password-form .btn-success:hover {
+    background: #45a049;
+}
+
+.reset-password-form .btn-success:active {
+    transform: translateY(1px);
+}
+
+/* Change Password Page Styles */
+.change-password-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f4f7f9;
+    padding: 20px;
+}
+
+.change-password-box {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    padding: 48px 44px 32px 44px;
+    width: 100%;
+    max-width: 420px;
+    min-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.change-password-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1976d2;
+    text-align: center;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+}
+
+.change-password-form .form-group {
+    margin-bottom: 20px;
+}
+
+.change-password-form .form-group label {
+    display: block;
+    font-size: 14px;
+    color: #444;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.change-password-form .form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #f6f8fa;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.change-password-form .form-control:focus {
+    outline: none;
+    border-color: #1976d2;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.change-password-form .btn-success {
+    width: 100%;
+    padding: 14px 0;
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+    letter-spacing: 0.2px;
+}
+
+.change-password-form .btn-success:hover {
+    background: #45a049;
+}
+
+.change-password-form .btn-success:active {
+    transform: translateY(1px);
+}
+
+.back-to-dashboard {
+    text-align: center;
+    margin-top: 24px;
+}
+
+.back-to-dashboard a {
+    color: #1976d2;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.back-to-dashboard a:hover {
+    color: #1565c0;
+    text-decoration: underline;
+}
+
+/* Responsive Design for Password Pages */
+@media (max-width: 480px) {
+    .forgot-password-box,
+    .reset-password-box,
+    .change-password-box {
+        padding: 32px 24px 24px 24px;
+        margin: 10px;
+        min-width: auto;
+    }
+    
+    .forgot-password-title,
+    .reset-password-title,
+    .change-password-title {
+        font-size: 1.5rem;
+    }
+    
+    .forgot-password-subtitle,
+    .reset-password-subtitle {
+        font-size: 13px;
+    }
+}
     box-sizing: border-box;
     transition: opacity 0.3s, min-height 0.3s;
     opacity: 1;
@@ -258,14 +633,29 @@ body.login-bg, html.login-bg {
     box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
 }
 
-/* Buttons */
+/* Buttons - Thống nhất toàn hệ thống */
 .btn {
-    padding: 0.75rem 1.5rem;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-shadow: var(--shadow);
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .btn-primary {
@@ -275,6 +665,58 @@ body.login-bg, html.login-bg {
 
 .btn-primary:hover {
     background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--light-gray);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: #E8E8E8;
+    color: var(--text-color);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #2E7D32;
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #C62828;
+    color: white;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #EF6C00;
+    color: white;
+}
+
+.btn-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+}
+
+.btn-lg {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-size-lg);
 }
 
 .btn-logout {
@@ -284,46 +726,68 @@ body.login-bg, html.login-bg {
 }
 
 .btn-logout:hover {
-    background-color: #d32f2f;
+    background-color: #C62828;
+    color: white;
 }
 
-/* Alerts */
+/* Alerts - Thống nhất toàn hệ thống */
 .alert {
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid transparent;
+    font-weight: 500;
 }
 
 .alert-danger {
-    background-color: #ffebee;
+    background-color: #FFEBEE;
     color: var(--danger-color);
-    border: 1px solid #ffcdd2;
+    border-color: #FFCDD2;
 }
 
 .alert-success {
-    background-color: #e8f5e9;
+    background-color: #E8F5E9;
     color: var(--success-color);
-    border: 1px solid #c8e6c9;
+    border-color: #C8E6C9;
 }
 
-/* Dashboard Content */
+.alert-warning {
+    background-color: #FFF8E1;
+    color: var(--warning-color);
+    border-color: #FFE082;
+}
+
+.alert-info {
+    background-color: #E3F2FD;
+    color: var(--info-color);
+    border-color: #BBDEFB;
+}
+
+/* Dashboard Content - Thống nhất toàn hệ thống */
 .dashboard-content {
-    padding: 2.5rem 1rem;
-    max-width: 900px;
+    padding: var(--spacing-xl) var(--spacing-md);
+    max-width: 1200px;
     margin: 0 auto;
     background: #f8fafc;
-    border-radius: 18px;
-    box-shadow: 0 6px 32px rgba(33,150,243,0.07);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow);
 }
 
 .user-profile,
 .time-attendance,
 .attendance-history {
     background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow);
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.user-profile:hover,
+.time-attendance:hover,
+.attendance-history:hover {
+    box-shadow: var(--shadow-hover);
 }
 
 .profile-info {
@@ -441,49 +905,88 @@ body.login-bg, html.login-bg {
     color: var(--text-color);
 }
 
-/* Table Styles */
+/* Table Styles - Thống nhất toàn hệ thống */
 .table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1rem 0;
+    margin: var(--spacing-md) 0;
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
 }
 
 .table th,
 .table td {
-    padding: 0.75rem;
+    padding: var(--spacing-md);
     text-align: left;
     border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
 }
 
 .table th {
-    background-color: var(--light-gray);
+    background-color: #E3F2FD;
+    color: var(--primary-color);
     font-weight: 600;
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.table tr:hover {
-    background-color: var(--light-gray);
+.table tbody tr:hover {
+    background-color: #F5F5F5;
 }
 
-/* Status Badges */
+.table tbody tr:nth-child(even) {
+    background-color: #FAFAFA;
+}
+
+.table tbody tr:nth-child(even):hover {
+    background-color: #F0F0F0;
+}
+
+/* Status Badges - Thống nhất toàn hệ thống */
 .badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
 }
 
 .badge-success {
-    background-color: #e8f5e9;
+    background-color: #E8F5E9;
     color: var(--success-color);
+    border: 1px solid #C8E6C9;
 }
 
 .badge-warning {
-    background-color: #fff3e0;
+    background-color: #FFF8E1;
     color: var(--warning-color);
+    border: 1px solid #FFE082;
 }
 
 .badge-danger {
-    background-color: #ffebee;
+    background-color: #FFEBEE;
     color: var(--danger-color);
+    border: 1px solid #FFCDD2;
+}
+
+.badge-info {
+    background-color: #E3F2FD;
+    color: var(--info-color);
+    border: 1px solid #BBDEFB;
+}
+
+.badge-secondary {
+    background-color: #F5F5F5;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
 }
 
 /* Remember me checkbox styles */
@@ -690,6 +1193,15 @@ body.login-bg, html.login-bg {
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(33,150,243,0.04);
 }
+
+/* Action buttons (Sửa/Xóa) spacing to avoid icon clipping rounded corners */
+.attendance-history .btn-action-container .btn {
+    border-radius: 8px !important;
+    margin-right: 8px !important;
+}
+.attendance-history .btn-action-container .btn:last-child {
+    margin-right: 0 !important;
+}
 .attendance-history th, .attendance-history td {
     text-align: center;
     vertical-align: middle;
@@ -803,7 +1315,9 @@ body.login-bg, html.login-bg {
     box-sizing: border-box;
 }
 .attendance-row-2 .form-group.flex-2 textarea {
-    max-width: 350px;
+    max-width: 320px; /* giảm bớt để tránh tràn ngang khi có sidebar */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .pagination {
@@ -886,3 +1400,67 @@ body.login-bg, html.login-bg {
     box-shadow: 0 0 0 2px #2196F3;
     border-color: #2196F3;
 } 
+
+/* Ẩn AM/PM trên input time (Chromium-based) cho các ô thời gian */
+.time-no-ampm::-webkit-datetime-edit-ampm-field {
+    display: none;
+}
+.time-no-ampm::-webkit-clear-button { display: none; }
+.time-no-ampm::-webkit-inner-spin-button { margin-left: 2px; }
+.time-no-ampm::-webkit-calendar-picker-indicator { padding-left: 2px; }
+
+/* Utility Classes - Thống nhất toàn hệ thống */
+.text-primary { color: var(--primary-color) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-success { color: var(--success-color) !important; }
+.text-danger { color: var(--danger-color) !important; }
+.text-warning { color: var(--warning-color) !important; }
+.text-info { color: var(--info-color) !important; }
+
+.bg-primary { background-color: var(--primary-color) !important; }
+.bg-secondary { background-color: var(--light-gray) !important; }
+.bg-success { background-color: var(--success-color) !important; }
+.bg-danger { background-color: var(--danger-color) !important; }
+.bg-warning { background-color: var(--warning-color) !important; }
+.bg-info { background-color: var(--info-color) !important; }
+
+.border-primary { border-color: var(--primary-color) !important; }
+.border-secondary { border-color: var(--border-color) !important; }
+.border-success { border-color: var(--success-color) !important; }
+.border-danger { border-color: var(--danger-color) !important; }
+.border-warning { border-color: var(--warning-color) !important; }
+.border-info { border-color: var(--info-color) !important; }
+
+.shadow-sm { box-shadow: var(--shadow) !important; }
+.shadow { box-shadow: var(--shadow-hover) !important; }
+
+.rounded { border-radius: var(--border-radius) !important; }
+.rounded-sm { border-radius: var(--border-radius-sm) !important; }
+.rounded-lg { border-radius: var(--border-radius-lg) !important; }
+
+/* Spacing utilities */
+.m-0 { margin: 0 !important; }
+.m-1 { margin: var(--spacing-xs) !important; }
+.m-2 { margin: var(--spacing-sm) !important; }
+.m-3 { margin: var(--spacing-md) !important; }
+.m-4 { margin: var(--spacing-lg) !important; }
+.m-5 { margin: var(--spacing-xl) !important; }
+
+.p-0 { padding: 0 !important; }
+.p-1 { padding: var(--spacing-xs) !important; }
+.p-2 { padding: var(--spacing-sm) !important; }
+.p-3 { padding: var(--spacing-md) !important; }
+.p-4 { padding: var(--spacing-lg) !important; }
+.p-5 { padding: var(--spacing-xl) !important; }
+
+/* Font utilities */
+.fw-light { font-weight: 300 !important; }
+.fw-normal { font-weight: 400 !important; }
+.fw-medium { font-weight: 500 !important; }
+.fw-semibold { font-weight: 600 !important; }
+.fw-bold { font-weight: 700 !important; }
+
+.fs-sm { font-size: var(--font-size-sm) !important; }
+.fs-base { font-size: var(--font-size-base) !important; }
+.fs-lg { font-size: var(--font-size-lg) !important; }
+.fs-xl { font-size: var(--font-size-xl) !important; }
