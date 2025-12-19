@@ -2322,7 +2322,7 @@ def _license_check_worker(interval_seconds: int = 300):
     Thread nền kiểm tra license online liên tục qua License Manager Pro.
     Nếu license hết hạn/không hợp lệ -> chặn truy cập app (không thoát app).
     """
-    global _license_is_valid
+    global _license_is_valid, _license_warning_state
     from datetime import datetime
 
     # Đợi vài giây cho app & database khởi động xong
@@ -2475,6 +2475,18 @@ def _license_check_worker(interval_seconds: int = 300):
                         except Exception:
                             # Không để lỗi cảnh báo làm hỏng luồng chính
                             pass
+                    else:
+                        # Nếu days_remaining > 1 (hoặc âm nhưng đã được xử lý expired ở dưới) -> clear cảnh báo LICENSE nếu đang bật
+                        try:
+                            from datetime import datetime
+                            with _license_warning_lock:
+                                _license_warning_state = {
+                                    'active': False,
+                                    'payload': None,
+                                    'updated_at': datetime.now().isoformat(),
+                                }
+                        except Exception:
+                            pass
 
                     if days_remaining < 0:
                         expired = True
@@ -2508,7 +2520,6 @@ def _license_check_worker(interval_seconds: int = 300):
 
                     # Nếu trước đó có cảnh báo LICENSE, clear cache để UI ẩn banner ở lần load sau
                     try:
-                        global _license_warning_state
                         with _license_warning_lock:
                             _license_warning_state = {
                                 'active': False,

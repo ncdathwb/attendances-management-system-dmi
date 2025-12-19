@@ -1177,7 +1177,13 @@
                                 lát...</div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            {% if 'ADMIN' in session.get('roles', []) %}
+                            {# 
+                                Nút Refresh Token chỉ xuất hiện khi:
+                                - ĐANG Ở VAI TRÒ ADMIN (current_role == 'ADMIN')
+                                - Và ở phía JS, chỉ hiển thị khi token Google hết hạn / không hợp lệ.
+                                Điều này giữ nguyên logic cũ: nhân viên hoặc khi token còn hạn sẽ không thấy nút.
+                             #}
+                            {% if current_role == 'ADMIN' %}
                             <button type="button" class="btn btn-sm btn-primary" id="btnRefreshToken"
                                 style="display: none; white-space: nowrap;">
                                 <i class="fas fa-sync-alt me-1"></i>Refresh Token
