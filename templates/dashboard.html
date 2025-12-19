@@ -4526,8 +4526,21 @@
                 return;
             }
 
-            // Trường hợp cảnh báo LICENSE: hiển thị cho TẤT CẢ người dùng, không khóa chức năng
+            // Nếu là cảnh báo LICENSE và user vừa tắt banner trong vòng 60s thì không hiển thị lại
             if (isLicenseWarning) {
+                try {
+                    const lastDismiss = localStorage.getItem('licenseBannerDismissedAt');
+                    const lastTs = lastDismiss ? parseInt(lastDismiss, 10) : 0;
+                    const now = Date.now();
+                    if (lastTs && (now - lastTs) < 60000) {
+                        banner.style.display = 'none';
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Could not read license banner dismiss state:', e);
+                }
+
+                // Trường hợp cảnh báo LICENSE: hiển thị cho TẤT CẢ người dùng, không khóa chức năng
                 banner.style.display = 'block';
                 alert.className = 'alert alert-warning alert-dismissible fade show shadow-sm';
                 icon.className = 'fas fa-exclamation-circle me-2';
@@ -4853,6 +4866,18 @@
                 setInterval(() => {
                     fetchTokenStatus();
                 }, 10000);
+            }
+
+            // 3) Khi người dùng bấm nút đóng (X), lưu thời gian để ẩn banner trong 60 giây
+            const closeBtn = document.querySelector('#tokenStatusBanner .btn-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function () {
+                    try {
+                        localStorage.setItem('licenseBannerDismissedAt', Date.now().toString());
+                    } catch (e) {
+                        console.warn('Could not store license banner dismiss time:', e);
+                    }
+                });
             }
 
             // Lắng nghe thay đổi role để ẩn/hiện banner
