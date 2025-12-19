@@ -3,6 +3,7 @@ Logging configuration for the attendance management system
 """
 import logging
 import os
+import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
@@ -18,32 +19,42 @@ def setup_logger(app):
         '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
     )
     
-    # File handler for all logs
+    # File handler for all logs with UTF-8 encoding
     file_handler = RotatingFileHandler(
         'logs/attendance.log', 
         maxBytes=10240000,  # 10MB
-        backupCount=10
+        backupCount=10,
+        encoding='utf-8'
     )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     
-    # Error file handler
+    # Error file handler with UTF-8 encoding
     error_handler = RotatingFileHandler(
         'logs/error.log',
         maxBytes=10240000,  # 10MB
-        backupCount=10
+        backupCount=10,
+        encoding='utf-8'
     )
     error_handler.setFormatter(formatter)
     error_handler.setLevel(logging.ERROR)
     
-    # Security file handler
+    # Security file handler with UTF-8 encoding
     security_handler = RotatingFileHandler(
         'logs/security.log',
         maxBytes=10240000,  # 10MB
-        backupCount=10
+        backupCount=10,
+        encoding='utf-8'
     )
     security_handler.setFormatter(formatter)
     security_handler.setLevel(logging.WARNING)
+    
+    # Console handler with UTF-8 encoding for Windows
+    if os.name == 'nt':  # Windows
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(logging.INFO)
+        app.logger.addHandler(console_handler)
     
     # Configure app logger
     app.logger.addHandler(file_handler)

@@ -27,6 +27,7 @@
     </style>
 </head>
 <body class="login-bg">
+    {% block content %}
     <div class="login-container">
         <form method="POST" action="{{ url_for('login') }}" class="login-box login-form simple-login">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -67,10 +68,11 @@
             <button type="submit" class="btn btn-green btn-block">Đăng nhập</button>
 
             <div class="form-row forgot-row">
-                <a href="#" class="forgot-link">Quên mật mã ?</a>
+                <a href="{{ url_for('forgot_password') }}" class="forgot-link">Quên mật khẩu?</a>
             </div>
         </form>
     </div>
+    {% endblock %}
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 </body>
 </html> 

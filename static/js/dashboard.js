@@ -91,21 +91,18 @@ function getCurrentTime() {
 
 // Enhanced date formatting with consistent DD/MM/YYYY format
 function formatDate(dateString) {
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-            return 'Invalid Date';
-        }
-        
-        // Manual formatting to ensure consistent DD/MM/YYYY format across all browsers
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-    } catch (error) {
-        console.error('Date formatting error:', error);
-        return 'Invalid Date';
+    // Nếu là dạng DD/MM/YYYY thì parse thủ công
+    if (typeof dateString === 'string' && dateString.includes('/')) {
+        const [d, m, y] = dateString.split('/');
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     }
+    // Nếu là dạng ISO hoặc object Date
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 // Enhanced loading spinner with better UX
@@ -378,9 +375,17 @@ function handleEditAttendance(id) {
             const signatureInput = document.getElementById('signature-input');
             const newRecordBtn = document.getElementById('newRecordBtn');
 
-            if (dateInput) dateInput.value = data.date;
-            if (checkInTimeInput) checkInTimeInput.value = data.check_in ? data.check_in.split(' ')[1].substring(0, 5) : '';
-            if (checkOutTimeInput) checkOutTimeInput.value = data.check_out ? data.check_out.split(' ')[1].substring(0, 5) : '';
+            if (dateInput) {
+                // Convert DD/MM/YYYY to YYYY-MM-DD for flatpickr
+                if (data.date && data.date.includes('/')) {
+                    const [d, m, y] = data.date.split('/');
+                    dateInput.value = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                } else {
+                    dateInput.value = data.date;
+                }
+            }
+            if (checkInTimeInput) checkInTimeInput.value = data.check_in || '';
+            if (checkOutTimeInput) checkOutTimeInput.value = data.check_out || '';
             if (breakTimeInput) breakTimeInput.value = data.break_time || "01:00";
             if (dayTypeSelect) dayTypeSelect.value = data.holiday_type || '';
             if (noteInput) noteInput.value = data.note || '';
@@ -451,6 +456,7 @@ function formatTimeForInput(hours) {
 // Make functions globally available
 window.handleEditAttendance = handleEditAttendance;
 window.deleteAttendance = deleteAttendance;
+window.formatDate = formatDate;
 
 // Function to handle form submission
 function handleAttendanceSubmit(e) {

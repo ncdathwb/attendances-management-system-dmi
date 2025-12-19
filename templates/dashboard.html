@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <script>
+        console.log('DEBUG: CSRF Token from template:', '{{ csrf_token() }}');
+    </script>
     <title>Dashboard - Hệ thống Chấm công</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -748,6 +752,8 @@
                 <h4>{{ user.name }}</h4>
                 <p>Mã NV: {{ user.employee_id }}</p>
                 <p>{{ user.department }}</p>
+                <!-- Hidden element for JavaScript to get current user name -->
+                <span id="current-user-name" style="display: none;">{{ user.name }}</span>
                 <div class="role-switcher" style="margin-top:10px;">
                     <label for="role-select" style="font-weight:500;">Vai trò hiện tại:</label>
                     <select id="role-select" class="form-select form-select-sm" style="margin-top:4px;">
@@ -799,6 +805,13 @@
                 <a href="#" class="nav-link">
                     <i class="fas fa-user-cog"></i>
                     Cài đặt
+                </a>
+            </li>
+            
+            <li class="nav-item" id="clearSignatureMenu" style="display: none;">
+                <a href="#" class="nav-link" onclick="clearSessionSignature()">
+                    <i class="fas fa-eraser"></i>
+                    Xóa chữ ký đã lưu
                 </a>
             </li>
 
@@ -1266,25 +1279,7 @@
                 let statusText = record.approved ? 'Đã phê duyệt' : 'Chờ phê duyệt';
                 
                 // Xử lý hiển thị loại ngày
-                let holidayTypeText = '-';
-                if (record.holiday_type) {
-                                            switch(record.holiday_type) {
-                            case 'normal':
-                                holidayTypeText = 'Ngày thường';
-                                break;
-                            case 'weekend':
-                                holidayTypeText = 'Cuối tuần';
-                                break;
-                            case 'vietnamese_holiday':
-                                holidayTypeText = 'Lễ Việt Nam';
-                                break;
-                            case 'japanese_holiday':
-                                holidayTypeText = 'Lễ Nhật Bản';
-                                break;
-                            default:
-                                holidayTypeText = record.holiday_type;
-                        }
-                }
+                let holidayTypeText = translateHolidayType(record.holiday_type);
 
                 // Xác định class cho trạng thái
                 let statusClass = record.approved ? 'status-approved' : 'status-pending';
@@ -1316,10 +1311,10 @@
                 
                 row.innerHTML = `
                     <td style="height: 50px; width: 70px;">${formatDate(record.date)}</td>
-                    <td style="height: 50px; width: 55px;">${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
-                    <td style="height: 50px; width: 55px;">${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                    <td style="height: 50px; width: 55px;">${record.check_in || '--:--'}</td>
+                    <td style="height: 50px; width: 55px;">${record.check_out || '--:--'}</td>
                     <td style="height: 50px; width: 40px;">${shiftText}</td>
-                    <td style="height: 50px; width: 36px;">${formatHourMinute(record.break_time)}</td>
+                    <td style="height: 50px; width: 36px;">${formatHourMinute(record.break_time) || '-'}</td>
                     <td style="height: 50px; width: 60px;">${record.total_work_hours || '-'}</td>
                     <td style="height: 50px; width: 50px;">${record.work_hours_display || '-'}</td>
                     <td style="height: 50px; width: 50px;">${record.overtime_before_22 && record.overtime_before_22 !== 'NaN:NaN' ? record.overtime_before_22 : '0:00'}</td>
@@ -1490,14 +1485,7 @@
 
         // Function to handle edit attendance - moved to dashboard.js to avoid conflicts
 
-        // Function to format date for display (DD/MM/YYYY)
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            const day = date.getDate().toString().padStart(2, '0');
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-        }
+        // Function to format date for display (DD/MM/YYYY) - moved to dashboard.js to avoid conflicts
 
         // Function to format time for input - moved to dashboard.js to avoid conflicts
 
@@ -1785,14 +1773,14 @@
                             const row = document.createElement('tr');
                             row.innerHTML = `
                                 <td>${formatDate(record.date) || '-'}</td>
-                                <td>${extractTime(record.check_in)}</td>
-                                <td>${extractTime(record.check_out)}</td>
+                                <td>${record.check_in || '--:--'}</td>
+                                <td>${record.check_out || '--:--'}</td>
                                 <td>${formatHourMinute(record.break_time) || '-'}</td>
                                 <td>${record.total_work_hours || '-'}</td>
                                 <td>${record.work_hours_display || '-'}</td>
                                 <td>${record.overtime_before_22 || '-'}</td>
                                 <td>${record.overtime_after_22 || '-'}</td>
-                                <td>${record.holiday_type || '-'}</td>
+                                <td>${translateHolidayType(record.holiday_type)}</td>
                                 <td>${record.user_name || '-'}</td>
                                 <td>${record.department || '-'}</td>
                                 <td>${translateStatus(record.status) || '-'}</td>
@@ -1894,8 +1882,8 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${formatDate(record.date)}</td>
-                    <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
-                    <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                    <td>${record.check_in || '--:--'}</td>
+                    <td>${record.check_out || '--:--'}</td>
                     <td>${formatHourMinute(record.break_time) || '-'}</td>
                     <td>${record.total_work_hours || '-'}</td>
                     <td>${record.work_hours_display || '-'}</td>
@@ -1967,8 +1955,8 @@
                     
                     row.innerHTML = `
                         <td>${formatDate(record.date)}</td>
-                        <td>${record.check_in ? record.check_in.substring(0,5) : '--:--'}</td>
-                        <td>${record.check_out ? record.check_out.substring(0,5) : '--:--'}</td>
+                        <td>${record.check_in || '--:--'}</td>
+                        <td>${record.check_out || '--:--'}</td>
                         <td>${formatHourMinute(record.break_time) || '-'}</td>
                         <td>${record.total_work_hours || '-'}</td>
                         <td>${record.work_hours_display || '-'}</td>
@@ -1996,6 +1984,7 @@
                             ` : `
                                 <div class="btn-action-container">
                                     ${getOvertimePrintButton(record.id, record.approved, isAdmin)}
+                                    ${isAdmin ? `<button class='btn btn-info btn-sm debug-signature-btn' data-id='${record.id}' title="Debug chữ ký"><i class='fas fa-bug me-1'></i>Debug</button>` : ''}
                                 </div>
                             `}
                             </div>
@@ -2021,6 +2010,14 @@
                     btn.addEventListener('click', function() {
                         const id = this.getAttribute('data-id');
                         approveAttendance(id, 'reject');
+                    });
+                });
+                
+                // Gắn event listeners cho nút debug chữ ký
+                document.querySelectorAll('.debug-signature-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        debugSignature(id);
                     });
                 });
             } catch (e) {
@@ -2209,6 +2206,7 @@
             const departmentFilterContainer = document.getElementById('departmentFilterContainer');
             const adminUsersMenu = document.getElementById('adminUsersMenu');
             const attendanceHistoryMenuWrapper = document.getElementById('attendanceHistoryMenuWrapper');
+            const clearSignatureMenu = document.getElementById('clearSignatureMenu');
             const pageTitle = document.querySelector('.page-title');
             
             // Ẩn tất cả các section trước
@@ -2224,6 +2222,8 @@
             if (adminUsersMenu) adminUsersMenu.style.display = 'none';
             // Ẩn menu lịch sử chấm công mặc định
             if (attendanceHistoryMenuWrapper) attendanceHistoryMenuWrapper.style.display = 'none';
+            // Ẩn menu xóa chữ ký mặc định
+            if (clearSignatureMenu) clearSignatureMenu.style.display = 'none';
             
             if (role === 'EMPLOYEE') {
                 // Hiển thị form chấm công và lịch sử cho nhân viên
@@ -2245,20 +2245,24 @@
                 if (role === 'ADMIN' && adminUsersMenu) {
                     adminUsersMenu.style.display = 'block';
                 }
-                            // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
-            if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
-                attendanceHistoryMenuWrapper.style.display = 'block';
-            }
-            // Hiển thị bulk export section cho ADMIN
-            const bulkExportSection = document.getElementById('bulkExportSection');
-            if (role === 'ADMIN' && bulkExportSection) {
-                bulkExportSection.style.display = 'block';
-            } else if (bulkExportSection) {
-                bulkExportSection.style.display = 'none';
-            }
-            // Load dữ liệu phê duyệt
-            loadApprovalAttendance();
-            if (pageTitle) pageTitle.textContent = 'Quản lý chấm công';
+                // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
+                if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
+                    attendanceHistoryMenuWrapper.style.display = 'block';
+                }
+                // Hiển thị menu xóa chữ ký cho TEAM_LEADER và MANAGER (không phải ADMIN)
+                if (['TEAM_LEADER', 'MANAGER'].includes(role) && clearSignatureMenu) {
+                    clearSignatureMenu.style.display = 'block';
+                }
+                // Hiển thị bulk export section cho ADMIN
+                const bulkExportSection = document.getElementById('bulkExportSection');
+                if (role === 'ADMIN' && bulkExportSection) {
+                    bulkExportSection.style.display = 'block';
+                } else if (bulkExportSection) {
+                    bulkExportSection.style.display = 'none';
+                }
+                // Load dữ liệu phê duyệt
+                loadApprovalAttendance();
+                if (pageTitle) pageTitle.textContent = 'Quản lý chấm công';
             }
             
             // Cập nhật active state cho menu
@@ -2289,7 +2293,7 @@
             }
         }
 
-        // Hàm phê duyệt chấm công
+        // Hàm phê duyệt chấm công với hệ thống chữ ký thông minh
         async function approveAttendance(attendanceId, action) {
             console.log('approveAttendance called with:', { attendanceId, action });
             
@@ -2300,40 +2304,347 @@
             if (action === 'approve') {
                 console.log('Processing approval...');
                 
-                // Thử gửi yêu cầu phê duyệt mà không có chữ ký trước
-                // Nếu backend báo lỗi cần chữ ký thì mới hiển thị popup
-                let needSignature = false;
-                try {
-                    const response = await fetch(`/api/attendance/${attendanceId}/approve`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({ action: 'approve', reason: '', signature: '' })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.error && data.error.includes('Chữ ký là bắt buộc')) {
-                        needSignature = true;
-                    } else if (data.error) {
-                        showToast(data.error, 'error');
-                        return;
-                    } else {
-                        // Phê duyệt thành công mà không cần chữ ký
-                        showToast(data.message, 'success');
-                        loadApprovalAttendance();
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
+                // Kiểm tra trạng thái chữ ký trước
+                const signatureStatus = await checkSignatureStatus(attendanceId);
+                console.log('Signature status:', signatureStatus);
+                
+                if (!signatureStatus) {
+                    console.error('Signature status check failed - API returned null');
+                    showToast('Lỗi kiểm tra trạng thái chữ ký', 'error');
                     return;
                 }
                 
-                // Nếu cần chữ ký, hiển thị popup để ký tên phê duyệt
-                if (needSignature) {
+                if (signatureStatus.is_admin) {
+                    // Admin không cần chữ ký, phê duyệt trực tiếp
+                    await processApproval(attendanceId, '', 'admin');
+                    return;
+                }
+                
+                // Xử lý chữ ký cho non-admin users
+                const signature = await handleSignatureFlow(signatureStatus, attendanceId);
+                if (signature !== false) { // false means user cancelled
+                    await processApproval(attendanceId, signature, 'user');
+                }
+            } else if (action === 'reject') {
+                // Xử lý từ chối
+                await handleRejection(attendanceId);
+            }
+        }
+        
+        // Kiểm tra trạng thái chữ ký
+        async function checkSignatureStatus(attendanceId) {
+            try {
+                // Thử nhiều cách để lấy CSRF token
+                let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                if (!csrfToken) {
+                    csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+                }
+                console.log('DEBUG: CSRF Token for signature check:', csrfToken);
+                
+                const response = await fetch('/api/signature/check', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ attendance_id: attendanceId })
+                });
+                
+                // Kiểm tra response type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.error('API returned non-JSON response:', contentType);
+                    return { need_signature: true, is_admin: false };
+                }
+                
+                const data = await response.json();
+                console.log('Signature status:', data);
+                console.log('DEBUG: Signature status details:', {
+                    need_signature: data.need_signature,
+                    is_admin: data.is_admin,
+                    has_session_signature: data.has_session_signature,
+                    has_db_signature: data.has_db_signature,
+                    should_use_session: data.should_use_session,
+                    session_signature_available: data.session_signature_available,
+                    is_reused_signature: data.is_reused_signature,
+                    message: data.message
+                });
+                return data;
+            } catch (error) {
+                console.error('Error checking signature status:', error);
+                return { need_signature: true, is_admin: false };
+            }
+        }
+        
+        // Xử lý luồng chữ ký thông minh
+        async function handleSignatureFlow(signatureStatus, attendanceId) {
+            const { has_session_signature, should_use_session, has_db_signature, session_signature_available, is_reused_signature } = signatureStatus;
+            console.log('DEBUG: handleSignatureFlow called with:', { 
+                has_session_signature, 
+                should_use_session, 
+                has_db_signature, 
+                session_signature_available,
+                attendanceId 
+            });
+            
+            // Lấy thông tin người dùng hiện tại
+            const currentRole = document.getElementById('role-select')?.value || 'EMPLOYEE';
+            const currentUserName = document.getElementById('current-user-name')?.textContent || 'Unknown User';
+            console.log('DEBUG: Current user info:', { role: currentRole, name: currentUserName });
+            
+            // Nếu có chữ ký trong session và được phép sử dụng
+            if (session_signature_available) {
+                console.log('DEBUG: Session signature available, showing reuse dialog');
+                console.log('🔍 SIGNATURE REUSE INFO: User', currentUserName, `(${currentRole}) is reusing signature from current session`);
+                const useSession = await Swal.fire({
+                    title: '<i class="fas fa-signature me-2"></i>Sử dụng chữ ký đã lưu',
+                    html: `
+                        <div style="text-align: center;">
+                            <p>Bạn có muốn sử dụng lại chữ ký đã ký trong phiên này không?</p>
+                            <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #2196f3;">
+                                <small style="color: #1976d2;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Chữ ký của: <strong>${currentUserName}</strong> (${currentRole})
+                                </small>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <label style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <input type="checkbox" id="dont-ask-again" style="margin: 0;">
+                                    <span>Không hỏi lại trong phiên này</span>
+                                </label>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Có, sử dụng',
+                    cancelButtonText: 'Không, ký lại',
+                    reverseButtons: true
+                });
+                
+                if (useSession.isConfirmed) {
+                    console.log('DEBUG: User confirmed using session signature');
+                    console.log('✅ SIGNATURE REUSE CONFIRMED: User', currentUserName, `(${currentRole}) confirmed reusing session signature`);
+                    const dontAskAgain = document.getElementById('dont-ask-again').checked;
+                    // Lưu flag không hỏi lại
+                    if (dontAskAgain) {
+                        await saveSignatureToSession('', 'session_reused', true);
+                    }
+                    // Lấy chữ ký từ session thay vì trả về 'session'
+                    const sessionSignature = await getSignatureFromSession();
+                    console.log('DEBUG: Session signature for reuse:', sessionSignature ? 'Found' : 'Not found');
+                    return sessionSignature || 'session_reused';
+                }
+            }
+            
+            // Nếu có chữ ký trong database (bao gồm cả chữ ký từ vai trò thấp hơn)
+            if (has_db_signature) {
+                console.log('DEBUG: DB signature available, showing reuse dialog');
+                console.log('🔍 SIGNATURE REUSE INFO: User', currentUserName, `(${currentRole}) found saved signature in database`);
+                console.log('DEBUG: Signature status details:', { has_db_signature, has_session_signature, session_signature_available });
+                
+                // Lấy thông tin chi tiết về chữ ký trong database
+                const dbSignatureInfo = await getSignatureInfoFromDatabase(attendanceId);
+                console.log('DEBUG: Database signature info:', dbSignatureInfo);
+                
+                // Tạo message phù hợp dựa trên việc có phải chữ ký tái sử dụng không
+                let reuseMessage = 'Bạn có muốn sử dụng lại chữ ký đã lưu trước đó không?';
+                let infoBoxStyle = 'background: #fff3e0; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ff9800;';
+                let infoBoxColor = 'color: #e65100;';
+                let infoIcon = 'fas fa-database';
+                
+                if (is_reused_signature || dbSignatureInfo.isReusedSignature) {
+                    reuseMessage = 'Bạn có muốn sử dụng lại chữ ký từ vai trò thấp hơn không?';
+                    infoBoxStyle = 'background: #e8f5e8; padding: 10px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #4caf50;';
+                    infoBoxColor = 'color: #2e7d32;';
+                    infoIcon = 'fas fa-recycle';
+                }
+                
+                const useDbSignature = await Swal.fire({
+                    title: '<i class="fas fa-database me-2"></i>Chữ ký đã lưu',
+                    html: `
+                        <div style="text-align: center;">
+                            <p>${reuseMessage}</p>
+                            <div style="${infoBoxStyle}">
+                                <small style="${infoBoxColor}">
+                                    <i class="${infoIcon} me-1"></i>
+                                    Chữ ký đã lưu của: <strong>${dbSignatureInfo.signerName || currentUserName}</strong> (${dbSignatureInfo.signerRole || currentRole})
+                                    ${dbSignatureInfo.signDate ? `<br>Ngày ký: ${dbSignatureInfo.signDate}` : ''}
+                                    ${dbSignatureInfo.isReusedSignature ? '<br><strong>Chữ ký này được tái sử dụng từ vai trò thấp hơn</strong>' : ''}
+                                </small>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <label style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <input type="checkbox" id="dont-ask-again" style="margin: 0;">
+                                    <span>Không hỏi lại trong phiên này</span>
+                                </label>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Có, sử dụng',
+                    cancelButtonText: 'Không, ký mới',
+                    reverseButtons: true
+                });
+                
+                if (useDbSignature.isConfirmed) {
+                    const dontAskAgain = document.getElementById('dont-ask-again').checked;
+                    console.log('DEBUG: User confirmed using DB signature, getting signature from database...');
+                    console.log('✅ SIGNATURE REUSE CONFIRMED: User', currentUserName, `(${currentRole}) confirmed reusing database signature from ${dbSignatureInfo.signerName || 'Unknown'} (${dbSignatureInfo.signerRole || 'Unknown'})`);
+                    // Lấy chữ ký từ database và lưu vào session
+                    const dbSignature = await getSignatureFromDatabase(attendanceId);
+                    console.log('DEBUG: DB signature result:', dbSignature ? 'Found' : 'Not found');
+                    if (dbSignature) {
+                        console.log('DEBUG: Saving DB signature to session...');
+                        const signatureType = dbSignatureInfo.isReusedSignature ? 'role_reused' : 'database_reused';
+                        await saveSignatureToSession(dbSignature, signatureType, dontAskAgain);
+                        console.log('DEBUG: Returning DB signature for approval');
+                        return dbSignature;
+                    } else {
+                        console.log('DEBUG: No DB signature found, will show signature modal');
+                    }
+                }
+            }
+            
+            // Ký mới
+            console.log('DEBUG: No reusable signature found, showing signature modal');
+            console.log('🆕 NEW SIGNATURE: User', currentUserName, `(${currentRole}) will create new signature`);
+            return await showSignatureModal(attendanceId);
+        }
+        
+        // Lấy chữ ký từ database
+        async function getSignatureFromDatabase(attendanceId) {
+            try {
+                console.log('DEBUG: Getting signature from database for attendance:', attendanceId);
+                const response = await fetch(`/api/attendance/${attendanceId}`);
+                const data = await response.json();
+                console.log('DEBUG: Attendance data:', data);
+                
+                const currentRole = document.getElementById('role-select')?.value || 'EMPLOYEE';
+                console.log('DEBUG: Current role:', currentRole);
+                
+                let signature = null;
+                let signatureSource = null;
+                
+                // Logic tái sử dụng chữ ký từ vai trò thấp hơn
+                if (currentRole === 'TEAM_LEADER') {
+                    // Kiểm tra chữ ký team leader trước
+                    if (data.team_leader_signature) {
+                        signature = data.team_leader_signature;
+                        signatureSource = 'team_leader_original';
+                        console.log('DEBUG: Team leader signature (original): Found');
+                    } else if (data.signature) {
+                        // Sử dụng chữ ký employee (vai trò thấp hơn)
+                        signature = data.signature;
+                        signatureSource = 'employee_reused';
+                        console.log('DEBUG: Employee signature (reused): Found');
+                    }
+                } else if (currentRole === 'MANAGER') {
+                    // Kiểm tra chữ ký manager trước
+                    if (data.manager_signature) {
+                        signature = data.manager_signature;
+                        signatureSource = 'manager_original';
+                        console.log('DEBUG: Manager signature (original): Found');
+                    } else if (data.team_leader_signature) {
+                        // Sử dụng chữ ký team leader (vai trò thấp hơn)
+                        signature = data.team_leader_signature;
+                        signatureSource = 'team_leader_reused';
+                        console.log('DEBUG: Team leader signature (reused): Found');
+                    } else if (data.signature) {
+                        // Sử dụng chữ ký employee (vai trò thấp nhất)
+                        signature = data.signature;
+                        signatureSource = 'employee_reused';
+                        console.log('DEBUG: Employee signature (reused): Found');
+                    }
+                } else {
+                    // EMPLOYEE - chỉ sử dụng chữ ký employee
+                    signature = data.signature;
+                    signatureSource = 'employee_original';
+                    console.log('DEBUG: Employee signature (original):', signature ? 'Found' : 'Not found');
+                }
+                
+                console.log('DEBUG: Final signature result:', signature ? 'Found' : 'Not found', 'Source:', signatureSource);
+                return signature;
+            } catch (error) {
+                console.error('Error getting signature from database:', error);
+                return null;
+            }
+        }
+        
+        // Lấy chữ ký từ session
+        async function getSignatureFromSession() {
+            try {
+                // Thử nhiều cách để lấy CSRF token
+                let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                if (!csrfToken) {
+                    csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+                }
+                console.log('DEBUG: CSRF Token for getSignatureFromSession:', csrfToken);
+                
+                const response = await fetch('/api/signature/check', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ check_session: true })
+                });
+                
+                // Kiểm tra response type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.error('API returned non-JSON response:', contentType);
+                    return null;
+                }
+                
+                const data = await response.json();
+                return data.session_signature || null;
+            } catch (error) {
+                console.error('Error getting signature from session:', error);
+                return null;
+            }
+        }
+        
+        // Lưu chữ ký vào session
+        async function saveSignatureToSession(signature, type, dontAskAgain = false) {
+            try {
+                // Nếu signature quá lớn, chỉ lưu flag thay vì toàn bộ chữ ký
+                let signatureToSave = signature;
+                if (signature && signature.length > 1000) {
+                    // Tạo hash đơn giản cho chữ ký lớn
+                    signatureToSave = 'signature_hash_' + btoa(signature.substring(0, 100)).replace(/[^a-zA-Z0-9]/g, '');
+                }
+                
+                const response = await fetch('/api/signature/save-session', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({ 
+                        signature: signatureToSave, 
+                        type: type, 
+                        dont_ask_again: dontAskAgain 
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log(`✅ SIGNATURE SAVED: ${type} signature saved to session${dontAskAgain ? ' with dont_ask_again flag' : ''}`);
+                } else {
+                    console.error('❌ SIGNATURE SAVE FAILED:', data.error);
+                }
+                return data.success;
+            } catch (error) {
+                console.error('❌ ERROR SAVING SIGNATURE:', error);
+                return false;
+            }
+        }
+        
+        // Hiển thị modal ký tên
+        async function showSignatureModal(attendanceId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     const { value: signature } = await Swal.fire({
                     title: '<i class="fas fa-signature me-2"></i>Ký tên phê duyệt',
                     html: `
@@ -2415,50 +2726,96 @@
                 });
 
                 if (signature) {
-                    console.log('Sending approval with signature');
-                    // Hiển thị loading
-                    Swal.fire({
-                        title: 'Đang xử lý...',
-                        html: '<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi yêu cầu phê duyệt',
-                        allowOutsideClick: false,
-                        allowEscapeKey: false,
-                        showConfirmButton: false
-                    });
-                    
-                    // Gửi yêu cầu phê duyệt với chữ ký
-                    fetch(`/api/attendance/${attendanceId}/approve`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({ action: 'approve', reason: '', signature: signature })
-                    })
-                    .then(response => {
-                        console.log('Response status:', response.status);
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Response data:', data);
-                        Swal.close(); // Đóng loading
-                        if (data.error) {
-                            showToast(data.error, 'error');
-                        } else {
-                            showToast(data.message, 'success');
-                            loadApprovalAttendance();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.close(); // Đóng loading
-                        showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
-                    });
+                    // Lưu chữ ký vào session nếu là ký mới
+                    await saveSignatureToSession(signature, 'new');
+                    return signature;
                 }
-                } // Đóng block if (needSignature)
-            } else if (action === 'reject') {
-                console.log('Processing rejection...');
-                // Hiển thị popup để nhập lý do từ chối
-                const { value: reason } = await Swal.fire({
+                return false; // User cancelled
+            }
+        
+        
+        // Xử lý phê duyệt
+        async function processApproval(attendanceId, signature, userType) {
+            console.log('DEBUG: processApproval called with:', { attendanceId, signature, userType });
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            // Lấy thông tin người dùng hiện tại
+            const currentRole = document.getElementById('role-select')?.value || 'EMPLOYEE';
+            const currentUserName = document.getElementById('current-user-name')?.textContent || 'Unknown User';
+            
+            // Xử lý chữ ký từ session
+            let finalSignature = signature;
+            let signatureSource = 'new';
+            
+            if (signature === 'session_reused') {
+                console.log('DEBUG: Getting signature from session...');
+                console.log('🔄 SIGNATURE SOURCE: User', currentUserName, `(${currentRole}) is reusing signature from current session`);
+                const sessionSignature = await getSignatureFromSession();
+                console.log('DEBUG: Session signature result:', sessionSignature ? 'Found' : 'Not found');
+                finalSignature = sessionSignature;
+                signatureSource = 'session_reused';
+            } else if (signature && signature.startsWith('data:image')) {
+                console.log('🆕 SIGNATURE SOURCE: User', currentUserName, `(${currentRole}) is using newly created signature`);
+                signatureSource = 'new';
+            } else if (signature) {
+                console.log('🔄 SIGNATURE SOURCE: User', currentUserName, `(${currentRole}) is reusing signature from database`);
+                signatureSource = 'database_reused';
+            } else if (userType === 'admin') {
+                console.log('👑 SIGNATURE SOURCE: Admin', currentUserName, `(${currentRole}) - no signature required`);
+                signatureSource = 'admin_no_signature';
+            }
+            
+            console.log('DEBUG: Final signature for approval:', finalSignature ? 'Has signature' : 'No signature');
+            console.log('📝 APPROVAL SUMMARY: User', currentUserName, `(${currentRole}) approving attendance ${attendanceId} with signature source: ${signatureSource}`);
+            
+            // Hiển thị loading
+            Swal.fire({
+                title: 'Đang xử lý...',
+                html: '<i class="fas fa-spinner fa-spin me-2"></i>Đang gửi yêu cầu phê duyệt',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false
+            });
+            
+            try {
+                const response = await fetch(`/api/attendance/${attendanceId}/approve`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ 
+                        action: 'approve', 
+                        reason: '', 
+                        signature: finalSignature 
+                    })
+                });
+                
+                const data = await response.json();
+                Swal.close(); // Đóng loading
+                
+                if (data.error) {
+                    console.log('❌ APPROVAL FAILED: User', currentUserName, `(${currentRole}) failed to approve attendance ${attendanceId}:`, data.error);
+                    showToast(data.error, 'error');
+                } else {
+                    console.log('✅ APPROVAL SUCCESS: User', currentUserName, `(${currentRole}) successfully approved attendance ${attendanceId} with signature source: ${signatureSource}`);
+                    showToast(data.message, 'success');
+                    loadApprovalAttendance();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                console.log('❌ APPROVAL ERROR: User', currentUserName, `(${currentRole}) encountered error while approving attendance ${attendanceId}:`, error);
+                Swal.close(); // Đóng loading
+                showToast('Đã xảy ra lỗi khi phê duyệt', 'error');
+            }
+        }
+        
+        // Xử lý từ chối
+        async function handleRejection(attendanceId) {
+            console.log('Processing rejection...');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            // Hiển thị popup để nhập lý do từ chối
+            const { value: reason } = await Swal.fire({
                     title: '<i class="fas fa-times-circle me-2"></i>Xác nhận từ chối',
                     html: `
                         <div style="text-align: center;">
@@ -2545,22 +2902,12 @@
                     });
                 }
             }
-        }
+        
         
         window.switchRole = switchRole;
         window.approveAttendance = approveAttendance;
 
-        // Set default value for attendanceDate to today
-        document.addEventListener('DOMContentLoaded', function() {
-            const dateInput = document.getElementById('attendanceDate');
-            if (dateInput && !dateInput.value) {
-                const today = new Date();
-                const yyyy = today.getFullYear();
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const dd = String(today.getDate()).padStart(2, '0');
-                dateInput.value = `${yyyy}-${mm}-${dd}`;
-            }
-        });
+        // Set default value for attendanceDate to today - handled by flatpickr
 
         // Function formatHourMinute is defined below
 
@@ -2578,6 +2925,23 @@
             let m = Math.round((Number(hours) - h) * 60);
             if (m === 60) { h += 1; m = 0; }
             return `${h}:${m.toString().padStart(2, '0')}`;
+        }
+
+        // Function to format date consistently
+        function formatDate(dateString) {
+            if (!dateString) return '--/--/----';
+            // Nếu là dạng DD/MM/YYYY thì parse thủ công
+            if (typeof dateString === 'string' && dateString.includes('/')) {
+                const [d, m, y] = dateString.split('/');
+                return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+            }
+            // Nếu là dạng ISO hoặc object Date
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '--/--/----';
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
         }
 
         // Event listeners cho filter lịch sử chấm công đã phê duyệt
@@ -2618,6 +2982,216 @@
                 });
             }
         });
+
+        // Lấy thông tin chi tiết về chữ ký trong database
+        async function getSignatureInfoFromDatabase(attendanceId) {
+            try {
+                console.log('DEBUG: Getting signature info from database for attendance:', attendanceId);
+                const response = await fetch(`/api/attendance/${attendanceId}`);
+                const data = await response.json();
+                
+                const currentRole = document.getElementById('role-select')?.value || 'EMPLOYEE';
+                const currentUserName = document.getElementById('current-user-name')?.textContent || 'Unknown User';
+                
+                let signatureInfo = {
+                    signerName: currentUserName,
+                    signerRole: currentRole,
+                    signDate: null,
+                    hasSignature: false,
+                    signatureType: null,
+                    isReusedSignature: false,
+                    userInfo: data.user_name ? {
+                        name: data.user_name,
+                        employee_id: data.user_employee_id,
+                        department: data.user_department
+                    } : null,
+                    approverInfo: data.approver_info
+                };
+                
+                // Xác định loại chữ ký và thông tin người ký
+                if (currentRole === 'TEAM_LEADER') {
+                    // Kiểm tra chữ ký team leader trước
+                    if (data.team_leader_signature) {
+                        signatureInfo.hasSignature = true;
+                        signatureInfo.signatureType = 'team_leader_signature';
+                        signatureInfo.isReusedSignature = false;
+                        // Nếu có thông tin người phê duyệt và là TEAM_LEADER, lấy thông tin đó
+                        if (data.approver_info && data.approver_info.roles && data.approver_info.roles.includes('TEAM_LEADER')) {
+                            signatureInfo.signerName = data.approver_info.name;
+                            signatureInfo.signerRole = 'TEAM_LEADER';
+                            signatureInfo.signerEmployeeId = data.approver_info.employee_id;
+                            signatureInfo.signerDepartment = data.approver_info.department;
+                        }
+                    } else if (data.signature) {
+                        // Sử dụng chữ ký employee (vai trò thấp hơn)
+                        signatureInfo.hasSignature = true;
+                        signatureInfo.signatureType = 'employee_signature';
+                        signatureInfo.isReusedSignature = true;
+                        signatureInfo.signerName = data.user_name || currentUserName;
+                        signatureInfo.signerRole = 'EMPLOYEE';
+                        signatureInfo.signerEmployeeId = data.user_employee_id;
+                        signatureInfo.signerDepartment = data.user_department;
+                    }
+                } else if (currentRole === 'MANAGER') {
+                    // Kiểm tra chữ ký manager trước
+                    if (data.manager_signature) {
+                        signatureInfo.hasSignature = true;
+                        signatureInfo.signatureType = 'manager_signature';
+                        signatureInfo.isReusedSignature = false;
+                        // Nếu có thông tin người phê duyệt và là MANAGER, lấy thông tin đó
+                        if (data.approver_info && data.approver_info.roles && data.approver_info.roles.includes('MANAGER')) {
+                            signatureInfo.signerName = data.approver_info.name;
+                            signatureInfo.signerRole = 'MANAGER';
+                            signatureInfo.signerEmployeeId = data.approver_info.employee_id;
+                            signatureInfo.signerDepartment = data.approver_info.department;
+                        }
+                    } else if (data.team_leader_signature) {
+                        // Sử dụng chữ ký team leader (vai trò thấp hơn)
+                        signatureInfo.hasSignature = true;
+                        signatureInfo.signatureType = 'team_leader_signature';
+                        signatureInfo.isReusedSignature = true;
+                        signatureInfo.signerName = data.approver_info?.name || currentUserName;
+                        signatureInfo.signerRole = 'TEAM_LEADER';
+                        signatureInfo.signerEmployeeId = data.approver_info?.employee_id;
+                        signatureInfo.signerDepartment = data.approver_info?.department;
+                    } else if (data.signature) {
+                        // Sử dụng chữ ký employee (vai trò thấp nhất)
+                        signatureInfo.hasSignature = true;
+                        signatureInfo.signatureType = 'employee_signature';
+                        signatureInfo.isReusedSignature = true;
+                        signatureInfo.signerName = data.user_name || currentUserName;
+                        signatureInfo.signerRole = 'EMPLOYEE';
+                        signatureInfo.signerEmployeeId = data.user_employee_id;
+                        signatureInfo.signerDepartment = data.user_department;
+                    }
+                } else {
+                    // EMPLOYEE - chỉ sử dụng chữ ký employee
+                    signatureInfo.hasSignature = !!data.signature;
+                    signatureInfo.signatureType = 'employee_signature';
+                    signatureInfo.isReusedSignature = false;
+                    // Đối với EMPLOYEE, lấy thông tin từ user
+                    if (data.user_name) {
+                        signatureInfo.signerName = data.user_name;
+                        signatureInfo.signerRole = 'EMPLOYEE';
+                        signatureInfo.signerEmployeeId = data.user_employee_id;
+                        signatureInfo.signerDepartment = data.user_department;
+                    }
+                }
+                
+                // Lấy thời gian phê duyệt nếu có
+                if (data.approved_at) {
+                    const approvedDate = new Date(data.approved_at);
+                    signatureInfo.signDate = approvedDate.toLocaleDateString('vi-VN') + ' ' + approvedDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                }
+                
+                console.log('DEBUG: Signature info result:', signatureInfo);
+                console.log('🔍 SIGNATURE DETAILS: Found signature for', signatureInfo.signerName, `(${signatureInfo.signerRole})`, signatureInfo.hasSignature ? 'with signature' : 'without signature', signatureInfo.isReusedSignature ? '(REUSED)' : '(ORIGINAL)');
+                
+                return signatureInfo;
+            } catch (error) {
+                console.error('❌ ERROR GETTING SIGNATURE INFO:', error);
+                return {
+                    signerName: 'Unknown',
+                    signerRole: 'Unknown',
+                    signDate: null,
+                    hasSignature: false,
+                    signatureType: null,
+                    isReusedSignature: false
+                };
+            }
+        }
+        
+        // Xóa chữ ký khỏi session
+        async function clearSessionSignature() {
+            try {
+                const response = await fetch('/api/signature/clear-session', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.log('🗑️ SIGNATURE CLEARED: Session signature cleared successfully');
+                    showToast('Đã xóa chữ ký khỏi phiên', 'success');
+                } else {
+                    console.error('❌ SIGNATURE CLEAR FAILED:', data.error);
+                    showToast('Không thể xóa chữ ký khỏi phiên', 'error');
+                }
+                return data.success;
+            } catch (error) {
+                console.error('❌ ERROR CLEARING SIGNATURE:', error);
+                showToast('Lỗi khi xóa chữ ký khỏi phiên', 'error');
+                return false;
+            }
+        }
+        
+        // Debug chữ ký
+        async function debugSignature(attendanceId) {
+            try {
+                const response = await fetch(`/api/signature/debug/${attendanceId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showToast(data.error, 'error');
+                    return;
+                }
+                
+                // Hiển thị thông tin debug trong modal
+                const debugHtml = `
+                    <div style="text-align: left; max-width: 600px;">
+                        <h5>Thông tin chữ ký cho bản ghi #${data.attendance_id}</h5>
+                        
+                        <div style="margin: 15px 0;">
+                            <h6>Chữ ký nhân viên:</h6>
+                            <ul>
+                                <li>Tồn tại: ${data.employee_signature.exists ? 'Có' : 'Không'}</li>
+                                <li>Độ dài: ${data.employee_signature.length}</li>
+                                <li>Kiểu dữ liệu: ${data.employee_signature.type || 'N/A'}</li>
+                                <li>Bắt đầu với data:image: ${data.employee_signature.starts_with_data_image ? 'Có' : 'Không'}</li>
+                                <li>Xử lý thành công: ${data.employee_signature.processed ? 'Có' : 'Không'}</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin: 15px 0;">
+                            <h6>Chữ ký trưởng nhóm:</h6>
+                            <ul>
+                                <li>Tồn tại: ${data.team_leader_signature.exists ? 'Có' : 'Không'}</li>
+                                <li>Độ dài: ${data.team_leader_signature.length}</li>
+                                <li>Kiểu dữ liệu: ${data.team_leader_signature.type || 'N/A'}</li>
+                                <li>Bắt đầu với data:image: ${data.team_leader_signature.starts_with_data_image ? 'Có' : 'Không'}</li>
+                                <li>Xử lý thành công: ${data.team_leader_signature.processed ? 'Có' : 'Không'}</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin: 15px 0;">
+                            <h6>Chữ ký quản lý:</h6>
+                            <ul>
+                                <li>Tồn tại: ${data.manager_signature.exists ? 'Có' : 'Không'}</li>
+                                <li>Độ dài: ${data.manager_signature.length}</li>
+                                <li>Kiểu dữ liệu: ${data.manager_signature.type || 'N/A'}</li>
+                                <li>Bắt đầu với data:image: ${data.manager_signature.starts_with_data_image ? 'Có' : 'Không'}</li>
+                                <li>Xử lý thành công: ${data.manager_signature.processed ? 'Có' : 'Không'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                Swal.fire({
+                    title: 'Debug Chữ ký',
+                    html: debugHtml,
+                    width: 700,
+                    confirmButtonText: 'Đóng',
+                    showCloseButton: true
+                });
+                
+            } catch (error) {
+                console.error('Error debugging signature:', error);
+                showToast('Lỗi khi debug chữ ký', 'error');
+            }
+        }
     </script>
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

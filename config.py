@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -53,11 +54,22 @@ class Config:
     DEBUG = False
     TESTING = False
 
+    # Signature System Configuration
+    SIGNATURE_SECRET_KEY = os.environ.get('SIGNATURE_SECRET_KEY') or Fernet.generate_key()
+    SIGNATURE_SESSION_TIMEOUT = int(os.environ.get('SIGNATURE_SESSION_TIMEOUT', 1800))  # 30 minutes
+
+    # SMTP Configuration for password reset
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USER = os.environ.get('SMTP_USER', 'ncdat.hwb@gmail.com')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'rzdu qnec jmbv zveu')
+    MAIL_FROM = os.environ.get('MAIL_FROM', 'ncdat.hwb@gmail.com')
+
 class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SESSION_COOKIE_SECURE = False
-    SECURITY_HEADERS = {}  # Disable security headers in development
+    SECURITY_HEADERS = {}
 
 class ProductionConfig(Config):
     DEBUG = False
@@ -66,13 +78,20 @@ class ProductionConfig(Config):
     
     # Additional production security settings
     SESSION_COOKIE_SAMESITE = 'Strict'
-    WTF_CSRF_TIME_LIMIT = 1800  # 30 minutes in production
+    WTF_CSRF_TIME_LIMIT = 1800
 
 class TestingConfig(Config):
     DEBUG = True
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
+
+    # SMTP Configuration for password reset
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USER = os.environ.get('SMTP_USER', 'ncdat.hwb@gmail.com')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'rzdu qnec jmbv zveu')
+    MAIL_FROM = os.environ.get('MAIL_FROM', 'ncdat.hwb@gmail.com')
 
 config = {
     'development': DevelopmentConfig,

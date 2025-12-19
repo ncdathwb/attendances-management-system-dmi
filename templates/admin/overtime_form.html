@@ -48,7 +48,7 @@
         </tr>
         <tr class="center">
             <td>{{ attendance.date.strftime('%d/%m/%Y') }}</td>
-            <td>{{ attendance.holiday_type|default('-') }}</td>
+            <td>{{ attendance._translate_holiday_type(attendance.holiday_type) if attendance.holiday_type else '-' }}</td>
             <td>{{ attendance.shift_code|default('-') }}</td>
             <td>{{ attendance.check_in.strftime('%H:%M') if attendance.check_in else '-' }}</td>
             <td>{{ attendance.check_out.strftime('%H:%M') if attendance.check_out else '-' }}</td>

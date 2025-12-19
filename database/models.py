@@ -115,7 +115,7 @@ class Attendance(db.Model):
         logger = logging.getLogger("attendance_logic")
         logger.setLevel(logging.DEBUG)
         if not logger.handlers:
-            handler = logging.FileHandler("attendance_debug.log")
+            handler = logging.FileHandler("attendance_debug.log", encoding='utf-8')
             handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
             logger.addHandler(handler)
 
@@ -126,9 +126,9 @@ class Attendance(db.Model):
 
         # Tính duration thực tế
         duration = (self.check_out - self.check_in).total_seconds() / 3600
-        logger.debug(f"duration (giờ vào đến giờ ra): {duration}")
+        logger.debug(f"duration (check_in to check_out): {duration}")
         total_work = duration - self.break_time
-        logger.debug(f"total_work_hours (sau khi trừ nghỉ): {total_work}")
+        logger.debug(f"total_work_hours (after break deduction): {total_work}")
         self.total_work_hours = round(max(0, total_work), 2)
 
         if self.shift_start and self.shift_end:
@@ -379,3 +379,28 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f'<AuditLog {self.action} on {self.table_name}>' 
+
+class PasswordResetToken(db.Model):
+    """Password reset token model"""
+    __tablename__ = 'password_reset_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(255), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('password_reset_tokens', lazy=True))
+    
+    def is_expired(self):
+        """Check if token is expired"""
+        return datetime.utcnow() > self.expires_at
+    
+    def is_valid(self):
+        """Check if token is valid (not expired and not used)"""
+        return not self.is_expired() and not self.used
+    
+    def __repr__(self):
+        return f'<PasswordResetToken {self.token[:10]}...>' 
