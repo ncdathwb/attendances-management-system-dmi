@@ -2445,14 +2445,18 @@ def _license_check_worker(interval_seconds: int = 300):
 
                 # 1) Nếu có days_remaining
                 if isinstance(days_remaining, (int, float)):
-                    # Nếu còn đúng 1 ngày -> gửi cảnh báo cho toàn hệ thống (giống cơ chế refresh token)
-                    if days_remaining == 1:
+                    # Nếu còn ≤ 1 ngày nhưng CHƯA hết hạn -> gửi cảnh báo cho toàn hệ thống (giống cơ chế refresh token)
+                    # Áp dụng cho cả trường hợp days_remaining == 1 và days_remaining == 0 nhưng vẫn còn giờ/phút/giây.
+                    if 0 <= days_remaining <= 1 and not expired:
                         try:
                             warning_message = (
-                                "⚠️ Ứng dụng chấm công sẽ hết hạn sau 1 ngày.\n\n"
-                                "Yêu cầu toàn bộ nhân viên (không phân biệt vai trò) KHÔNG nhập thêm dữ liệu mới, "
-                                "để admin liên hệ nhà phát triển để gia hạn.\n\n"
-                                "Liên hệ Developer: Nguyễn Công Đạt - 0375097105."
+                                "⚠️ ỨNG DỤNG CHẤM CÔNG & NGHỈ PHÉP SẮP HẾT HẠN LICENSE.\n\n"
+                                "- Toàn bộ NHÂN VIÊN cần NHANH CHÓNG hoàn thành việc nhập đầy đủ dữ liệu chấm công, đăng ký nghỉ phép, tăng ca... trước khi key hết hạn.\n"
+                                "- Các TRƯỞNG NHÓM / QUẢN LÝ / QUẢN TRỊ VIÊN cần PHÊ DUYỆT TẤT CẢ các đơn chấm công, nghỉ phép, tăng ca của cấp dưới trong thời gian sớm nhất.\n\n"
+                                "LƯU Ý QUAN TRỌNG:\n"
+                                "- Sau khi license hết hạn, hệ thống chấm công và nghỉ phép sẽ TẠM DỪNG HOẠT ĐỘNG, không thể tiếp tục nhập liệu hay phê duyệt.\n\n"
+                                "ĐỀ NGHỊ ADMIN SỚM LIÊN HỆ DEVELOPER ĐỂ GIA HẠN LICENSE:\n"
+                                "Nguyễn Công Đạt - 0375097105."
                             )
                             # Dùng cơ chế publish_token_status để hiện banner cảnh báo (giống refresh token)
                             try:
@@ -11021,11 +11025,7 @@ def sse_token_status():
     """SSE endpoint for realtime token status (admin only)."""
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-    
-    user = db.session.get(User, session['user_id'])
-    if not user or 'ADMIN' not in user.roles:
-        return jsonify({'error': 'Admin only'}), 403
-    
+
     user_id = session['user_id']
     q = _sse_token_subscribe(user_id)
     

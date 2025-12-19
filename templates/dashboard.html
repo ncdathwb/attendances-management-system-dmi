@@ -1177,10 +1177,12 @@
                                 lát...</div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
+                            {% if 'ADMIN' in session.get('roles', []) %}
                             <button type="button" class="btn btn-sm btn-primary" id="btnRefreshToken"
                                 style="display: none; white-space: nowrap;">
                                 <i class="fas fa-sync-alt me-1"></i>Refresh Token
                             </button>
+                            {% endif %}
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     </div>
@@ -4499,6 +4501,9 @@
         // Cập nhật UI dựa trên token status
         function updateTokenStatusUI(status) {
             tokenStatus = status;
+            const isLicenseWarning = status && typeof status.message === 'string' &&
+                (status.message.includes('ỨNG DỤNG CHẤM CÔNG') || status.message.includes('LICENSE'));
+
             const banner = document.getElementById('tokenStatusBanner');
             const alert = document.getElementById('tokenStatusAlert');
             const title = document.getElementById('tokenStatusTitle');
@@ -4511,7 +4516,30 @@
                 return;
             }
 
-            // Chỉ hiển thị banner nếu là admin
+            // Trường hợp cảnh báo LICENSE: hiển thị cho TẤT CẢ người dùng, không khóa chức năng
+            if (isLicenseWarning) {
+                banner.style.display = 'block';
+                alert.className = 'alert alert-warning alert-dismissible fade show shadow-sm';
+                icon.className = 'fas fa-exclamation-circle me-2';
+                icon.style.color = '#856404';
+                title.textContent = '⚠️ Ứng dụng sắp hết hạn LICENSE';
+                title.style.color = '#856404';
+
+                const rawMsg = status.message || '';
+                // Giữ xuống dòng đẹp mắt
+                message.innerHTML = rawMsg.replace(/\n/g, '<br>');
+                message.style.color = '#856404';
+
+                // Người dùng thường: ẩn nút Refresh Token, không khóa nút phê duyệt
+                if (!isAdmin && refreshBtn) {
+                    refreshBtn.style.display = 'none';
+                }
+
+                // Không vô hiệu hóa các nút phê duyệt cho cảnh báo license sắp hết hạn
+                return;
+            }
+
+            // Các trường hợp TOKEN GOOGLE khác: chỉ dành cho admin như cũ
             if (!isAdmin) {
                 banner.style.display = 'none';
                 return;
@@ -4569,8 +4597,6 @@
 
         // Kết nối SSE để nhận cập nhật token status real-time
         function connectTokenStatusSSE() {
-            if (!isAdmin) return;
-
             if (tokenEventSource) {
                 tokenEventSource.close();
             }
@@ -4754,12 +4780,13 @@
             // Kiểm tra admin ngay khi load
             checkIfAdmin();
 
+            // Kết nối SSE CHO TẤT CẢ USER để mọi người đều nhận được cảnh báo LICENSE
+            connectTokenStatusSSE();
+
             if (isAdmin) {
                 console.log('Admin detected, initializing token status management...');
-                // Fetch token status ban đầu
+                // Fetch token status ban đầu (chỉ admin mới cần check token Google)
                 fetchTokenStatus();
-                // Kết nối SSE
-                connectTokenStatusSSE();
 
                 // Lắng nghe sự kiện refresh token button
                 const refreshBtn = document.getElementById('btnRefreshToken');
@@ -4788,11 +4815,6 @@
                 setInterval(() => {
                     fetchTokenStatus();
                 }, 10000);
-            } else {
-                // Đảm bảo banner ẩn nếu không phải admin
-                if (banner) {
-                    banner.style.display = 'none';
-                }
             }
 
             // Lắng nghe thay đổi role để ẩn/hiện banner
