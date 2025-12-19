@@ -2506,6 +2506,18 @@ def _license_check_worker(interval_seconds: int = 300):
                         print(f"[LICENSE] License đã được gia hạn - Cho phép truy cập lại app")
                     _license_is_valid = True
 
+                    # Nếu trước đó có cảnh báo LICENSE, clear cache để UI ẩn banner ở lần load sau
+                    try:
+                        global _license_warning_state
+                        with _license_warning_lock:
+                            _license_warning_state = {
+                                'active': False,
+                                'payload': None,
+                                'updated_at': datetime.now().isoformat(),
+                            }
+                    except Exception:
+                        pass
+
                 # Nếu tới đây là license vẫn hợp lệ
                 try:
                     exp_info = expiry_str or "N/A"
@@ -10862,6 +10874,14 @@ _token_status = {
 }
 _token_status_lock = threading.Lock()
 
+# Cache trạng thái cảnh báo LICENSE để UI có thể hiển thị ngay khi load trang
+_license_warning_state = {
+    'active': False,
+    'payload': None,  # payload giống với object gửi qua SSE (status, message, needs_reauth, timestamp)
+    'updated_at': None,
+}
+_license_warning_lock = threading.Lock()
+
 def _sse_token_subscribe(user_id: int) -> Queue:
     q = Queue()
     _token_sse_subscribers[user_id].append(q)
@@ -10884,6 +10904,21 @@ def publish_token_status(status: str, message: str, needs_reauth: bool = False) 
             'message': message,
             'last_check': datetime.now().isoformat()
         }
+
+    # Nếu đây là cảnh báo LICENSE (sử dụng chung cơ chế token_status), lưu lại vào cache riêng
+    if 'ỨNG DỤNG CHẤM CÔNG' in (message or '') or 'LICENSE' in (message or ''):
+        global _license_warning_state
+        with _license_warning_lock:
+            _license_warning_state = {
+                'active': True,
+                'payload': {
+                    'status': status,
+                    'message': message,
+                    'needs_reauth': needs_reauth,
+                    'timestamp': time_module.time()
+                },
+                'updated_at': datetime.now().isoformat(),
+            }
     
     payload = {
         'status': status,
@@ -11054,6 +11089,20 @@ def sse_token_status():
     
     from flask import Response
     return Response(stream(), mimetype='text/event-stream', headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
+@app.route('/api/license/warning-status')
+def api_license_warning_status():
+    """
+    Trả về trạng thái cảnh báo LICENSE gần nhất để UI có thể hiển thị ngay khi load trang,
+    không phải đợi worker kiểm tra lại hoặc SSE push lần tiếp theo.
+    """
+    try:
+        with _license_warning_lock:
+            state = dict(_license_warning_state)
+        return jsonify(state)
+    except Exception as e:
+        return jsonify({'active': False, 'error': str(e)}), 500
 
 @app.route('/api/token/status')
 def api_token_status():

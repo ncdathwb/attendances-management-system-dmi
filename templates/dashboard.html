@@ -4530,8 +4530,8 @@
                 message.innerHTML = rawMsg.replace(/\n/g, '<br>');
                 message.style.color = '#856404';
 
-                // Người dùng thường: ẩn nút Refresh Token, không khóa nút phê duyệt
-                if (!isAdmin && refreshBtn) {
+                // Ẩn hoàn toàn nút Refresh Token vì đây là cảnh báo LICENSE, không phải lỗi token Google
+                if (refreshBtn) {
                     refreshBtn.style.display = 'none';
                 }
 
@@ -4780,8 +4780,23 @@
             // Kiểm tra admin ngay khi load
             checkIfAdmin();
 
+            // 1) Luôn kết nối SSE CHO TẤT CẢ USER để mọi người đều nhận được cảnh báo LICENSE realtime
             // Kết nối SSE CHO TẤT CẢ USER để mọi người đều nhận được cảnh báo LICENSE
             connectTokenStatusSSE();
+
+            // 2) Gọi API lấy trạng thái LICENSE gần nhất để hiển thị NGAY khi load (không đợi SSE)
+            (async function initLicenseWarning() {
+                try {
+                    const resp = await fetch('/api/license/warning-status');
+                    if (!resp.ok) return;
+                    const data = await resp.json();
+                    if (data && data.active && data.payload) {
+                        updateTokenStatusUI(data.payload);
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch initial license warning status:', e);
+                }
+            })();
 
             if (isAdmin) {
                 console.log('Admin detected, initializing token status management...');
