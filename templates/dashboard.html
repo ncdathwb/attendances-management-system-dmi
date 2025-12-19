@@ -4883,6 +4883,8 @@
                     // để banner có cơ hội xuất hiện lại nếu LICENSE vẫn sắp hết hạn.
                     setTimeout(function () {
                         try {
+                            // Hết 60s thì xoá trạng thái dismiss để không bị chặn nữa
+                            localStorage.removeItem('licenseBannerDismissedAt');
                             if (tokenStatus) {
                                 updateTokenStatusUI(tokenStatus);
                             }

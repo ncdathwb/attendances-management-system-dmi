@@ -1847,6 +1847,8 @@
                     // Sau 60 giây, tự động gọi lại updateTokenStatusUI với trạng thái mới nhất
                     setTimeout(function () {
                         try {
+                            // Hết 60s thì xoá trạng thái dismiss để không bị chặn nữa
+                            localStorage.removeItem('licenseBannerDismissedAt');
                             if (tokenStatus) {
                                 updateTokenStatusUI(tokenStatus);
                             }
