@@ -3878,8 +3878,23 @@ def dashboard():
                           .all())
     except Exception:
         leave_requests = []
-    
-    return render_template('dashboard.html', user=user, has_signature=has_signature, leave_requests=leave_requests)
+
+    # Lấy trạng thái cảnh báo LICENSE gần nhất để render sẵn vào HTML,
+    # giúp banner hiển thị nhanh hơn mà không phải chờ request fetch() đầu tiên.
+    try:
+        with _license_warning_lock:
+            license_warning_state = dict(_license_warning_state)
+    except Exception:
+        # Nếu có lỗi, fallback về state rỗng (không hiển thị cảnh báo)
+        license_warning_state = {'active': False, 'payload': None, 'updated_at': None}
+
+    return render_template(
+        'dashboard.html',
+        user=user,
+        has_signature=has_signature,
+        leave_requests=leave_requests,
+        license_warning_state_json=json.dumps(license_warning_state, ensure_ascii=False)
+    )
 
 @app.route('/api/attendance', methods=['POST'])
 @rate_limit(max_requests=500, window_seconds=60)

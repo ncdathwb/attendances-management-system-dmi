@@ -12,6 +12,10 @@
     <!-- Data block for admin check - prevents VS Code Jinja2 syntax errors -->
     <script type="application/json"
         id="admin-check-data">{{ 'true' if 'ADMIN' in session.get('roles', []) else 'false' }}</script>
+    <!-- Preloaded LICENSE warning state to show banner immediately on first load -->
+    <script type="application/json" id="license-warning-init">
+        {{ license_warning_state_json | safe }}
+    </script>
     <title>Dashboard - Hệ thống Chấm công</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -4785,6 +4789,19 @@
 
             // Kiểm tra admin ngay khi load
             checkIfAdmin();
+
+            // 0) Áp dụng trạng thái LICENSE được preload từ server (nếu có) để hiển thị banner gần như ngay lập tức
+            try {
+                const initEl = document.getElementById('license-warning-init');
+                if (initEl && initEl.textContent.trim()) {
+                    const initState = JSON.parse(initEl.textContent);
+                    if (initState && initState.active && initState.payload) {
+                        updateTokenStatusUI(initState.payload);
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not apply preloaded license warning state:', e);
+            }
 
             // 1) Luôn kết nối SSE CHO TẤT CẢ USER để mọi người đều nhận được cảnh báo LICENSE realtime
             // Kết nối SSE CHO TẤT CẢ USER để mọi người đều nhận được cảnh báo LICENSE
