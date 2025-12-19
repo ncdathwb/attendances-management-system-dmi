@@ -4873,10 +4873,23 @@
             if (closeBtn) {
                 closeBtn.addEventListener('click', function () {
                     try {
+                        // Lưu thời gian user tắt banner
                         localStorage.setItem('licenseBannerDismissedAt', Date.now().toString());
                     } catch (e) {
                         console.warn('Could not store license banner dismiss time:', e);
                     }
+
+                    // Sau 60 giây, tự động gọi lại updateTokenStatusUI với trạng thái mới nhất
+                    // để banner có cơ hội xuất hiện lại nếu LICENSE vẫn sắp hết hạn.
+                    setTimeout(function () {
+                        try {
+                            if (tokenStatus) {
+                                updateTokenStatusUI(tokenStatus);
+                            }
+                        } catch (e) {
+                            console.warn('Could not re-show license banner after 60s:', e);
+                        }
+                    }, 60000);
                 });
             }
 
