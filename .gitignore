@@ -44,4 +44,19 @@ htmlcov/
 .coverage
 .coverage.*
 coverage.xml
-*.cover 
+*.cover
+
+# Google API credentials and tokens
+credentials.json
+token.pickle
+token_backup_*.pickle
+last_token_refresh.txt
+state/
+
+# Excel files (may contain sensitive data)
+*.xlsx
+*.xls
+
+# Backup files
+*.bak
+*.backup

@@ -2301,6 +2301,7 @@ _token_keepalive_started = False
 # ====== LICENSE ONLINE CHECK SCHEDULER ======
 _license_check_lock = threading.Lock()
 _license_check_started = False
+_license_is_valid = True  # Global flag để track license status
 
 
 def _force_shutdown_app(reason: str = ""):
@@ -2319,8 +2320,9 @@ def _force_shutdown_app(reason: str = ""):
 def _license_check_worker(interval_seconds: int = 300):
     """
     Thread nền kiểm tra license online liên tục qua License Manager Pro.
-    Nếu license hết hạn/không hợp lệ -> dừng app ngay.
+    Nếu license hết hạn/không hợp lệ -> chặn truy cập app (không thoát app).
     """
+    global _license_is_valid
     from datetime import datetime
 
     # Đợi vài giây cho app & database khởi động xong
@@ -2346,8 +2348,11 @@ def _license_check_worker(interval_seconds: int = 300):
                     license_key = (getattr(activation, 'license_key', None) or '').strip()
 
                 if not license_key:
-                    print("[LICENSE] Không tìm thấy license key để verify. Ứng dụng sẽ dừng.")
-                    _force_shutdown_app("Không có license key")
+                    print("[LICENSE] Không tìm thấy license key để verify. Đã chặn truy cập app.")
+                    global _license_is_valid
+                    _license_is_valid = False
+                    time.sleep(interval_seconds)
+                    continue
 
                 # Ưu tiên dùng API endpoint, fallback về ?verify= nếu API không có
                 verify_url = f"{LICENSE_VERIFY_ENDPOINT.rstrip('/')}/api/verify?verify={license_key}"
@@ -2470,7 +2475,8 @@ def _license_check_worker(interval_seconds: int = 300):
                         expired = True
 
                 if (not is_valid) or expired or (status not in ("active", "đang hoạt động", "")):
-                    # Khi license hết hạn hoặc không hợp lệ -> tắt hẳn chương trình với thông tin liên hệ
+                    # Khi license hết hạn hoặc không hợp lệ -> chặn truy cập app nhưng không thoát
+                    _license_is_valid = False
                     base_msg = data.get("message", "License không hợp lệ hoặc đã hết hạn")
                     contact_msg = (
                         f"{base_msg}\n\n"
@@ -2482,13 +2488,18 @@ def _license_check_worker(interval_seconds: int = 300):
                         print(f"[LICENSE] License key đang dùng: {license_key}")
                     except Exception:
                         pass
-                    print(f"[LICENSE] License KHÔNG HỢP LỆ / HẾT HẠN: {contact_msg}")
+                    print(f"[LICENSE] License KHÔNG HỢP LỆ / HẾT HẠN - Đã chặn truy cập app: {contact_msg}")
                     try:
                         # Thử gửi thông báo qua Telegram nếu đã cấu hình
                         send_telegram_message(f"[LICENSE EXPIRED]\n{contact_msg}")
                     except Exception:
                         pass
-                    _force_shutdown_app(contact_msg)
+                    # KHÔNG gọi _force_shutdown_app nữa, chỉ set flag để chặn truy cập
+                else:
+                    # License hợp lệ -> cho phép truy cập
+                    if not _license_is_valid:
+                        print(f"[LICENSE] License đã được gia hạn - Cho phép truy cập lại app")
+                    _license_is_valid = True
 
                 # Nếu tới đây là license vẫn hợp lệ
                 try:
@@ -3467,6 +3478,97 @@ def is_app_activated():
     """Kiểm tra ứng dụng đã được kích hoạt hay chưa."""
     activation = get_activation_record()
     return bool(activation and activation.is_activated)
+
+# ====== LICENSE ACCESS CONTROL ======
+@app.before_request
+def check_license_before_request():
+    """
+    Chặn tất cả request khi license hết hạn.
+    Cho phép truy cập static files và trang activate.
+    """
+    # Cho phép truy cập static files và trang activate
+    if request.endpoint in ('static', 'activate') or request.path.startswith('/static/'):
+        return None
+    
+    # Nếu license không hợp lệ, chặn tất cả request khác
+    if not _license_is_valid:
+        from flask import render_template_string
+        contact_msg = (
+            "License không hợp lệ hoặc đã hết hạn.\n\n"
+            "Vui lòng liên hệ ADMIN để gia hạn:\n"
+            "Nguyễn Công Đạt - 0375097105.\n\n"
+            "Hệ thống sẽ tự động kiểm tra lại license sau 60 giây."
+        )
+        
+        # Trả về trang HTML thông báo license hết hạn
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>License Hết Hạn</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }
+                .container {
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    max-width: 500px;
+                    text-align: center;
+                }
+                h1 {
+                    color: #e74c3c;
+                    margin-bottom: 20px;
+                }
+                p {
+                    color: #333;
+                    line-height: 1.6;
+                    white-space: pre-line;
+                }
+                .contact {
+                    margin-top: 20px;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border-radius: 5px;
+                }
+                .refresh-info {
+                    margin-top: 20px;
+                    color: #666;
+                    font-size: 14px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>⚠️ License Hết Hạn</h1>
+                <p>{{ message }}</p>
+                <div class="refresh-info">
+                    Hệ thống đang tự động kiểm tra lại license mỗi 60 giây.<br>
+                    Vui lòng đợi trong giây lát...
+                </div>
+            </div>
+            <script>
+                // Tự động reload sau 65 giây để kiểm tra lại license
+                setTimeout(function() {
+                    location.reload();
+                }, 65000);
+            </script>
+        </body>
+        </html>
+        """
+        return render_template_string(html_template, message=contact_msg), 403
+    
+    return None
 
 # Routes
 @app.route('/')
@@ -13342,6 +13444,8 @@ def export_leave_cases_excel():
         traceback.print_exc()
         return jsonify({'error': f'Lỗi khi xuất test cases Excel: {str(e)}'}), 500
 if __name__ == '__main__':
+    global _license_is_valid
+    
     with app.app_context():
         db.create_all()
         convert_overtime_to_hhmm()
@@ -13351,7 +13455,8 @@ if __name__ == '__main__':
     is_valid, expired, status, msg = _check_license_once()
 
     if (not is_valid) or expired or (status not in ("active", "đang hoạt động", "")):
-        # In rõ key và trạng thái rồi thoát, KHÔNG khởi động Flask
+        # License không hợp lệ -> set flag để chặn truy cập nhưng vẫn khởi động server
+        _license_is_valid = False
         try:
             # Lấy lại license_key giống trong _check_license_once (ưu tiên APP_LICENSE_KEY)
             license_key = None
@@ -13374,11 +13479,13 @@ if __name__ == '__main__':
             "Vui lòng liên hệ ADMIN để gia hạn:\n"
             "Nguyễn Công Đạt - 0375097105."
         )
-        print(f"[LICENSE] KHÔNG KHỞI ĐỘNG SERVER VÌ LICENSE KHÔNG HỢP LỆ / HẾT HẠN.", flush=True)
+        print(f"[LICENSE] License KHÔNG HỢP LỆ / HẾT HẠN - Server vẫn khởi động nhưng sẽ chặn tất cả truy cập.", flush=True)
         print(f"[LICENSE] Chi tiết: {contact_msg}", flush=True)
-        _force_shutdown_app(contact_msg)
-
-    print("[LICENSE] License hợp lệ, tiếp tục khởi động server...", flush=True)
+        print(f"[LICENSE] Hệ thống sẽ tự động kiểm tra lại license mỗi 60 giây.", flush=True)
+    else:
+        # License hợp lệ
+        _license_is_valid = True
+        print("[LICENSE] License hợp lệ, tiếp tục khởi động server...", flush=True)
 
     # --- Bước 2: Khởi động các dịch vụ nền (trong đó có license checker mỗi 60 giây) ---
     try:

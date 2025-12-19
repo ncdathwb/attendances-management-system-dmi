@@ -1,6 +1,7 @@
 # Core Flask dependencies
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
+Flask-Migrate==4.0.5
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
 WTForms==3.1.1
@@ -9,8 +10,11 @@ WTForms==3.1.1
 Flask-Talisman==1.1.0  # Security headers
 Flask-Limiter==3.5.0   # Rate limiting
 cryptography==41.0.7   # Enhanced cryptography
+bcrypt==4.1.2          # Password hashing
+PyJWT==2.8.0           # JWT tokens
 
 # Database: SQLite (built into Python - no additional driver needed)
+SQLAlchemy==2.0.23
 
 # Environment and configuration
 python-dotenv==1.0.0
@@ -27,19 +31,47 @@ blinker==1.6.3
 Faker==18.13.0
 pytz==2023.3
 
-# Logging and monitoring
+# Enhanced logging and monitoring
 structlog==23.2.0
+psutil==5.9.6          # System monitoring
 
 # Email support (optional)
 Flask-Mail==0.9.1
 
-# Caching (optional)
+# Caching and performance
 Flask-Caching==2.1.0
 redis==5.0.1
+celery==5.3.4          # Background tasks
 
 # Testing
 pytest==7.4.3
 pytest-flask==1.3.0
-factory-boy==3.3.0 
+factory-boy==3.3.0
+pytest-cov==4.1.0      # Coverage testing
 
-reportlab
+# PDF generation
+reportlab==4.0.7
+
+# Excel generation
+openpyxl==3.1.2
+
+# Image processing for signature optimization
+opencv-python==4.8.1.78
+Pillow==10.0.1
+numpy==1.24.3
+
+# Additional security packages
+bandit==1.7.5          # Security linting
+safety==2.3.5          # Dependency vulnerability scanning
+
+# Performance monitoring
+prometheus-client==0.19.0  # Metrics collection
+
+# Web automation
+selenium>=4.15.2
+webdriver-manager>=4.0.1  # Auto-manage Chrome driver (latest version)
+
+# Google API (optional - for Google Drive integration)
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-api-python-client==2.108.0

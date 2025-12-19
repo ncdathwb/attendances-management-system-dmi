@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Người Dùng Đã Xóa - Hệ Thống Quản Lý Chấm Công</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/search-filter.css') }}" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-text: #2c3e50;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--dark-text);
+        }
+
+        /* Sidebar Styles - Đồng bộ với dashboard */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 220px;
+            background-color: var(--primary-color);
+            padding: 15px;
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin: 0;
+        }
+
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .sidebar .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: var(--accent-color);
+        }
+
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left-color: var(--accent-color);
+        }
+
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 12px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* Main content styling */
+        .main-content {
+            margin-left: 220px;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+
+        .btn-success {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+
+        .btn-warning {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+
+        .btn-danger {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .badge {
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background-color: #28a745;
+        }
+
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .badge-danger {
+            background-color: #dc3545;
+        }
+
+        .badge-info {
+            background-color: #17a2b8;
+        }
+
+        .badge-secondary {
+            background-color: #6c757d;
+        }
+
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Toast Notification Styles */
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+            min-width: 300px;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: none;
+            overflow: hidden;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .toast-notification.show {
+            transform: translateX(0);
+        }
+
+        .toast-notification.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .toast-notification.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .toast-notification.warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        .toast-notification.info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .toast-close:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        .toast-body {
+            padding: 12px 16px;
+            color: #212529;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .toast-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .toast-success .toast-icon {
+            color: #28a745;
+        }
+
+        .toast-error .toast-icon {
+            color: #dc3545;
+        }
+
+        .toast-warning .toast-icon {
+            color: #ffc107;
+        }
+
+        .toast-info .toast-icon {
+            color: #17a2b8;
+        }
+
+        /* Tăng chiều rộng input và dropdown cho đẹp hơn */
+        form .form-control[name="search"] {
+            min-width: 260px;
+            max-width: 340px;
+        }
+
+        form .form-select[name="department"] {
+            min-width: 180px;
+            max-width: 240px;
+        }
+
+        .btn-group .btn {
+            min-width: 40px;
+            min-height: 40px;
+            max-width: 40px;
+            max-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            font-size: 1.2rem;
+            border-radius: 8px !important;
+            margin-right: 4px;
+            margin-left: 0;
+            box-shadow: none !important;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        .btn-group {
+            gap: 0 !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                padding: 0;
+                overflow: hidden;
+                transition: width 0.3s ease;
+            }
+
+            .main-content {
+                margin-left: 0;
+                transition: margin-left 0.3s ease;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-trash me-2"></i>Người Dùng Đã Xóa</h3>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    Trang chủ
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('admin_users') }}" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    Quản lý người dùng
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('admin_departments') }}" class="nav-link">
+                    <i class="fas fa-building"></i>
+                    Quản lý phòng ban
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('admin_holidays') }}" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    Quản lý ngày lễ
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('admin_deleted_users') }}" class="nav-link active">
+                    <i class="fas fa-trash"></i>
+                    Người dùng đã xóa
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('logout') }}" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Đăng xuất
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid p-0">
+            <div
+                class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h4 class="mb-4"><i class="fas fa-trash me-2"></i>Người Dùng Đã Xóa</h4>
+            </div>
+            <div class="container">
+                <!-- Toast Container -->
+                <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+
+                <!-- Flash Messages (for backward compatibility) -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        showToast('{{ message }}', '{{ "error" if category == "error" else "success" }}');
+                    });
+                </script>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <!-- Search & Filter -->
+                <form class="filter-row row g-3 align-items-center mb-4 justify-content-between flex-nowrap"
+                    method="get" action="">
+                    <div class="col-auto flex-grow-1 d-flex gap-3 align-items-center" style="min-width:0;">
+                        <div class="search-container" style="max-width:280px; flex-grow:1;">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" class="form-control modern-search" name="search"
+                                placeholder="Tìm theo tên, mã NV, email..." value="{{ search }}">
+                        </div>
+                        <select class="form-select modern-select" name="department" style="max-width:200px;">
+                            <option value="">🏢 Tất cả phòng ban</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept }}" {% if dept==department_filter %}selected{% endif %}>{{ dept }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto d-flex gap-2 align-items-center justify-content-end">
+                        <button class="btn btn-primary" type="submit" style="min-width:100px;"><i
+                                class="fas fa-search me-1"></i>Tìm kiếm</button>
+                        {% if pagination.total > 0 %}
+                        <button class="btn btn-danger" type="button" id="delete-all-btn" style="min-width:120px;"
+                            data-total="{{ pagination.total }}">
+                            <i class="fas fa-trash-alt me-1"></i>Xóa Tất Cả
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-success" style="min-width:100px;">
+                            <i class="fas fa-arrow-left me-1"></i>Quay Lại
+                        </a>
+                    </div>
+                </form>
+
+                <!-- Deleted Users Management Card -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-trash me-2"></i>
+                            Người Dùng Đã Xóa
+                        </h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0"
+                                style="border-radius:12px;overflow:hidden;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Mã NV</th>
+                                        <th>Họ và Tên</th>
+                                        <th>Phòng Ban</th>
+                                        <th>Vai Trò</th>
+                                        <th>Trạng Thái</th>
+                                        <th>Ngày Tạo</th>
+                                        <th>Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr id="user-row-{{ user.id }}" class="user-row table-secondary">
+                                        <td><strong>{{ user.employee_id }}</strong></td>
+                                        <td>{{ user.name }}</td>
+                                        <td><span class="badge bg-info text-dark">{{ user.department }}</span></td>
+                                        <td>
+                                            {% for role in user.roles.split(',') %}
+                                            {% if role == 'ADMIN' %}
+                                            <span class="badge bg-danger">{{ role }}</span>
+                                            {% elif role == 'MANAGER' %}
+                                            <span class="badge bg-warning text-dark">{{ role }}</span>
+                                            {% elif role == 'TEAM_LEADER' %}
+                                            <span class="badge bg-primary">{{ role }}</span>
+                                            {% else %}
+                                            <span class="badge bg-success">{{ role }}</span>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">Đã Xóa</span>
+                                        </td>
+                                        <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-success btn-sm restore-user-btn"
+                                                    title="Khôi phục người dùng" data-user-id="{{ user.id }}"
+                                                    data-user-name="{{ user.name|e }}">
+                                                    <i class="fas fa-undo"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white py-3">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                            <div class="mb-2 mb-md-0">
+                                Hiển thị <b>{{ users|length }}</b> / <b>{{ pagination.total }}</b> người dùng đã xóa
+                                (Trang <b>{{ pagination.page }}</b> / <b>{{ pagination.pages }}</b>)
+                            </div>
+                            <nav>
+                                <ul class="pagination mb-0">
+                                    {% if pagination.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page=1&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">&laquo;
+                                            Đầu</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page={{ pagination.prev_num }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">&lsaquo;
+                                            Trước</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled"><span class="page-link">&laquo; Đầu</span></li>
+                                    <li class="page-item disabled"><span class="page-link">&lsaquo; Trước</span></li>
+                                    {% endif %}
+                                    {% for p in page_range %}
+                                    <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                                        <a class="page-link"
+                                            href="?page={{ p }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">{{
+                                            p }}</a>
+                                    </li>
+                                    {% endfor %}
+                                    {% if pagination.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page={{ pagination.next_num }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">Tiếp
+                                            &rsaquo;</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page={{ pagination.pages }}&per_page={{ per_page }}&search={{ search }}&department={{ department_filter }}">Cuối
+                                            &raquo;</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item disabled"><span class="page-link">Tiếp &rsaquo;</span></li>
+                                    <li class="page-item disabled"><span class="page-link">Cuối &raquo;</span></li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Xóa Tất Cả -->
+        <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="deleteAllModalLabel">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Xác Nhận Xóa Vĩnh Viễn
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Cảnh báo:</strong> Bạn sắp xóa vĩnh viễn <strong id="delete-count-text">0</strong>
+                            người dùng đã xóa.
+                            <br><br>
+                            <strong>Hành động này KHÔNG THỂ hoàn tác!</strong>
+                        </div>
+                        <p class="mb-3">Vui lòng nhập mật khẩu của bạn để xác nhận:</p>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Mật khẩu xác nhận:</label>
+                            <input type="password" class="form-control" id="confirmPassword"
+                                placeholder="Nhập mật khẩu của bạn" autocomplete="off">
+                            <div class="invalid-feedback" id="password-error"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Hủy
+                        </button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteAllBtn">
+                            <i class="fas fa-trash-alt me-1"></i>Xóa Vĩnh Viễn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Delegate click for restore buttons (avoid inline JS quoting issues)
+            document.addEventListener('click', function (event) {
+                const target = event.target.closest('.restore-user-btn');
+                if (!target) return;
+                const userId = Number(target.getAttribute('data-user-id'));
+                const userName = target.getAttribute('data-user-name') || '';
+                restoreUser(userId, userName);
+            });
+            // Get CSRF token from meta tag
+            function getCSRFToken() {
+                return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            }
+
+            // Toast Notification Function
+            function showToast(message, type = 'success', duration = 5000) {
+                const toastContainer = document.getElementById('toast-container');
+                if (!toastContainer) return;
+
+                const toast = document.createElement('div');
+                toast.className = `toast-notification ${type}`;
+
+                const icons = {
+                    success: 'fas fa-check-circle',
+                    error: 'fas fa-exclamation-circle',
+                    warning: 'fas fa-exclamation-triangle',
+                    info: 'fas fa-info-circle'
+                };
+
+                const titles = {
+                    success: 'Thành công',
+                    error: 'Lỗi',
+                    warning: 'Cảnh báo',
+                    info: 'Thông tin'
+                };
+
+                toast.innerHTML = `
+                <div class="toast-header">
+                    <div class="toast-title">
+                        <i class="${icons[type]} toast-icon"></i>
+                        ${titles[type]}
+                    </div>
+                    <button type="button" class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+
+                toastContainer.appendChild(toast);
+
+                // Trigger animation
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 100);
+
+                // Auto remove after duration
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.classList.remove('show');
+                        setTimeout(() => {
+                            if (toast.parentElement) {
+                                toast.remove();
+                            }
+                        }, 300);
+                    }
+                }, duration);
+            }
+
+            function restoreUser(userId, userName) {
+                if (confirm(`Bạn có chắc muốn khôi phục người dùng "${userName}"?`)) {
+                    fetch(`/admin/users/${userId}/restore`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCSRFToken()
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                // Xóa dòng khỏi bảng
+                                const row = document.getElementById('user-row-' + userId);
+                                if (row) {
+                                    row.remove();
+                                }
+                                // Reload trang sau 1 giây để cập nhật số liệu
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 1000);
+                            } else if (data.error) {
+                                showToast(data.error, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Đã xảy ra lỗi khi khôi phục người dùng', 'error');
+                        });
+                }
+            }
+
+            // Xóa tất cả người dùng đã xóa
+            document.getElementById('delete-all-btn')?.addEventListener('click', function () {
+                const totalCount = parseInt(this.getAttribute('data-total')) || 0;
+                if (totalCount === 0) {
+                    showToast('Không có người dùng nào để xóa', 'warning');
+                    return;
+                }
+
+                // Hiển thị modal
+                document.getElementById('delete-count-text').textContent = totalCount;
+                const modal = new bootstrap.Modal(document.getElementById('deleteAllModal'));
+                modal.show();
+
+                // Reset form
+                document.getElementById('confirmPassword').value = '';
+                document.getElementById('confirmPassword').classList.remove('is-invalid');
+                document.getElementById('password-error').textContent = '';
+            });
+
+            // Xử lý xác nhận xóa trong modal
+            document.getElementById('confirmDeleteAllBtn')?.addEventListener('click', function () {
+                const password = document.getElementById('confirmPassword').value.trim();
+                const passwordInput = document.getElementById('confirmPassword');
+                const passwordError = document.getElementById('password-error');
+                const confirmBtn = document.getElementById('confirmDeleteAllBtn');
+
+                // Validate mật khẩu
+                if (!password) {
+                    passwordInput.classList.add('is-invalid');
+                    passwordError.textContent = 'Vui lòng nhập mật khẩu';
+                    return;
+                }
+
+                // Disable button và hiển thị loading
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang xóa...';
+
+                // Gửi request với mật khẩu
+                fetch('/admin/users/deleted/delete-all', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        password: password
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Đóng modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAllModal'));
+                            modal.hide();
+
+                            showToast(data.message, 'success');
+                            // Reload trang sau 2 giây
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        } else if (data.error) {
+                            // Hiển thị lỗi mật khẩu
+                            passwordInput.classList.add('is-invalid');
+                            passwordError.textContent = data.error;
+                            confirmBtn.disabled = false;
+                            confirmBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Xóa Vĩnh Viễn';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Đã xảy ra lỗi khi xóa tất cả người dùng', 'error');
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Xóa Vĩnh Viễn';
+                    });
+            });
+
+            // Reset validation khi người dùng nhập lại mật khẩu
+            document.getElementById('confirmPassword')?.addEventListener('input', function () {
+                this.classList.remove('is-invalid');
+                document.getElementById('password-error').textContent = '';
+            });
+
+            // Cho phép nhấn Enter để xác nhận
+            document.getElementById('confirmPassword')?.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('confirmDeleteAllBtn').click();
+                }
+            });
+        </script>
+</body>
+
+</html>

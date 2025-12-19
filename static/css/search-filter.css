@@ -1,0 +1,175 @@
+/* ==============================================
+   MODERN SEARCH & FILTER COMPONENTS
+   Áp dụng cho tất cả templates có tìm kiếm/lọc
+   ============================================== */
+
+/* Search Input Container */
+.search-container {
+    position: relative;
+    width: 100%;
+}
+
+.search-container .search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 1rem;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Modern Search Input */
+.search-input,
+.modern-search {
+    border-radius: 25px !important;
+    padding: 12px 20px 12px 45px !important;
+    border: 2px solid #e9ecef !important;
+    transition: all 0.3s ease !important;
+    background: #fff !important;
+    font-size: 0.95rem !important;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.search-input:focus,
+.modern-search:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.15) !important;
+    outline: none !important;
+}
+
+.search-input::placeholder,
+.modern-search::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Modern Select/Dropdown Filter */
+.filter-select,
+.modern-select {
+    border-radius: 12px !important;
+    padding: 12px 35px 12px 15px !important;
+    border: 2px solid #e9ecef !important;
+    cursor: pointer;
+    transition: all 0.3s ease !important;
+    background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") no-repeat right 12px center !important;
+    background-size: 12px !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-size: 0.95rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.filter-select:focus,
+.modern-select:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.15) !important;
+    outline: none !important;
+}
+
+/* Modern Button Styles */
+.btn-search {
+    border-radius: 25px !important;
+    padding: 12px 25px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+}
+
+.btn-search:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+}
+
+/* Filter Row Container */
+.filter-row {
+    background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+    padding: 20px 25px;
+    border-radius: 15px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+/* Date Input Styling */
+.date-input,
+.modern-date {
+    border-radius: 12px !important;
+    padding: 12px 15px !important;
+    border: 2px solid #e9ecef !important;
+    transition: all 0.3s ease !important;
+    background: #fff !important;
+    font-size: 0.95rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.date-input:focus,
+.modern-date:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.15) !important;
+    outline: none !important;
+}
+
+/* Status Badge Pills */
+.status-badge {
+    border-radius: 20px;
+    padding: 6px 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Quick Filter Chips */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: #e9ecef;
+    color: #495057;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    margin: 2px;
+}
+
+.filter-chip:hover {
+    background: #0d6efd;
+    color: white;
+}
+
+.filter-chip.active {
+    background: #0d6efd;
+    color: white;
+}
+
+/* Search Results Count */
+.results-count {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+.results-count strong {
+    color: #0d6efd;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .search-input,
+    .modern-search,
+    .filter-select,
+    .modern-select {
+        padding: 10px 15px 10px 40px !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .filter-row {
+        padding: 15px;
+    }
+}

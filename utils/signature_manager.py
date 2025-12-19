@@ -5,13 +5,15 @@ import base64
 import json
 import hashlib
 import hmac
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from typing import Optional, Dict, Any, Tuple
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 import os
 from flask import session, request
 import logging
 from database.models import Attendance
+from utils.signature_processor import signature_processor
+from utils.signature_fit_adapter import signature_fit_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,11 @@ class SignatureManager:
         try:
             if not signature_data:
                 return ""
-            encrypted = self.cipher.encrypt(signature_data.encode('utf-8'))
+            
+            # 处理签名图像质量
+            processed_signature = signature_processor.process_signature(signature_data)
+            
+            encrypted = self.cipher.encrypt(processed_signature.encode('utf-8'))
             return base64.urlsafe_b64encode(encrypted).decode('utf-8')
         except Exception as e:
             logger.error(f"Error encrypting signature: {e}")
@@ -49,12 +55,29 @@ class SignatureManager:
         try:
             if not encrypted_signature:
                 return ""
-            encrypted_bytes = base64.urlsafe_b64decode(encrypted_signature.encode('utf-8'))
+            # Normalize and fix base64 padding before decode to avoid "Incorrect padding"
+            normalized = encrypted_signature.strip()
+            # Some transports may replace '+' with space
+            normalized = normalized.replace(' ', '+')
+            # Ensure length is multiple of 4
+            padding_needed = (-len(normalized)) % 4
+            if padding_needed:
+                normalized += '=' * padding_needed
+
+            # Try urlsafe decode first, then fall back to standard base64
+            try:
+                encrypted_bytes = base64.urlsafe_b64decode(normalized.encode('utf-8'))
+            except Exception:
+                encrypted_bytes = base64.b64decode(normalized.encode('utf-8'))
             decrypted = self.cipher.decrypt(encrypted_bytes)
             return decrypted.decode('utf-8')
         except Exception as e:
-            logger.error(f"Error decrypting signature: {e}")
-            return ""
+            if isinstance(e, InvalidToken):
+                # Silent fail for InvalidToken to avoid noisy logs; logic unchanged (return empty string)
+                return ""
+            else:
+                logger.error(f"Error decrypting signature: {type(e).__name__}: {repr(e)}")
+                return ""
     
     def get_session_signature_key(self, user_id: int, role: str) -> str:
         """Tạo key cho session signature"""
@@ -158,11 +181,16 @@ class SignatureManager:
     def get_signature_from_database(self, user_id: int, role: str, attendance_id: int = None) -> Optional[str]:
         """Lấy chữ ký từ database dựa trên role và kiểm tra chữ ký từ vai trò thấp hơn"""
         try:
-            from database.models import Attendance, User
+            from database.models import Attendance, User, db
             
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 return None
+            
+            # Ưu tiên 1: Chữ ký cá nhân của user
+            if user.has_personal_signature():
+                logger.info(f"✅ PERSONAL SIGNATURE: User {user_id} ({role}) using personal signature")
+                return user.personal_signature
             
             # Nếu có attendance_id, lấy chữ ký từ attendance record
             if attendance_id:
@@ -170,53 +198,48 @@ class SignatureManager:
                 if not attendance:
                     return None
                 
-                # Kiểm tra chữ ký theo thứ tự ưu tiên: vai trò hiện tại trước, sau đó vai trò thấp hơn
-                if role == 'TEAM_LEADER':
-                    # Kiểm tra chữ ký team leader trước
-                    if attendance.team_leader_signature:
-                        logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found signature in attendance {attendance_id}")
-                        return attendance.team_leader_signature
-                    # Nếu không có, kiểm tra chữ ký employee (vai trò thấp hơn)
-                    elif attendance.signature and attendance.user_id == user_id:
-                        logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing employee signature from attendance {attendance_id}")
-                        return attendance.signature
-                        
+                # Ưu tiên 2: Chữ ký từ vai trò hiện tại trong attendance này
+                if role == 'TEAM_LEADER' and attendance.team_leader_signature:
+                    logger.info(f"💾 CURRENT ROLE SIGNATURE: User {user_id} ({role}) found signature in attendance {attendance_id}")
+                    return attendance.team_leader_signature
+                elif role == 'MANAGER' and attendance.manager_signature:
+                    logger.info(f"💾 CURRENT ROLE SIGNATURE: User {user_id} ({role}) found signature in attendance {attendance_id}")
+                    return attendance.manager_signature
+                elif role == 'EMPLOYEE' and attendance.signature:
+                    logger.info(f"💾 CURRENT ROLE SIGNATURE: User {user_id} ({role}) found signature in attendance {attendance_id}")
+                    return attendance.signature
+                
+                # Ưu tiên 3: Tái sử dụng chữ ký từ vai trò thấp hơn (chỉ của chính user đó)
+                if role == 'TEAM_LEADER' and attendance.signature and attendance.user_id == user_id:
+                    logger.info(f"🔄 REUSE LOWER ROLE: User {user_id} ({role}) reusing employee signature from attendance {attendance_id}")
+                    return attendance.signature
                 elif role == 'MANAGER':
-                    # Kiểm tra chữ ký manager trước
-                    if attendance.manager_signature:
-                        logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found signature in attendance {attendance_id}")
-                        return attendance.manager_signature
-                    # Nếu không có, kiểm tra chữ ký team leader (vai trò thấp hơn)
-                    elif attendance.team_leader_signature and attendance.approved_by == user_id:
-                        logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing team leader signature from attendance {attendance_id}")
+                    # Kiểm tra chữ ký team leader trước (nếu user này đã từng là team leader)
+                    if attendance.team_leader_signature and attendance.approved_by == user_id:
+                        logger.info(f"🔄 REUSE LOWER ROLE: User {user_id} ({role}) reusing team leader signature from attendance {attendance_id}")
                         return attendance.team_leader_signature
-                    # Nếu không có, kiểm tra chữ ký employee (vai trò thấp nhất)
+                    # Sau đó kiểm tra chữ ký employee
                     elif attendance.signature and attendance.user_id == user_id:
-                        logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing employee signature from attendance {attendance_id}")
+                        logger.info(f"🔄 REUSE LOWER ROLE: User {user_id} ({role}) reusing employee signature from attendance {attendance_id}")
                         return attendance.signature
-                        
-                else:  # EMPLOYEE
-                    signature = attendance.signature
-                    if signature:
-                        logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found signature in attendance {attendance_id}")
-                    return signature
                 
                 return None
             
             # Nếu không có attendance_id, tìm chữ ký gần nhất của user hiện tại
-            # Logic này cũng cần cải thiện để kiểm tra chữ ký từ vai trò thấp hơn
+            # Ưu tiên chữ ký từ vai trò hiện tại trước
             if role == 'TEAM_LEADER':
                 # Tìm chữ ký team leader gần nhất của user hiện tại
                 attendance = Attendance.query.filter(
                     Attendance.team_leader_signature.isnot(None),
-                    Attendance.team_leader_signature != ''
+                    Attendance.team_leader_signature != '',
+                    Attendance.approved_by == user_id
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found recent signature")
+                    logger.info(f"💾 RECENT ROLE SIGNATURE: User {user_id} ({role}) found recent signature")
                     return attendance.team_leader_signature
                 
-                # Nếu không có chữ ký team leader, tìm chữ ký employee gần nhất
+                # Nếu không có, tìm chữ ký employee gần nhất
                 attendance = Attendance.query.filter(
                     Attendance.signature.isnot(None),
                     Attendance.signature != '',
@@ -224,31 +247,33 @@ class SignatureManager:
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing recent employee signature")
+                    logger.info(f"🔄 REUSE RECENT LOWER ROLE: User {user_id} ({role}) reusing recent employee signature")
                     return attendance.signature
                 
             elif role == 'MANAGER':
                 # Tìm chữ ký manager gần nhất của user hiện tại
                 attendance = Attendance.query.filter(
                     Attendance.manager_signature.isnot(None),
-                    Attendance.manager_signature != ''
+                    Attendance.manager_signature != '',
+                    Attendance.approved_by == user_id
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found recent signature")
+                    logger.info(f"💾 RECENT ROLE SIGNATURE: User {user_id} ({role}) found recent signature")
                     return attendance.manager_signature
                 
-                # Nếu không có chữ ký manager, tìm chữ ký team leader gần nhất
+                # Nếu không có, tìm chữ ký team leader gần nhất
                 attendance = Attendance.query.filter(
                     Attendance.team_leader_signature.isnot(None),
-                    Attendance.team_leader_signature != ''
+                    Attendance.team_leader_signature != '',
+                    Attendance.approved_by == user_id
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing recent team leader signature")
+                    logger.info(f"🔄 REUSE RECENT LOWER ROLE: User {user_id} ({role}) reusing recent team leader signature")
                     return attendance.team_leader_signature
                 
-                # Nếu không có chữ ký team leader, tìm chữ ký employee gần nhất
+                # Nếu không có, tìm chữ ký employee gần nhất
                 attendance = Attendance.query.filter(
                     Attendance.signature.isnot(None),
                     Attendance.signature != '',
@@ -256,7 +281,7 @@ class SignatureManager:
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"🔄 SIGNATURE REUSE: User {user_id} ({role}) reusing recent employee signature")
+                    logger.info(f"🔄 REUSE RECENT LOWER ROLE: User {user_id} ({role}) reusing recent employee signature")
                     return attendance.signature
                 
             else:  # EMPLOYEE
@@ -268,7 +293,7 @@ class SignatureManager:
                 ).order_by(Attendance.updated_at.desc()).first()
                 
                 if attendance:
-                    logger.info(f"💾 DATABASE SIGNATURE FOUND: User {user_id} ({role}) found recent signature")
+                    logger.info(f"💾 RECENT ROLE SIGNATURE: User {user_id} ({role}) found recent signature")
                     return attendance.signature
             
             logger.info(f"❌ NO DATABASE SIGNATURE: User {user_id} ({role}) no signature found in database")
@@ -293,6 +318,20 @@ class SignatureManager:
     def check_signature_status(self, user_id: int, role: str, attendance_id: int = None) -> Dict[str, Any]:
         """Kiểm tra trạng thái chữ ký cho phê duyệt"""
         try:
+            from database.models import User, db
+            
+            user = db.session.get(User, user_id)
+            if not user:
+                return {
+                    'need_signature': True,
+                    'is_admin': False,
+                    'has_session_signature': False,
+                    'has_db_signature': False,
+                    'should_use_session': False,
+                    'session_signature_available': False,
+                    'message': 'Không tìm thấy người dùng'
+                }
+            
             # Kiểm tra nếu là admin
             if role == 'ADMIN':
                 return {
@@ -305,6 +344,9 @@ class SignatureManager:
                     'message': 'Admin không cần chữ ký để phê duyệt'
                 }
             
+            # Kiểm tra chữ ký cá nhân
+            has_personal_signature = user.has_personal_signature()
+            
             # Kiểm tra chữ ký trong session
             session_signature, session_meta = self.get_signature_from_session(user_id, role)
             has_session_signature = session_signature is not None
@@ -316,45 +358,53 @@ class SignatureManager:
             has_db_signature = db_signature is not None
             logger.info(f"🔍 DB SIGNATURE RESULT: {'Found' if has_db_signature else 'Not found'}, length: {len(db_signature) if db_signature else 0}")
             
-            # Kiểm tra xem chữ ký database có phải từ vai trò thấp hơn không
+            # Xác định có thể sử dụng chữ ký session không
+            session_signature_available = has_session_signature and should_use_session
+            
+            # Tạo message phù hợp
+            if has_personal_signature:
+                message = 'Có thể sử dụng chữ ký cá nhân'
+            elif has_session_signature and should_use_session:
+                message = 'Có thể sử dụng chữ ký từ phiên hiện tại'
+            elif has_db_signature:
+                if attendance_id:
+                    # Kiểm tra xem có phải tái sử dụng từ vai trò thấp hơn không
+                    attendance = Attendance.query.get(attendance_id)
+                    if attendance:
+                        is_reused = False
+                        if role == 'TEAM_LEADER' and attendance.signature and attendance.signature == db_signature and attendance.user_id == user_id:
+                            is_reused = True
+                            message = 'Có thể tái sử dụng chữ ký từ vai trò nhân viên'
+                        elif role == 'MANAGER':
+                            if attendance.team_leader_signature and attendance.team_leader_signature == db_signature and attendance.approved_by == user_id:
+                                is_reused = True
+                                message = 'Có thể tái sử dụng chữ ký từ vai trò trưởng nhóm'
+                            elif attendance.signature and attendance.signature == db_signature and attendance.user_id == user_id:
+                                is_reused = True
+                                message = 'Có thể tái sử dụng chữ ký từ vai trò nhân viên'
+                        else:
+                            message = 'Có thể sử dụng chữ ký từ database'
+                else:
+                    message = 'Có thể sử dụng chữ ký từ database'
+            else:
+                message = 'Cần tạo chữ ký mới'
+            
+            # Xác định có phải chữ ký tái sử dụng không
             is_reused_signature = False
             if has_db_signature and attendance_id:
                 attendance = Attendance.query.get(attendance_id)
                 if attendance:
-                    logger.info(f"🔍 CHECKING REUSE: User {user_id} ({role}) - DB signature length: {len(db_signature) if db_signature else 0}")
-                    logger.info(f"🔍 ATTENDANCE DATA: employee_sig: {len(attendance.signature) if attendance.signature else 0}, team_leader_sig: {len(attendance.team_leader_signature) if attendance.team_leader_signature else 0}, manager_sig: {len(attendance.manager_signature) if attendance.manager_signature else 0}")
-                    
-                    if role == 'TEAM_LEADER':
-                        # Nếu chữ ký database giống với chữ ký employee và user_id khớp
-                        if attendance.signature and attendance.signature == db_signature and attendance.user_id == user_id:
-                            is_reused_signature = True
-                            logger.info(f"✅ REUSE DETECTED: TEAM_LEADER reusing employee signature")
+                    if role == 'TEAM_LEADER' and attendance.signature and attendance.signature == db_signature and attendance.user_id == user_id:
+                        is_reused_signature = True
                     elif role == 'MANAGER':
-                        # Nếu chữ ký database giống với chữ ký team leader hoặc employee
-                        if (attendance.team_leader_signature and attendance.team_leader_signature == db_signature) or \
+                        if (attendance.team_leader_signature and attendance.team_leader_signature == db_signature and attendance.approved_by == user_id) or \
                            (attendance.signature and attendance.signature == db_signature and attendance.user_id == user_id):
                             is_reused_signature = True
-                            logger.info(f"✅ REUSE DETECTED: MANAGER reusing lower role signature")
-                    
-                    logger.info(f"🔍 REUSE RESULT: is_reused_signature = {is_reused_signature}")
-            
-            # Xác định có thể sử dụng chữ ký session không
-            session_signature_available = has_session_signature and (should_use_session or has_db_signature)
-            
-            # Tạo message phù hợp
-            if has_db_signature and is_reused_signature:
-                if role == 'TEAM_LEADER':
-                    message = 'Có thể sử dụng chữ ký từ vai trò nhân viên'
-                elif role == 'MANAGER':
-                    message = 'Có thể sử dụng chữ ký từ vai trò thấp hơn'
-                else:
-                    message = 'Cần chữ ký để phê duyệt'
-            else:
-                message = 'Cần chữ ký để phê duyệt'
             
             result = {
-                'need_signature': True,
+                'need_signature': not has_personal_signature,  # Chỉ cần chữ ký cá nhân là bắt buộc
                 'is_admin': False,
+                'has_personal_signature': has_personal_signature,
                 'has_session_signature': has_session_signature,
                 'has_db_signature': has_db_signature,
                 'should_use_session': should_use_session,
@@ -363,7 +413,7 @@ class SignatureManager:
                 'message': message
             }
             
-            logger.info(f"🔍 SIGNATURE STATUS: User {user_id} ({role}) - Session: {has_session_signature}, DB: {has_db_signature}, Reused: {is_reused_signature}, Use Session: {session_signature_available}")
+            logger.info(f"🔍 SIGNATURE STATUS: User {user_id} ({role}) - Personal: {has_personal_signature}, Session: {has_session_signature}, DB: {has_db_signature}, Reused: {is_reused_signature}, Use Session: {session_signature_available}")
             return result
             
         except Exception as e:
@@ -377,6 +427,63 @@ class SignatureManager:
                 'session_signature_available': False,
                 'is_reused_signature': False,
                 'message': 'Lỗi kiểm tra trạng thái chữ ký'
+            }
+    
+    def validate_signature_quality(self, signature_data: str) -> Dict[str, Any]:
+        """验证签名质量并返回详细报告"""
+        try:
+            return signature_processor.validate_signature_quality(signature_data)
+        except Exception as e:
+            logger.error(f"Error validating signature quality: {e}")
+            return {
+                'valid': False,
+                'error': f'Lỗi kiểm tra chất lượng: {str(e)}',
+                'score': 0
+            }
+    
+    def process_signature_for_display(self, signature_data: str, 
+                                    target_size: Tuple[int, int] = (400, 150)) -> str:
+        """处理签名用于显示"""
+        try:
+            return signature_processor.process_signature(signature_data, target_size)
+        except Exception as e:
+            logger.error(f"Error processing signature for display: {e}")
+            return signature_data
+    
+    def create_signature_preview(self, signature_data: str) -> str:
+        """创建签名预览"""
+        try:
+            return signature_processor.create_signature_preview(signature_data)
+        except Exception as e:
+            logger.error(f"Error creating signature preview: {e}")
+            return signature_data
+    
+    def fit_signature_to_form_box(self, signature_data: str, box_type: str = 'default') -> str:
+        """Điều chỉnh chữ ký vừa khít với ô ký trong biểu mẫu"""
+        try:
+            return signature_fit_adapter.fit_signature_to_box(signature_data, box_type)
+        except Exception as e:
+            logger.error(f"Error fitting signature to form box: {e}")
+            return signature_data
+    
+    def create_form_signatures(self, signatures: Dict[str, str]) -> Dict[str, str]:
+        """Tạo chữ ký cho toàn bộ biểu mẫu"""
+        try:
+            return signature_fit_adapter.create_form_signatures(signatures)
+        except Exception as e:
+            logger.error(f"Error creating form signatures: {e}")
+            return {}
+    
+    def validate_signature_fit(self, signature_data: str, box_type: str = 'default') -> Dict[str, Any]:
+        """Kiểm tra xem chữ ký có vừa khít với ô không"""
+        try:
+            return signature_fit_adapter.validate_signature_fit(signature_data, box_type)
+        except Exception as e:
+            logger.error(f"Error validating signature fit: {e}")
+            return {
+                'fits': False,
+                'error': f'Lỗi kiểm tra: {str(e)}',
+                'recommendation': 'Thử lại sau'
             }
     
     def log_signature_action(self, user_id: int, action: str, signature_type: str, 

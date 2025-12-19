@@ -15,11 +15,17 @@
     --text-color: #333;
     --light-gray: #f5f5f5;
     --border-color: #ddd;
-    --shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Global Styles */
-body.login-bg, html.login-bg {
+html,
+body {
+    cursor: pointer;
+}
+
+body.login-bg,
+html.login-bg {
     height: 100%;
     margin: 0;
     font-family: 'Roboto', Arial, sans-serif;
@@ -38,7 +44,7 @@ body.login-bg, html.login-bg {
 .login-box.simple-login {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
     padding: 48px 44px 32px 44px;
     width: 100%;
     max-width: 420px;
@@ -82,6 +88,7 @@ body.login-bg, html.login-bg {
     position: relative;
     font-size: 1.1rem;
 }
+
 .input-icon {
     width: 26px;
     height: 26px;
@@ -94,6 +101,7 @@ body.login-bg, html.login-bg {
     top: 0;
     font-size: 22px;
 }
+
 .user-icon::before {
     content: '\1F464';
     font-size: 18px;
@@ -101,6 +109,7 @@ body.login-bg, html.login-bg {
     display: block;
     line-height: 1;
 }
+
 .lock-icon::before {
     content: '\1F512';
     font-size: 18px;
@@ -108,6 +117,7 @@ body.login-bg, html.login-bg {
     display: block;
     line-height: 1;
 }
+
 .input-icon-group input[type="text"],
 .input-icon-group input[type="password"] {
     border: none;
@@ -121,6 +131,7 @@ body.login-bg, html.login-bg {
     margin: 0;
     line-height: 46px;
 }
+
 .input-icon-group input[type="text"]:focus,
 .input-icon-group input[type="password"]:focus {
     background: #f0f4f8;
@@ -136,6 +147,7 @@ body.login-bg, html.login-bg {
     margin-bottom: 18px;
     margin-top: 2px;
 }
+
 .form-row.remember-row input[type="checkbox"] {
     accent-color: #7ac142;
     width: 16px;
@@ -143,6 +155,7 @@ body.login-bg, html.login-bg {
     cursor: pointer;
     margin: 0 4px 0 0;
 }
+
 .remember-label {
     font-size: 13.5px;
     color: #333;
@@ -167,6 +180,7 @@ body.login-bg, html.login-bg {
     margin-bottom: 0;
     letter-spacing: 0.2px;
 }
+
 .btn-green:hover {
     background: #5ea82d;
 }
@@ -176,12 +190,14 @@ body.login-bg, html.login-bg {
     justify-content: flex-end;
     margin-top: 10px;
 }
+
 .forgot-link {
     color: #2196f3;
     font-size: 13.5px;
     text-decoration: none;
     transition: color 0.2s;
 }
+
 .forgot-link:hover {
     color: #1565c0;
     text-decoration: underline;
@@ -213,7 +229,7 @@ body.login-bg, html.login-bg {
 .forgot-password-box {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
     padding: 48px 44px 32px 44px;
     width: 100%;
     max-width: 420px;
@@ -344,7 +360,7 @@ body.login-bg, html.login-bg {
 .reset-password-box {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
     padding: 48px 44px 32px 44px;
     width: 100%;
     max-width: 420px;
@@ -438,7 +454,7 @@ body.login-bg, html.login-bg {
 .change-password-box {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
     padding: 48px 44px 32px 44px;
     width: 100%;
     max-width: 420px;
@@ -531,6 +547,7 @@ body.login-bg, html.login-bg {
 
 /* Responsive Design for Password Pages */
 @media (max-width: 480px) {
+
     .forgot-password-box,
     .reset-password-box,
     .change-password-box {
@@ -538,22 +555,19 @@ body.login-bg, html.login-bg {
         margin: 10px;
         min-width: auto;
     }
-    
+
     .forgot-password-title,
     .reset-password-title,
     .change-password-title {
         font-size: 1.5rem;
     }
-    
+
     .forgot-password-subtitle,
     .reset-password-subtitle {
         font-size: 13px;
     }
 }
-    box-sizing: border-box;
-    transition: opacity 0.3s, min-height 0.3s;
-    opacity: 1;
-}
+
 .alert[hidden] {
     opacity: 0;
     min-height: 0;
@@ -665,7 +679,7 @@ body.login-bg, html.login-bg {
     margin: 0 auto;
     background: #f8fafc;
     border-radius: 18px;
-    box-shadow: 0 6px 32px rgba(33,150,243,0.07);
+    box-shadow: 0 6px 32px rgba(33, 150, 243, 0.07);
 }
 
 .user-profile,
@@ -750,8 +764,13 @@ body.login-bg, html.login-bg {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Modal */
@@ -762,7 +781,7 @@ body.login-bg, html.login-bg {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 1000;
 }
 
@@ -871,11 +890,11 @@ body.login-bg, html.login-bg {
     transition: all 0.2s ease;
 }
 
-.checkbox-container:hover input ~ .checkmark {
+.checkbox-container:hover input~.checkmark {
     border-color: var(--primary-color);
 }
 
-.checkbox-container input:checked ~ .checkmark {
+.checkbox-container input:checked~.checkmark {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
 }
@@ -893,7 +912,7 @@ body.login-bg, html.login-bg {
     transform: rotate(45deg);
 }
 
-.checkbox-container input:checked ~ .checkmark:after {
+.checkbox-container input:checked~.checkmark:after {
     display: block;
 }
 
@@ -912,12 +931,13 @@ body.login-bg, html.login-bg {
     right: 0;
     top: 110%;
     z-index: 2;
-    box-shadow: 0 2px 8px rgba(211,47,47,0.07);
+    box-shadow: 0 2px 8px rgba(211, 47, 47, 0.07);
     white-space: pre-line;
     pointer-events: none;
     font-weight: 500;
     text-align: left;
 }
+
 .input-icon-group {
     position: relative;
 }
@@ -926,25 +946,28 @@ body.login-bg, html.login-bg {
 .attendance-form {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(33,150,243,0.08);
+    box-shadow: 0 2px 12px rgba(33, 150, 243, 0.08);
     padding: 2rem 2.5rem 1.5rem 2.5rem;
     margin-bottom: 2.5rem;
     max-width: 600px;
     margin-left: auto;
     margin-right: auto;
 }
+
 .attendance-form h4 {
     color: var(--primary-color);
     font-weight: 700;
     margin-bottom: 1.5rem;
     letter-spacing: 0.5px;
 }
+
 .attendance-form label {
     font-weight: 600;
     color: #1976d2;
     margin-bottom: 6px;
     font-size: 1rem;
 }
+
 .attendance-form input,
 .attendance-form select,
 .attendance-form textarea {
@@ -956,24 +979,27 @@ body.login-bg, html.login-bg {
     margin-bottom: 0.5rem;
     transition: border 0.2s;
 }
+
 .attendance-form input:focus,
 .attendance-form select:focus,
 .attendance-form textarea:focus {
     border: 1.5px solid var(--primary-color);
     background: #fff;
 }
+
 .attendance-form .form-check-label {
     font-weight: 500;
     color: #444;
     font-size: 0.98rem;
 }
+
 .attendance-form .btn-primary,
 .attendance-form .btn-secondary {
     padding: 0.7rem 2.5rem;
     font-size: 1.1rem;
     border-radius: 8px;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.08);
     min-width: 180px;
     display: inline-flex;
     align-items: center;
@@ -1006,17 +1032,20 @@ body.login-bg, html.login-bg {
     padding: 0.5rem 1.2rem;
     min-width: 100px;
     margin-left: 18px;
-    box-shadow: 0 2px 8px rgba(211,47,47,0.08);
+    box-shadow: 0 2px 8px rgba(211, 47, 47, 0.08);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: background 0.2s, color 0.2s;
     outline: none;
 }
-.attendance-form .btn-cancel-edit:hover, .attendance-form .btn-cancel-edit:focus {
+
+.attendance-form .btn-cancel-edit:hover,
+.attendance-form .btn-cancel-edit:focus {
     background: #b71c1c;
     color: #fff;
 }
+
 .attendance-form .btn-cancel-edit i {
     margin-right: 6px;
 }
@@ -1025,57 +1054,78 @@ body.login-bg, html.login-bg {
 .attendance-history {
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(33,150,243,0.08);
+    box-shadow: 0 2px 12px rgba(33, 150, 243, 0.08);
     padding: 2rem 2.5rem 1.5rem 2.5rem;
     max-width: 900px;
     margin-left: auto;
     margin-right: auto;
 }
+
 .attendance-history h4 {
     color: var(--primary-color);
     font-weight: 700;
     margin-bottom: 1.5rem;
 }
+
 .attendance-history .table {
     background: #f8fafc;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 1px 4px rgba(33,150,243,0.04);
+    box-shadow: 0 1px 4px rgba(33, 150, 243, 0.04);
 }
-.attendance-history th, .attendance-history td {
+
+/* Action buttons (Sửa/Xóa) spacing to avoid icon clipping rounded corners */
+.attendance-history .btn-action-container .btn {
+    border-radius: 8px !important;
+    margin-right: 8px !important;
+}
+
+.attendance-history .btn-action-container .btn:last-child {
+    margin-right: 0 !important;
+}
+
+.attendance-history th,
+.attendance-history td {
     text-align: center;
     vertical-align: middle;
     padding: 0.7rem 0.5rem;
     font-size: 1rem;
 }
+
 .attendance-history th {
     background: #e3f2fd;
     color: #1976d2;
     font-weight: 700;
     border-bottom: 2px solid #bbdefb;
 }
+
 .attendance-history tr:nth-child(even) {
     background: #f6f8fa;
 }
+
 .attendance-history tr:hover {
     background: #e3f2fd;
 }
+
 .attendance-history .badge {
     font-size: 0.98rem;
     padding: 6px 16px;
     border-radius: 16px;
     font-weight: 600;
     letter-spacing: 0.5px;
-    box-shadow: 0 1px 4px rgba(33,150,243,0.07);
+    box-shadow: 0 1px 4px rgba(33, 150, 243, 0.07);
 }
+
 .badge-success {
     background: #e8f5e9;
     color: #388e3c;
 }
+
 .badge-warning {
     background: #fff8e1;
     color: #fbc02d;
 }
+
 .badge-danger {
     background: #ffebee;
     color: #d32f2f;
@@ -1083,19 +1133,29 @@ body.login-bg, html.login-bg {
 
 /* Responsive improvements */
 @media (max-width: 900px) {
-    .dashboard-content, .attendance-history, .attendance-form {
+
+    .dashboard-content,
+    .attendance-history,
+    .attendance-form {
         max-width: 98vw;
         padding: 1rem;
     }
 }
+
 @media (max-width: 600px) {
-    .attendance-form, .attendance-history {
+
+    .attendance-form,
+    .attendance-history {
         padding: 0.7rem 0.2rem;
     }
-    .attendance-form h4, .attendance-history h4 {
+
+    .attendance-form h4,
+    .attendance-history h4 {
         font-size: 1.1rem;
     }
-    .attendance-history th, .attendance-history td {
+
+    .attendance-history th,
+    .attendance-history td {
         font-size: 0.92rem;
         padding: 0.4rem 0.2rem;
     }
@@ -1109,6 +1169,7 @@ body.login-bg, html.login-bg {
     height: 48px;
     overflow: hidden;
 }
+
 #holidayTypeWrapper.hide {
     opacity: 0;
     height: 0;
@@ -1122,22 +1183,28 @@ body.login-bg, html.login-bg {
     margin-bottom: 1.1rem;
     flex-wrap: wrap;
 }
+
 .attendance-row-1 .form-group,
 .attendance-row-2 .form-group {
     min-width: 120px;
 }
+
 .flex-1 {
     flex: 1 1 0;
 }
+
 .flex-2 {
     flex: 2 1 0;
 }
+
 .d-flex {
     display: flex;
 }
+
 .align-items-center {
     align-items: center;
 }
+
 @media (max-width: 700px) {
     .attendance-row {
         flex-direction: column;
@@ -1154,13 +1221,17 @@ body.login-bg, html.login-bg {
     min-width: 0;
     box-sizing: border-box;
 }
+
 .attendance-row-2 .form-group.flex-2 textarea {
-    max-width: 350px;
+    max-width: 320px;
+    /* giảm bớt để tránh tràn ngang khi có sidebar */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .pagination {
     margin-top: 18px;
-} 
+}
 
 .signature-status {
     display: flex;
@@ -1171,6 +1242,7 @@ body.login-bg, html.login-bg {
     min-width: 180px;
     max-width: 180px;
 }
+
 .signature-status .badge,
 .signature-status .badge.bg-success,
 .signature-status .badge.bg-warning,
@@ -1188,11 +1260,12 @@ body.login-bg, html.login-bg {
     font-size: 1rem !important;
     font-weight: 600 !important;
 }
+
 .signature-status br {
     margin: 0 !important;
     padding: 0 !important;
     line-height: 0 !important;
-} 
+}
 
 .signature-circles-row {
     display: flex;
@@ -1203,6 +1276,7 @@ body.login-bg, html.login-bg {
     min-width: 80px;
     margin: 0 auto;
 }
+
 .signature-circle {
     width: 26px;
     height: 26px;
@@ -1214,16 +1288,18 @@ body.login-bg, html.login-bg {
     border: 2.5px solid #222;
     transition: border 0.2s, box-shadow 0.2s;
     cursor: pointer;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
     position: relative;
     color: #fff;
     font-size: 15px;
 }
+
 .signature-circle.signed {
     background: #219653;
     border: 2.5px solid #219653;
     color: #fff;
 }
+
 .signature-circle .fa-check,
 .signature-circle .fa-clock {
     position: absolute;
@@ -1234,7 +1310,696 @@ body.login-bg, html.login-bg {
     color: #fff;
     pointer-events: none;
 }
+
 .signature-circle:hover {
     box-shadow: 0 0 0 2px #2196F3;
     border-color: #2196F3;
-} 
+}
+
+/* Ẩn AM/PM trên input time (Chromium-based) cho các ô thời gian */
+.time-no-ampm::-webkit-datetime-edit-ampm-field {
+    display: none;
+}
+
+.time-no-ampm::-webkit-clear-button {
+    display: none;
+}
+
+.time-no-ampm::-webkit-inner-spin-button {
+    margin-left: 2px;
+}
+
+.time-no-ampm::-webkit-calendar-picker-indicator {
+    padding-left: 2px;
+}
+
+/* ===================================================================
+   MODERN FORM ELEMENTS - Premium Styling for Inputs, Dropdowns, etc.
+   =================================================================== */
+
+/* CSS Variables for Form Elements */
+:root {
+    --form-primary: #4f46e5;
+    --form-primary-light: #818cf8;
+    --form-primary-dark: #3730a3;
+    --form-success: #10b981;
+    --form-warning: #f59e0b;
+    --form-danger: #ef4444;
+    --form-gray-50: #f9fafb;
+    --form-gray-100: #f3f4f6;
+    --form-gray-200: #e5e7eb;
+    --form-gray-300: #d1d5db;
+    --form-gray-400: #9ca3af;
+    --form-gray-500: #6b7280;
+    --form-gray-600: #4b5563;
+    --form-gray-700: #374151;
+    --form-gray-800: #1f2937;
+    --form-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --form-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --form-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --form-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --form-ring: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    --form-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Input Styling */
+.modern-input,
+.modern-select,
+.modern-textarea,
+.modern-date,
+input.form-control,
+select.form-select,
+textarea.form-control,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+select,
+textarea {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--form-gray-800);
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 2px solid var(--form-gray-200);
+    border-radius: 10px;
+    box-shadow: var(--form-shadow-sm);
+    transition: var(--form-transition);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Placeholder Styling */
+.modern-input::placeholder,
+.modern-textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--form-gray-400);
+    opacity: 1;
+    font-weight: 400;
+}
+
+/* Hover State */
+.modern-input:hover,
+.modern-select:hover,
+.modern-textarea:hover,
+.modern-date:hover,
+input.form-control:hover,
+select.form-select:hover,
+textarea.form-control:hover,
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="number"]:hover,
+input[type="date"]:hover,
+input[type="datetime-local"]:hover,
+input[type="time"]:hover,
+input[type="search"]:hover,
+input[type="tel"]:hover,
+input[type="url"]:hover,
+select:hover,
+textarea:hover {
+    border-color: var(--form-gray-300);
+    background-color: var(--form-gray-50);
+}
+
+/* Focus State with Gradient Ring Effect */
+.modern-input:focus,
+.modern-select:focus,
+.modern-textarea:focus,
+.modern-date:focus,
+input.form-control:focus,
+select.form-select:focus,
+textarea.form-control:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--form-primary);
+    background-color: #fff;
+    box-shadow: var(--form-ring), var(--form-shadow);
+    outline: none;
+}
+
+/* ===================================================================
+   SELECT / DROPDOWN STYLING
+   =================================================================== */
+.modern-select,
+select.form-select,
+select {
+    padding-right: 44px;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+    cursor: pointer;
+}
+
+.modern-select:focus,
+select.form-select:focus,
+select:focus {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%234f46e5' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+/* Select Option Styling */
+select option {
+    padding: 12px 16px;
+    background-color: #fff;
+    color: var(--form-gray-800);
+    font-size: 14px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+    background: linear-gradient(135deg, var(--form-primary-light) 0%, var(--form-primary) 100%);
+    color: #fff;
+}
+
+/* ===================================================================
+   DATE & TIME INPUT STYLING
+   =================================================================== */
+.modern-date,
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+    position: relative;
+    padding-right: 44px;
+}
+
+/* Custom Calendar Icon */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3e%3c/svg%3e");
+    background-size: 20px 20px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* Time Picker Icon */
+input[type="time"]::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'/%3e%3c/svg%3e");
+    background-size: 20px 20px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* ===================================================================
+   TEXTAREA STYLING
+   =================================================================== */
+.modern-textarea,
+textarea.form-control,
+textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+/* Auto-resize textarea effect on focus */
+.modern-textarea:focus,
+textarea.form-control:focus,
+textarea:focus {
+    min-height: 140px;
+}
+
+/* ===================================================================
+   FORM GROUP & LABEL STYLING
+   =================================================================== */
+.modern-form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.modern-label,
+.modern-form-group label,
+label.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--form-gray-700);
+    letter-spacing: 0.01em;
+}
+
+/* Required Field Indicator */
+.modern-label.required::after,
+.modern-form-group label.required::after {
+    content: " *";
+    color: var(--form-danger);
+    font-weight: 600;
+}
+
+/* ===================================================================
+   INPUT WITH ICON
+   =================================================================== */
+.modern-input-wrapper {
+    position: relative;
+}
+
+.modern-input-wrapper .input-icon-left {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--form-gray-400);
+    font-size: 16px;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.modern-input-wrapper .input-icon-right {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--form-gray-400);
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.modern-input-wrapper input.has-icon-left {
+    padding-left: 44px;
+}
+
+.modern-input-wrapper input.has-icon-right {
+    padding-right: 44px;
+}
+
+.modern-input-wrapper:focus-within .input-icon-left,
+.modern-input-wrapper:focus-within .input-icon-right {
+    color: var(--form-primary);
+}
+
+/* ===================================================================
+   VALIDATION STATES
+   =================================================================== */
+/* Success State */
+.is-valid,
+.modern-input.success,
+input.is-valid,
+select.is-valid,
+textarea.is-valid {
+    border-color: var(--form-success) !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2310b981'%3e%3cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px 20px;
+    padding-right: 44px;
+}
+
+.is-valid:focus,
+.modern-input.success:focus {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15), var(--form-shadow);
+}
+
+/* Error State */
+.is-invalid,
+.modern-input.error,
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid {
+    border-color: var(--form-danger) !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23ef4444'%3e%3cpath fill-rule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z' clip-rule='evenodd'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px 20px;
+    padding-right: 44px;
+}
+
+.is-invalid:focus,
+.modern-input.error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--form-shadow);
+}
+
+/* Validation Messages */
+.valid-feedback {
+    display: none;
+    color: var(--form-success);
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.invalid-feedback {
+    display: none;
+    color: var(--form-danger);
+    font-size: 13px;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.is-valid~.valid-feedback,
+.is-invalid~.invalid-feedback {
+    display: block;
+}
+
+/* ===================================================================
+   DISABLED STATE
+   =================================================================== */
+.modern-input:disabled,
+.modern-select:disabled,
+.modern-textarea:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    background-color: var(--form-gray-100);
+    border-color: var(--form-gray-200);
+    color: var(--form-gray-500);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* ===================================================================
+   READ-ONLY STATE
+   =================================================================== */
+.modern-input:read-only,
+input:read-only,
+textarea:read-only {
+    background-color: var(--form-gray-50);
+    border-color: var(--form-gray-200);
+    cursor: default;
+}
+
+.modern-input:read-only:focus,
+input:read-only:focus,
+textarea:read-only:focus {
+    border-color: var(--form-gray-300);
+    box-shadow: none;
+}
+
+/* ===================================================================
+   CHECKBOX & RADIO STYLING
+   =================================================================== */
+.modern-checkbox,
+.modern-radio {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--form-gray-700);
+    user-select: none;
+}
+
+.modern-checkbox input[type="checkbox"],
+.modern-radio input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--form-primary);
+    border: 2px solid var(--form-gray-300);
+    border-radius: 4px;
+    transition: var(--form-transition);
+}
+
+.modern-radio input[type="radio"] {
+    border-radius: 50%;
+}
+
+.modern-checkbox input[type="checkbox"]:checked,
+.modern-radio input[type="radio"]:checked {
+    background-color: var(--form-primary);
+    border-color: var(--form-primary);
+}
+
+.modern-checkbox input[type="checkbox"]:focus,
+.modern-radio input[type="radio"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+/* ===================================================================
+   SWITCH / TOGGLE STYLING
+   =================================================================== */
+.modern-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.modern-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.modern-switch-slider {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background-color: var(--form-gray-300);
+    border-radius: 26px;
+    transition: var(--form-transition);
+}
+
+.modern-switch-slider::before {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 2px;
+    top: 2px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: var(--form-shadow);
+    transition: var(--form-transition);
+}
+
+.modern-switch input:checked+.modern-switch-slider {
+    background: linear-gradient(135deg, var(--form-primary) 0%, var(--form-primary-dark) 100%);
+}
+
+.modern-switch input:checked+.modern-switch-slider::before {
+    transform: translateX(22px);
+}
+
+.modern-switch input:focus+.modern-switch-slider {
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+/* ===================================================================
+   INPUT SIZES
+   =================================================================== */
+/* Small */
+.modern-input-sm,
+.form-control-sm {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+/* Large */
+.modern-input-lg,
+.form-control-lg {
+    padding: 14px 20px;
+    font-size: 16px;
+    border-radius: 12px;
+}
+
+/* ===================================================================
+   FLOATING LABEL
+   =================================================================== */
+.modern-floating-label {
+    position: relative;
+}
+
+.modern-floating-label input,
+.modern-floating-label textarea,
+.modern-floating-label select {
+    padding-top: 24px;
+    padding-bottom: 8px;
+}
+
+.modern-floating-label label {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    color: var(--form-gray-500);
+    pointer-events: none;
+    transition: var(--form-transition);
+    background: transparent;
+}
+
+.modern-floating-label textarea~label {
+    top: 20px;
+    transform: none;
+}
+
+.modern-floating-label input:focus~label,
+.modern-floating-label input:not(:placeholder-shown)~label,
+.modern-floating-label textarea:focus~label,
+.modern-floating-label textarea:not(:placeholder-shown)~label,
+.modern-floating-label select:focus~label,
+.modern-floating-label select:valid~label {
+    top: 8px;
+    transform: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--form-primary);
+    letter-spacing: 0.03em;
+}
+
+/* ===================================================================
+   FILE INPUT STYLING
+   =================================================================== */
+.modern-file-input {
+    position: relative;
+}
+
+.modern-file-input input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.modern-file-input .file-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border: 2px dashed var(--form-gray-300);
+    border-radius: 12px;
+    background-color: var(--form-gray-50);
+    color: var(--form-gray-600);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--form-transition);
+}
+
+.modern-file-input:hover .file-label {
+    border-color: var(--form-primary);
+    background-color: rgba(79, 70, 229, 0.05);
+    color: var(--form-primary);
+}
+
+.modern-file-input .file-label i {
+    font-size: 20px;
+}
+
+/* ===================================================================
+   RANGE / SLIDER INPUT
+   =================================================================== */
+input[type="range"] {
+    width: 100%;
+    height: 6px;
+    border-radius: 6px;
+    background: var(--form-gray-200);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--form-primary) 0%, var(--form-primary-dark) 100%);
+    cursor: pointer;
+    box-shadow: var(--form-shadow-md);
+    transition: var(--form-transition);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: var(--form-shadow-lg);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--form-primary) 0%, var(--form-primary-dark) 100%);
+    cursor: pointer;
+    box-shadow: var(--form-shadow-md);
+}
+
+/* Dark mode support - uncomment in dark mode implementation if needed
+@media (prefers-color-scheme: dark) {
+    .modern-input,
+    .modern-select,
+    .modern-textarea,
+    .modern-date {
+        background-color: var(--form-gray-800);
+        border-color: var(--form-gray-600);
+        color: var(--form-gray-100);
+    }
+}
+*/
+
+/* ===================================================================
+   RESPONSIVE ADJUSTMENTS
+   =================================================================== */
+@media (max-width: 768px) {
+
+    .modern-input,
+    .modern-select,
+    .modern-textarea,
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"],
+    select,
+    textarea {
+        padding: 10px 14px;
+        font-size: 14px;
+        border-radius: 8px;
+    }
+
+    .modern-input-lg,
+    .form-control-lg {
+        padding: 12px 16px;
+        font-size: 15px;
+    }
+}

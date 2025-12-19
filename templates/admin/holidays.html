@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Quản Lý Ngày Lễ - Hệ Thống Quản Lý Chấm Công</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --sidebar-bg: #2c3e50;
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 260px;
+            background: var(--sidebar-bg);
+            color: white;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .sidebar-header {
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h3 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header {
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+        }
+
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .btn-action {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .add-holiday-form .row {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: flex-end;
+            gap: 15px;
+            margin: 0;
+        }
+
+        .add-holiday-form .col-md {
+            flex: 1 1 0;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+
+        .add-holiday-form .col-md:not(:last-child) {
+            padding-right: 0;
+        }
+
+        .add-holiday-form .col-md .form-label {
+            margin-bottom: 8px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .add-holiday-form .col-md .form-control,
+        .add-holiday-form .col-md .form-select {
+            width: 100%;
+            height: 38px;
+            flex-shrink: 0;
+        }
+
+        .add-holiday-form .col-md.d-flex {
+            display: flex !important;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .add-holiday-form .col-md.d-flex::before {
+            content: '';
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .add-holiday-form .col-md.d-flex .btn {
+            width: 100%;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .badge-holiday {
+            font-size: 0.85rem;
+            padding: 5px 10px;
+        }
+
+        @media (max-width: 768px) {
+            .add-holiday-form .row {
+                flex-wrap: wrap;
+                gap: 0;
+            }
+
+            .add-holiday-form .col-md {
+                flex: 0 0 100%;
+                max-width: 100%;
+                margin-bottom: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-calendar-alt me-2"></i>Quản Lý Ngày Lễ</h3>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="{{ url_for('dashboard') }}" class="nav-link"><i class="fas fa-home"></i>Trang
+                    chủ</a></li>
+            <li class="nav-item"><a href="{{ url_for('admin_users') }}" class="nav-link"><i
+                        class="fas fa-users"></i>Quản lý người dùng</a></li>
+            <li class="nav-item"><a href="{{ url_for('admin_departments') }}" class="nav-link"><i
+                        class="fas fa-building"></i>Quản lý phòng ban</a></li>
+            <li class="nav-item"><a href="{{ url_for('admin_holidays') }}" class="nav-link active"><i
+                        class="fas fa-calendar-alt"></i>Quản lý ngày lễ</a></li>
+            <li class="nav-item"><a href="{{ url_for('logout') }}" class="nav-link"><i
+                        class="fas fa-sign-out-alt"></i>Đăng xuất</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <h4 class="mb-4"><i class="fas fa-calendar-alt me-2"></i>Quản Lý Ngày Lễ</h4>
+
+            <!-- Toast Container -->
+            <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+                <!-- Flash Messages - Converted to Toast -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="toast align-items-center text-white bg-{{ 'danger' if category == 'error' else 'success' }} border-0"
+                    role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i
+                                class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }} me-2"></i>
+                            {{ message }}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                            aria-label="Close"></button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Add Holiday Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Thêm Ngày Lễ Mới</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_holidays') }}" class="add-holiday-form">
+                        <div class="row g-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="add">
+                            <div class="col-md">
+                                <label class="form-label"><i class="fas fa-calendar me-1"></i>Ngày *</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md">
+                                <label class="form-label"><i class="fas fa-flag me-1"></i>Loại ngày lễ *</label>
+                                <select class="form-select" name="holiday_type" required>
+                                    <option value="">-- Chọn loại --</option>
+                                    <option value="vietnamese_holiday">Lễ Việt Nam</option>
+                                    <option value="japanese_holiday">Lễ Nhật Bản</option>
+                                </select>
+                            </div>
+                            <div class="col-md">
+                                <label class="form-label"><i class="fas fa-tag me-1"></i>Tên ngày lễ</label>
+                                <input type="text" class="form-control" name="name" placeholder="VD: Tết Nguyên Đán">
+                            </div>
+                            <div class="col-md">
+                                <label class="form-label"><i class="fas fa-info-circle me-1"></i>Mô tả</label>
+                                <input type="text" class="form-control" name="description" placeholder="Mô tả ngày lễ">
+                            </div>
+                            <div class="col-md d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100"><i class="fas fa-plus me-1"></i>Thêm
+                                    Ngày Lễ</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Holiday List -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Danh Sách Ngày Lễ ({{ holidays|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th>Ngày</th>
+                                    <th>Loại ngày lễ</th>
+                                    <th>Tên ngày lễ</th>
+                                    <th>Mô tả</th>
+                                    <th style="width: 200px;">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in holidays %}
+                                <tr id="holiday-row-{{ holiday.id }}">
+                                    <td>{{ loop.index }}</td>
+                                    <td><strong>{{ holiday.date.strftime('%d/%m/%Y') }}</strong></td>
+                                    <td>
+                                        {% if holiday.holiday_type == 'vietnamese_holiday' %}
+                                        <span class="badge bg-danger badge-holiday">Lễ Việt Nam</span>
+                                        {% elif holiday.holiday_type == 'japanese_holiday' %}
+                                        <span class="badge bg-warning text-dark badge-holiday">Lễ Nhật Bản</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ holiday.name or '-' }}</td>
+                                    <td>{{ holiday.description or '-' }}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm btn-action edit-holiday-btn"
+                                            data-holiday-id="{{ holiday.id }}"
+                                            data-holiday-date="{{ holiday.date.strftime('%Y-%m-%d') }}"
+                                            data-holiday-type="{{ holiday.holiday_type }}"
+                                            data-holiday-name="{{ holiday.name or '' }}"
+                                            data-holiday-description="{{ holiday.description or '' }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-danger btn-sm btn-action delete-holiday-btn"
+                                            data-holiday-id="{{ holiday.id }}"
+                                            data-holiday-date="{{ holiday.date.strftime('%d/%m/%Y') }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">Chưa có ngày lễ nào</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('admin_holidays') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="holiday_id" id="edit_holiday_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Sửa Ngày Lễ</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Ngày *</label>
+                            <input type="date" class="form-control" name="date" id="edit_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Loại ngày lễ *</label>
+                            <select class="form-select" name="holiday_type" id="edit_holiday_type" required>
+                                <option value="">-- Chọn loại --</option>
+                                <option value="vietnamese_holiday">Lễ Việt Nam</option>
+                                <option value="japanese_holiday">Lễ Nhật Bản</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tên ngày lễ</label>
+                            <input type="text" class="form-control" name="name" id="edit_name" placeholder="VD: Tết Nguyên Đán">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mô tả</label>
+                            <input type="text" class="form-control" name="description" id="edit_description" placeholder="Mô tả ngày lễ">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('admin_holidays') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="holiday_id" id="delete_holiday_id">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xóa</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Bạn có chắc chắn muốn xóa ngày lễ <strong id="delete_holiday_date"></strong>?</p>
+                        <p class="text-danger mb-0"><small>Lưu ý: Thao tác này không thể hoàn tác!</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-danger">Xóa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Tự động hiển thị toast từ flash messages
+        document.addEventListener('DOMContentLoaded', function () {
+            const toastContainer = document.getElementById('toast-container');
+            const toasts = toastContainer.querySelectorAll('.toast');
+
+            toasts.forEach(function (toastEl) {
+                const toast = new bootstrap.Toast(toastEl, {
+                    autohide: true,
+                    delay: 3000
+                });
+                toast.show();
+
+                // Xóa toast khỏi DOM sau khi ẩn
+                toastEl.addEventListener('hidden.bs.toast', function () {
+                    toastEl.remove();
+                });
+            });
+
+            // Xử lý nút edit với data attributes
+            document.querySelectorAll('.edit-holiday-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = this.getAttribute('data-holiday-id');
+                    const date = this.getAttribute('data-holiday-date');
+                    const type = this.getAttribute('data-holiday-type');
+                    const name = this.getAttribute('data-holiday-name');
+                    const description = this.getAttribute('data-holiday-description');
+                    editHoliday(id, date, type, name, description);
+                });
+            });
+
+            // Xử lý nút delete với data attributes
+            document.querySelectorAll('.delete-holiday-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = this.getAttribute('data-holiday-id');
+                    const date = this.getAttribute('data-holiday-date');
+                    deleteHoliday(id, date);
+                });
+            });
+        });
+
+        function editHoliday(id, date, type, name, description) {
+            document.getElementById('edit_holiday_id').value = id;
+            document.getElementById('edit_date').value = date;
+            document.getElementById('edit_holiday_type').value = type;
+            document.getElementById('edit_name').value = name || '';
+            document.getElementById('edit_description').value = description || '';
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+
+        function deleteHoliday(id, date) {
+            document.getElementById('delete_holiday_id').value = id;
+            document.getElementById('delete_holiday_date').textContent = date;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+    </script>
+</body>
+
+</html>
+

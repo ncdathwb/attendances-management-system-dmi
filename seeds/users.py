@@ -19,9 +19,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 def seed_users():
     """Seed users table with initial data"""
     
-    # Department definitions
     departments = [
-        'BUD', 'SCOPE', 'KIRI', 'CREEK&RIVER', 'COMO', 'OFFICE', 'YORK'
+        'BUD A', 'BUD B', 'BUD C', 'SCOPE', 'KIRI', 'CREEK&RIVER', 'COMO', 'OFFICE', 'YORK'
     ]
     
     # Vietnamese name components

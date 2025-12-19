@@ -2,11 +2,16 @@ import os
 from datetime import timedelta
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
+import base64
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 load_dotenv()
 
+
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(32)
+    # Use fixed default as requested; prefer env if provided
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dmi'
     
     # CSRF Configuration
     WTF_CSRF_ENABLED = True
@@ -37,13 +42,16 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_timeout': 30,
     }
     
     # Logging Configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FILE = os.environ.get('LOG_FILE', 'logs/attendance.log')
     
-    # Email Configuration (for notifications)
+    # Email Configuration (for notifications) - SECURE: No hardcoded credentials
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
@@ -55,15 +63,24 @@ class Config:
     TESTING = False
 
     # Signature System Configuration
-    SIGNATURE_SECRET_KEY = os.environ.get('SIGNATURE_SECRET_KEY') or Fernet.generate_key()
+    _ENV_SIGNATURE_KEY = os.environ.get('SIGNATURE_SECRET_KEY')
+    if _ENV_SIGNATURE_KEY:
+        # Ensure bytes for Fernet
+        SIGNATURE_SECRET_KEY = _ENV_SIGNATURE_KEY.encode('utf-8')
+    else:
+        # Use default key for development
+        SIGNATURE_SECRET_KEY = Fernet.generate_key()
     SIGNATURE_SESSION_TIMEOUT = int(os.environ.get('SIGNATURE_SESSION_TIMEOUT', 1800))  # 30 minutes
 
-    # SMTP Configuration for password reset
-    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    # SMTP Configuration (no personal defaults). Configure via environment /.env
+    SMTP_SERVER = os.environ.get('SMTP_SERVER')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-    SMTP_USER = os.environ.get('SMTP_USER', 'ncdat.hwb@gmail.com')
-    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'rzdu qnec jmbv zveu')
-    MAIL_FROM = os.environ.get('MAIL_FROM', 'ncdat.hwb@gmail.com')
+    SMTP_USER = os.environ.get('SMTP_USER')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    MAIL_FROM = os.environ.get('MAIL_FROM') or os.environ.get('SMTP_USER')
+    
+    # HR Email Configuration
+    HR_EMAIL = os.environ.get('HR_EMAIL') or 'dmihue-nhansu01@acraft.jp'
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -86,12 +103,12 @@ class TestingConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
 
-    # SMTP Configuration for password reset
-    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    # SMTP Configuration for password reset - SECURE: No hardcoded credentials
+    SMTP_SERVER = os.environ.get('SMTP_SERVER')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-    SMTP_USER = os.environ.get('SMTP_USER', 'ncdat.hwb@gmail.com')
-    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'rzdu qnec jmbv zveu')
-    MAIL_FROM = os.environ.get('MAIL_FROM', 'ncdat.hwb@gmail.com')
+    SMTP_USER = os.environ.get('SMTP_USER')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    MAIL_FROM = os.environ.get('MAIL_FROM')
 
 config = {
     'development': DevelopmentConfig,

@@ -1,7 +1,7 @@
 """
 Session management utilities for the attendance management system
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from flask import request, session
 from database.models import db, AuditLog
 
