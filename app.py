@@ -2428,17 +2428,18 @@ def _license_check_worker(interval_seconds: int = 300):
                         
                         # Tính days_remaining chính xác (dùng floor như UI: Math.floor(diffMs / (1000 * 60 * 60 * 24)))
                         diff_time = expiry_dt - now_dt
-                        if diff_time.total_seconds() > 0:
-                            # Tính số milliseconds (giống JavaScript)
-                            diff_ms = diff_time.total_seconds() * 1000
-                            # Math.floor(diffMs / (1000 * 60 * 60 * 24))
-                            calculated_days_remaining = int(diff_ms / (1000 * 60 * 60 * 24))
-                            # Override days_remaining từ API bằng giá trị tính toán chính xác
-                            days_remaining = calculated_days_remaining
-                            print(f"[LICENSE] Đã tính lại days_remaining từ expiry: {calculated_days_remaining} ngày (từ API: {data.get('days_remaining', 'N/A')})")
-                        else:
-                            days_remaining = 0
+                        # Tính số milliseconds (giống JavaScript) - có thể âm nếu đã hết hạn
+                        diff_ms = diff_time.total_seconds() * 1000
+                        # Math.floor(diffMs / (1000 * 60 * 60 * 24))
+                        calculated_days_remaining = int(diff_ms / (1000 * 60 * 60 * 24))
+                        # Override days_remaining từ API bằng giá trị tính toán chính xác
+                        # Nếu âm nghĩa là đã hết hạn, nếu dương nghĩa là còn hạn
+                        days_remaining = calculated_days_remaining
+                        if calculated_days_remaining < 0:
                             expired = True
+                            print(f"[LICENSE] Đã tính lại days_remaining từ expiry: {calculated_days_remaining} ngày (ĐÃ HẾT HẠN) (từ API: {data.get('days_remaining', 'N/A')})")
+                        else:
+                            print(f"[LICENSE] Đã tính lại days_remaining từ expiry: {calculated_days_remaining} ngày (từ API: {data.get('days_remaining', 'N/A')})")
                     except Exception as e:
                         print(f"[LICENSE] Lỗi parse expiry '{expiry_str}': {e}")
 
@@ -13444,8 +13445,6 @@ def export_leave_cases_excel():
         traceback.print_exc()
         return jsonify({'error': f'Lỗi khi xuất test cases Excel: {str(e)}'}), 500
 if __name__ == '__main__':
-    global _license_is_valid
-    
     with app.app_context():
         db.create_all()
         convert_overtime_to_hhmm()
