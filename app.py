@@ -2317,10 +2317,12 @@ def _force_shutdown_app(reason: str = ""):
     os._exit(1)
 
 
-def _license_check_worker(interval_seconds: int = 300):
+def _license_check_worker(interval_seconds: int = 60):
     """
     Thread nền kiểm tra license online liên tục qua License Manager Pro.
     Nếu license hết hạn/không hợp lệ -> chặn truy cập app (không thoát app).
+    Interval mặc định: 60 giây (1 phút) để cập nhật nhanh hơn khi có thay đổi từ điện thoại.
+    Khi license sắp hết hạn (days_remaining <= 7), sẽ tự động giảm xuống 30 giây.
     """
     global _license_is_valid, _license_warning_state
     from datetime import datetime
@@ -2329,6 +2331,9 @@ def _license_check_worker(interval_seconds: int = 300):
     print(f"[LICENSE] License checker worker đang khởi động, sẽ bắt đầu kiểm tra sau 5 giây...", flush=True)
     time.sleep(5)
     print(f"[LICENSE] Bắt đầu kiểm tra license định kỳ (mỗi {interval_seconds} giây)...", flush=True)
+    
+    # Interval động: bắt đầu với interval_seconds, sẽ tự điều chỉnh dựa trên days_remaining
+    current_interval = interval_seconds
 
     while True:
         try:
@@ -2351,7 +2356,7 @@ def _license_check_worker(interval_seconds: int = 300):
                     print("[LICENSE] Không tìm thấy license key để verify. Đã chặn truy cập app.")
                     global _license_is_valid
                     _license_is_valid = False
-                    time.sleep(interval_seconds)
+                    time.sleep(current_interval)
                     continue
 
                 # Ưu tiên dùng API endpoint, fallback về ?verify= nếu API không có
@@ -2362,23 +2367,23 @@ def _license_check_worker(interval_seconds: int = 300):
                     # Lỗi mạng tạm thời: log lại nhưng KHÔNG dừng app ngay
                     try:
                         from datetime import datetime, timedelta
-                        next_check_time = datetime.now() + timedelta(seconds=interval_seconds)
+                        next_check_time = datetime.now() + timedelta(seconds=current_interval)
                         next_check_str = next_check_time.strftime("%H:%M:%S")
-                        print(f"[LICENSE] Lỗi kết nối server license: {e}. Sẽ thử lại sau {interval_seconds} giây (lần tiếp theo: {next_check_str})", flush=True)
+                        print(f"[LICENSE] Lỗi kết nối server license: {e}. Sẽ thử lại sau {current_interval} giây (lần tiếp theo: {next_check_str})", flush=True)
                     except Exception:
-                        print(f"[LICENSE] Lỗi kết nối server license: {e}. Sẽ thử lại sau {interval_seconds} giây.", flush=True)
-                    time.sleep(interval_seconds)
+                        print(f"[LICENSE] Lỗi kết nối server license: {e}. Sẽ thử lại sau {current_interval} giây.", flush=True)
+                    time.sleep(current_interval)
                     continue
 
                 if resp.status_code != 200:
                     try:
                         from datetime import datetime, timedelta
-                        next_check_time = datetime.now() + timedelta(seconds=interval_seconds)
+                        next_check_time = datetime.now() + timedelta(seconds=current_interval)
                         next_check_str = next_check_time.strftime("%H:%M:%S")
-                        print(f"[LICENSE] Server license trả về status {resp.status_code}. Sẽ thử lại sau {interval_seconds} giây (lần tiếp theo: {next_check_str})", flush=True)
+                        print(f"[LICENSE] Server license trả về status {resp.status_code}. Sẽ thử lại sau {current_interval} giây (lần tiếp theo: {next_check_str})", flush=True)
                     except Exception:
-                        print(f"[LICENSE] Server license trả về status {resp.status_code}. Sẽ thử lại sau {interval_seconds} giây.", flush=True)
-                    time.sleep(interval_seconds)
+                        print(f"[LICENSE] Server license trả về status {resp.status_code}. Sẽ thử lại sau {current_interval} giây.", flush=True)
+                    time.sleep(current_interval)
                     continue
 
                 try:
@@ -2392,12 +2397,12 @@ def _license_check_worker(interval_seconds: int = 300):
                         # Không đoán được trạng thái từ nội dung -> log lại và tạm cho qua để không khóa app nhầm.
                         try:
                             from datetime import datetime, timedelta
-                            next_check_time = datetime.now() + timedelta(seconds=interval_seconds)
+                            next_check_time = datetime.now() + timedelta(seconds=current_interval)
                             next_check_str = next_check_time.strftime("%H:%M:%S")
-                            print(f"[LICENSE] Không xác định được trạng thái license từ nội dung server. Sẽ thử lại sau {interval_seconds} giây (lần tiếp theo: {next_check_str})", flush=True)
+                            print(f"[LICENSE] Không xác định được trạng thái license từ nội dung server. Sẽ thử lại sau {current_interval} giây (lần tiếp theo: {next_check_str})", flush=True)
                         except Exception:
-                            print(f"[LICENSE] Không xác định được trạng thái license từ nội dung server. Sẽ thử lại sau {interval_seconds} giây.", flush=True)
-                        time.sleep(interval_seconds)
+                            print(f"[LICENSE] Không xác định được trạng thái license từ nội dung server. Sẽ thử lại sau {current_interval} giây.", flush=True)
+                        time.sleep(current_interval)
                         continue
 
                 is_valid = bool(data.get("valid", False))
@@ -2443,8 +2448,19 @@ def _license_check_worker(interval_seconds: int = 300):
                     except Exception as e:
                         print(f"[LICENSE] Lỗi parse expiry '{expiry_str}': {e}")
 
-                # 1) Nếu có days_remaining
+                # 1) Nếu có days_remaining - điều chỉnh interval động dựa trên trạng thái license
                 if isinstance(days_remaining, (int, float)):
+                    # Khi license sắp hết hạn (≤ 7 ngày), giảm interval xuống 30s để check thường xuyên hơn
+                    if 0 <= days_remaining <= 7:
+                        if current_interval > 30:
+                            current_interval = 30
+                            print(f"[LICENSE] License sắp hết hạn ({days_remaining} ngày), giảm interval xuống 30 giây để check thường xuyên hơn", flush=True)
+                    else:
+                        # License còn nhiều thời gian, dùng interval mặc định
+                        if current_interval != interval_seconds:
+                            current_interval = interval_seconds
+                            print(f"[LICENSE] License còn nhiều thời gian, tăng interval về {interval_seconds} giây", flush=True)
+                    
                     # Nếu còn ≤ 1 ngày nhưng CHƯA hết hạn -> gửi cảnh báo cho toàn hệ thống (giống cơ chế refresh token)
                     # Áp dụng cho cả trường hợp days_remaining == 1 và days_remaining == 0 nhưng vẫn còn giờ/phút/giây.
                     if 0 <= days_remaining <= 1 and not expired:
@@ -2542,14 +2558,14 @@ def _license_check_worker(interval_seconds: int = 300):
         # Log thông tin về lần check tiếp theo
         try:
             from datetime import datetime, timedelta
-            next_check_time = datetime.now() + timedelta(seconds=interval_seconds)
+            next_check_time = datetime.now() + timedelta(seconds=current_interval)
             next_check_str = next_check_time.strftime("%H:%M:%S")
-            print(f"[LICENSE] Sẽ kiểm tra lại sau {interval_seconds} giây (lần tiếp theo: {next_check_str})", flush=True)
+            print(f"[LICENSE] Sẽ kiểm tra lại sau {current_interval} giây (lần tiếp theo: {next_check_str})", flush=True)
         except Exception:
-            print(f"[LICENSE] Sẽ kiểm tra lại sau {interval_seconds} giây", flush=True)
+            print(f"[LICENSE] Sẽ kiểm tra lại sau {current_interval} giây", flush=True)
 
-        # Ngủ trước khi kiểm tra lại
-        time.sleep(interval_seconds)
+        # Ngủ trước khi kiểm tra lại (dùng current_interval động)
+        time.sleep(current_interval)
 
 
 def _check_license_once() -> tuple[bool, bool, str, str]:
@@ -2638,7 +2654,7 @@ def _check_license_once() -> tuple[bool, bool, str, str]:
         print(f"[LICENSE] Check result: is_valid={is_valid}, expired={expired}, status={status}, msg={msg}", flush=True)
         return is_valid, expired, status, msg
 
-def ensure_license_check_started(interval_seconds: int = 300):
+def ensure_license_check_started(interval_seconds: int = 60):
     """
     Đảm bảo thread kiểm tra license online chỉ khởi động một lần.
     """
@@ -11129,6 +11145,50 @@ def api_license_warning_status():
         return jsonify(state)
     except Exception as e:
         return jsonify({'active': False, 'error': str(e)}), 500
+
+@app.route('/api/license/force-refresh', methods=['POST'])
+@login_required
+def api_license_force_refresh():
+    """
+    Force refresh license check ngay lập tức (không đợi interval).
+    Chỉ admin mới có quyền gọi endpoint này.
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = db.session.get(User, session['user_id'])
+    if not user or 'ADMIN' not in user.roles:
+        return jsonify({'error': 'Admin only'}), 403
+    
+    try:
+        # Chạy check license một lần ngay lập tức
+        is_valid, expired, status, message = _check_license_once()
+        
+        # Cập nhật trạng thái global
+        global _license_is_valid
+        _license_is_valid = is_valid and not expired
+        
+        # Nếu license hợp lệ, clear cảnh báo
+        if _license_is_valid:
+            with _license_warning_lock:
+                _license_warning_state = {
+                    'active': False,
+                    'payload': None,
+                    'updated_at': datetime.now().isoformat(),
+                }
+        
+        return jsonify({
+            'success': True,
+            'valid': _license_is_valid,
+            'expired': expired,
+            'status': status,
+            'message': message
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/token/status')
 def api_token_status():
