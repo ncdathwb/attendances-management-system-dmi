@@ -2338,19 +2338,8 @@ def _license_check_worker(interval_seconds: int = 60):
     while True:
         try:
             with app.app_context():
-                activation = None
-                try:
-                    activation = get_activation_record()
-                except Exception as e:
-                    print(f"[LICENSE] Lỗi lấy activation record: {e}")
-
-                # Ưu tiên APP_LICENSE_KEY (biến môi trường), fallback sang DB
-                license_key = None
-                # Ưu tiên APP_LICENSE_KEY trước (để override key trong DB nếu cần)
-                license_key = (APP_LICENSE_KEY or '').strip()
-                # Nếu không có APP_LICENSE_KEY, mới lấy từ DB
-                if not license_key and activation is not None:
-                    license_key = (getattr(activation, 'license_key', None) or '').strip()
+                # Sử dụng hàm helper để lấy license key nhất quán
+                license_key = get_license_key()
 
                 if not license_key:
                     print("[LICENSE] Không tìm thấy license key để verify. Đã chặn truy cập app.")
@@ -2577,21 +2566,9 @@ def _check_license_once() -> tuple[bool, bool, str, str]:
     from datetime import datetime as _dt_mod
 
     with app.app_context():
-        activation = None
-        try:
-            activation = get_activation_record()
-        except Exception as e:
-            print(f"[LICENSE] Lỗi lấy activation record: {e}")
-
-        # Ưu tiên APP_LICENSE_KEY (biến môi trường), fallback sang DB
-        license_key = None
-        # Ưu tiên APP_LICENSE_KEY trước (để override key trong DB nếu cần)
-        license_key = (APP_LICENSE_KEY or '').strip()
-        print(f"[LICENSE] License key from APP_LICENSE_KEY: {license_key}", flush=True)
-        # Nếu không có APP_LICENSE_KEY, mới lấy từ DB
-        if not license_key and activation is not None:
-            license_key = (getattr(activation, 'license_key', None) or '').strip()
-            print(f"[LICENSE] License key from DB: {license_key}", flush=True)
+        # Sử dụng hàm helper để lấy license key nhất quán
+        license_key = get_license_key()
+        print(f"[LICENSE] License key đang dùng: {license_key}", flush=True)
 
         if not license_key:
             msg = "Không có license key"
@@ -3522,6 +3499,43 @@ def is_app_activated():
     """Kiểm tra ứng dụng đã được kích hoạt hay chưa."""
     activation = get_activation_record()
     return bool(activation and activation.is_activated)
+
+
+def get_license_key():
+    """
+    Lấy license key một cách nhất quán cho cả web và mobile.
+    Ưu tiên: Environment variable (APP_LICENSE_KEY) > Database (activation.license_key)
+    
+    Lý do: 
+    - Environment variable là nguồn "master" được config trên server, đảm bảo nhất quán
+    - Database có thể chứa key cũ/không hợp lệ từ lần kích hoạt trước
+    - Nếu environment variable được set, nó sẽ override database để đảm bảo dùng key đúng
+    """
+    # Ưu tiên environment variable trước (key "master" trên server)
+    license_key = (APP_LICENSE_KEY or '').strip()
+    
+    # Kiểm tra xem database có key khác không (để cảnh báo nếu có sự không nhất quán)
+    activation = None
+    try:
+        activation = get_activation_record()
+    except Exception as e:
+        # Chỉ log nếu không phải lỗi application context (vì có thể gọi ngoài context)
+        if "application context" not in str(e).lower():
+            print(f"[LICENSE] Lỗi lấy activation record: {e}")
+    
+    db_key = None
+    if activation is not None:
+        db_key = (getattr(activation, 'license_key', None) or '').strip()
+    
+    # Cảnh báo nếu key trong database khác với environment variable
+    if license_key and db_key and license_key != db_key:
+        print(f"[LICENSE] ⚠️ CẢNH BÁO: Key trong database ('{db_key[:10]}...') khác với environment variable ('{license_key[:10]}...'). Đang dùng key từ environment variable.", flush=True)
+    
+    # Nếu không có environment variable, mới lấy từ database
+    if not license_key:
+        license_key = db_key
+    
+    return license_key
 
 # ====== LICENSE ACCESS CONTROL ======
 @app.before_request
@@ -10115,38 +10129,153 @@ def leave_request_form():
 
 @app.route('/activate', methods=['GET', 'POST'])
 def activate():
-    """Trang nhập key kích hoạt ứng dụng."""
+    """
+    Trang nhập key kích hoạt ứng dụng (cho web).
+    Đảm bảo logic nhất quán với API /api/activate cho mobile.
+    """
     activation = get_activation_record()
+    
+    # Log để debug
+    print(f"[ACTIVATE WEB] Request từ: {request.remote_addr}, User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
+    print(f"[ACTIVATE WEB] Trạng thái hiện tại - is_activated: {activation.is_activated}, license_key trong DB: {activation.license_key}")
 
     # Nếu đã kích hoạt rồi thì chuyển về trang đăng nhập / dashboard
     if activation.is_activated:
+        current_key = get_license_key()
+        print(f"[ACTIVATE WEB] Đã kích hoạt, key hiện tại: {current_key}")
         if 'user_id' in session:
             return redirect(url_for('dashboard'))
         return redirect(url_for('login'))
 
     if request.method == 'POST':
         input_key = (request.form.get('license_key') or '').strip()
+        print(f"[ACTIVATE WEB] Key nhận được từ form: {input_key[:10]}... (độ dài: {len(input_key)})")
+        print(f"[ACTIVATE WEB] Key chuẩn trên server (APP_LICENSE_KEY): {APP_LICENSE_KEY[:10]}... (độ dài: {len(APP_LICENSE_KEY)})")
+        
         if not input_key:
             flash('Vui lòng nhập key kích hoạt!', 'error')
             return render_template('activate.html')
 
-        # So sánh với key chuẩn trên server
+        # So sánh với key chuẩn trên server (giống như API /api/activate)
         if input_key == APP_LICENSE_KEY:
             activation.is_activated = True
             activation.license_key = input_key
             activation.activated_at = datetime.utcnow()
             try:
                 db.session.commit()
+                print(f"[ACTIVATE WEB] ✅ Kích hoạt thành công! Key đã lưu vào DB: {input_key[:10]}...")
                 flash('Kích hoạt thành công! Bạn có thể đăng nhập và sử dụng hệ thống.', 'success')
                 return redirect(url_for('login'))
             except Exception as e:
                 db.session.rollback()
-                print(f"[ERROR] Lỗi lưu kích hoạt: {e}")
+                print(f"[ACTIVATE WEB] ❌ Lỗi lưu kích hoạt: {e}")
                 flash('Có lỗi khi lưu thông tin kích hoạt. Vui lòng thử lại.', 'error')
         else:
+            print(f"[ACTIVATE WEB] ❌ Key không hợp lệ! Input: {input_key[:10]}..., Expected: {APP_LICENSE_KEY[:10]}...")
             flash('Key kích hoạt không hợp lệ. Vui lòng kiểm tra lại.', 'error')
 
     return render_template('activate.html')
+
+@app.route('/api/activate', methods=['POST'])
+def api_activate():
+    """
+    API endpoint để kích hoạt license key (dùng cho mobile app).
+    Trả về JSON thay vì HTML như route /activate.
+    Đảm bảo logic nhất quán với route /activate cho web.
+    """
+    try:
+        activation = get_activation_record()
+        
+        # Log để debug
+        print(f"[ACTIVATE API] Request từ: {request.remote_addr}, User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
+        print(f"[ACTIVATE API] Trạng thái hiện tại - is_activated: {activation.is_activated}, license_key trong DB: {activation.license_key}")
+
+        # Nếu đã kích hoạt rồi thì trả về thông báo
+        if activation.is_activated:
+            current_key = get_license_key()
+            print(f"[ACTIVATE API] Đã kích hoạt, key hiện tại: {current_key}")
+            return jsonify({
+                'success': True,
+                'message': 'Ứng dụng đã được kích hoạt',
+                'activated': True,
+                'license_key': activation.license_key,
+                'current_license_key': current_key  # Key đang được sử dụng
+            })
+
+        # Lấy key từ request (có thể là form data hoặc JSON)
+        if request.is_json:
+            data = request.get_json()
+            input_key = (data.get('license_key') or '').strip()
+        else:
+            input_key = (request.form.get('license_key') or '').strip()
+
+        print(f"[ACTIVATE API] Key nhận được từ request: {input_key[:10]}... (độ dài: {len(input_key)})")
+        print(f"[ACTIVATE API] Key chuẩn trên server (APP_LICENSE_KEY): {APP_LICENSE_KEY[:10]}... (độ dài: {len(APP_LICENSE_KEY)})")
+
+        if not input_key:
+            return jsonify({
+                'success': False,
+                'error': 'Vui lòng nhập key kích hoạt!'
+            }), 400
+
+        # So sánh với key chuẩn trên server (giống như route /activate)
+        if input_key == APP_LICENSE_KEY:
+            activation.is_activated = True
+            activation.license_key = input_key
+            activation.activated_at = datetime.utcnow()
+            try:
+                db.session.commit()
+                print(f"[ACTIVATE API] ✅ Kích hoạt thành công! Key đã lưu vào DB: {input_key[:10]}...")
+                return jsonify({
+                    'success': True,
+                    'message': 'Kích hoạt thành công! Bạn có thể đăng nhập và sử dụng hệ thống.',
+                    'activated': True,
+                    'license_key': input_key
+                })
+            except Exception as e:
+                db.session.rollback()
+                print(f"[ACTIVATE API] ❌ Lỗi lưu kích hoạt: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Có lỗi khi lưu thông tin kích hoạt. Vui lòng thử lại.'
+                }), 500
+        else:
+            print(f"[ACTIVATE API] ❌ Key không hợp lệ! Input: {input_key[:10]}..., Expected: {APP_LICENSE_KEY[:10]}...")
+            return jsonify({
+                'success': False,
+                'error': 'Key kích hoạt không hợp lệ. Vui lòng kiểm tra lại.'
+            }), 400
+
+    except Exception as e:
+        print(f"[ACTIVATE API] ❌ Lỗi trong api_activate: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Lỗi server: {str(e)}'
+        }), 500
+
+@app.route('/api/activation/status', methods=['GET'])
+def api_activation_status():
+    """
+    API endpoint để kiểm tra trạng thái kích hoạt (dùng cho mobile app).
+    Trả về key đang được sử dụng (từ DB hoặc env variable) để đảm bảo nhất quán.
+    """
+    try:
+        activation = get_activation_record()
+        current_key = get_license_key()  # Key đang được sử dụng thực tế
+        
+        return jsonify({
+            'activated': activation.is_activated,
+            'license_key': activation.license_key if activation.is_activated else None,  # Key trong DB
+            'current_license_key': current_key,  # Key đang được sử dụng (từ DB hoặc env)
+            'activated_at': activation.activated_at.isoformat() if activation.activated_at else None,
+            'app_license_key': APP_LICENSE_KEY  # Key chuẩn trên server (để debug)
+        })
+    except Exception as e:
+        print(f"[ERROR] Lỗi trong api_activation_status: {e}")
+        return jsonify({
+            'error': f'Lỗi server: {str(e)}'
+        }), 500
+
 @app.route('/leave-request', methods=['POST'])
 def submit_leave_request():
     """Xử lý đơn xin nghỉ phép"""
@@ -11185,6 +11314,108 @@ def api_license_force_refresh():
             'message': message
         })
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/license/update-db-key', methods=['POST'])
+@login_required
+def api_license_update_db_key():
+    """
+    Cập nhật hoặc xóa license key trong database (chỉ admin).
+    Dùng để đồng bộ key trong database với environment variable.
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = db.session.get(User, session['user_id'])
+    if not user or 'ADMIN' not in user.roles:
+        return jsonify({'error': 'Admin only'}), 403
+    
+    try:
+        activation = get_activation_record()
+        
+        if request.is_json:
+            data = request.get_json()
+            action = data.get('action', 'sync')  # 'sync', 'clear', hoặc 'set'
+            new_key = data.get('key', '').strip() if data.get('key') else None
+        else:
+            action = request.form.get('action', 'sync')
+            new_key = request.form.get('key', '').strip() if request.form.get('key') else None
+        
+        old_key = activation.license_key
+        old_activated = activation.is_activated
+        
+        if action == 'clear':
+            # Xóa key trong database
+            activation.license_key = None
+            activation.is_activated = False
+            activation.activated_at = None
+            db.session.commit()
+            
+            print(f"[LICENSE ADMIN] Admin {user.username} đã xóa key cũ: {old_key}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Đã xóa license key trong database',
+                'old_key': old_key,
+                'new_key': None,
+                'is_activated': False
+            })
+        
+        elif action == 'set' and new_key:
+            # Set key mới
+            activation.license_key = new_key
+            activation.is_activated = True
+            activation.activated_at = datetime.utcnow()
+            db.session.commit()
+            
+            print(f"[LICENSE ADMIN] Admin {user.username} đã set key mới: {new_key} (key cũ: {old_key})")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Đã cập nhật license key thành: {new_key}',
+                'old_key': old_key,
+                'new_key': new_key,
+                'is_activated': True
+            })
+        
+        elif action == 'sync':
+            # Đồng bộ với environment variable
+            env_key = (APP_LICENSE_KEY or '').strip()
+            
+            if env_key:
+                activation.license_key = env_key
+                activation.is_activated = True
+                activation.activated_at = datetime.utcnow()
+                db.session.commit()
+                
+                print(f"[LICENSE ADMIN] Admin {user.username} đã đồng bộ key từ env: {env_key} (key cũ: {old_key})")
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Đã đồng bộ license key từ environment variable: {env_key}',
+                    'old_key': old_key,
+                    'new_key': env_key,
+                    'is_activated': True,
+                    'source': 'environment_variable'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Không có APP_LICENSE_KEY trong environment variable'
+                }), 400
+        
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Action không hợp lệ. Dùng: sync, clear, hoặc set (với key)'
+            }), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"[LICENSE ADMIN] Lỗi: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -13592,17 +13823,8 @@ if __name__ == '__main__':
         # License không hợp lệ -> set flag để chặn truy cập nhưng vẫn khởi động server
         _license_is_valid = False
         try:
-            # Lấy lại license_key giống trong _check_license_once (ưu tiên APP_LICENSE_KEY)
-            license_key = None
-            license_key = (APP_LICENSE_KEY or '').strip()
-            if not license_key:
-                activation = None
-                try:
-                    activation = get_activation_record()
-                except Exception:
-                    activation = None
-                if activation is not None:
-                    license_key = (getattr(activation, 'license_key', None) or '').strip()
+            # Sử dụng hàm helper để lấy license key nhất quán
+            license_key = get_license_key()
             print(f"[LICENSE] License key đang dùng: {license_key}", flush=True)
         except Exception:
             pass
