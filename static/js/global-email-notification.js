@@ -87,8 +87,17 @@ function checkEmailStatus(requestId) {
 function checkLatestEmailStatus() {
     // Guard: tránh hiện nhiều lần cho cùng request_id (kể cả reload)
     const shownKey = 'email_status_shown_request_id';
+    const maxRetries = 20;  // Max retry limit to prevent infinite polling
+    let retryCount = 0;
 
     const checkStatus = () => {
+        retryCount++;
+        // Stop polling if max retries reached
+        if (retryCount > maxRetries) {
+            // console.log('Max polling retries reached for latest email status');
+            return;
+        }
+
         // console.log('Checking latest email status');
         fetch('/api/email-status/latest')
             .then(response => response.json())
@@ -126,7 +135,10 @@ function checkLatestEmailStatus() {
             })
             .catch(error => {
                 console.error('Error checking latest email status:', error);
-                setTimeout(checkStatus, 3000);
+                // Only retry if under max limit
+                if (retryCount < maxRetries) {
+                    setTimeout(checkStatus, 3000);
+                }
             });
     };
 
@@ -200,13 +212,22 @@ if (document.readyState === 'loading') {
 }
 
 // ===================== SSE: realtime push (preferred) =====================
+let emailSSEConnection = null;
+
 function startSSEEmailStatus() {
     if (!('EventSource' in window)) {
         // console.log('SSE not supported, fallback to polling');
         return;
     }
     try {
+        // Close existing connection if any
+        if (emailSSEConnection) {
+            emailSSEConnection.close();
+        }
+
         const es = new EventSource('/sse/email-status');
+        emailSSEConnection = es;
+
         es.addEventListener('email_status', (evt) => {
             try {
                 const data = JSON.parse(evt.data);
@@ -238,6 +259,14 @@ function startSSEEmailStatus() {
         // console.log('SSE init failed, fallback to polling', e);
     }
 }
+
+// Cleanup SSE connection when page unloads
+window.addEventListener('beforeunload', function() {
+    if (emailSSEConnection) {
+        emailSSEConnection.close();
+        emailSSEConnection = null;
+    }
+});
 
 // start SSE asap
 try { startSSEEmailStatus(); } catch (e) {}

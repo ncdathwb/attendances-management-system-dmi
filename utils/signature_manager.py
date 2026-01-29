@@ -28,10 +28,16 @@ class SignatureManager:
     def init_app(self, app):
         """Khởi tạo với Flask app"""
         self.app = app
-        # Tạo secret key cho mã hóa nếu chưa có
-        if 'SIGNATURE_SECRET_KEY' not in app.config:
+        # Load secret key từ environment variable để tránh mất signatures khi restart
+        env_key = os.environ.get('SIGNATURE_SECRET_KEY')
+        if env_key:
+            # Nếu có key từ env, sử dụng nó
+            app.config['SIGNATURE_SECRET_KEY'] = env_key.encode() if isinstance(env_key, str) else env_key
+        elif 'SIGNATURE_SECRET_KEY' not in app.config:
+            # Fallback: tạo key mới (warning: sẽ mất signatures cũ khi restart)
             app.config['SIGNATURE_SECRET_KEY'] = Fernet.generate_key()
-        
+            logger.warning("SIGNATURE_SECRET_KEY not found in environment. Generated new key. Old signatures may be invalid.")
+
         self.cipher = Fernet(app.config['SIGNATURE_SECRET_KEY'])
         self.session_timeout = app.config.get('SIGNATURE_SESSION_TIMEOUT', 1800)  # 30 phút
     
@@ -442,10 +448,16 @@ class SignatureManager:
             }
     
     def process_signature_for_display(self, signature_data: str, 
-                                    target_size: Tuple[int, int] = (400, 150)) -> str:
-        """处理签名用于显示"""
+                                    target_size: Tuple[int, int] = None) -> str:
+        """处理签名用于显示 - CẢI THIỆN: Tự động điều chỉnh kích thước dựa trên chữ ký thực tế"""
         try:
-            return signature_processor.process_signature(signature_data, target_size)
+            # Không truyền target_size để signature_processor tự động điều chỉnh
+            # dựa trên kích thước thực tế của chữ ký
+            return signature_processor.process_signature(
+                signature_data, 
+                target_size=target_size,  # None = tự động điều chỉnh
+                enhance_quality=True
+            )
         except Exception as e:
             logger.error(f"Error processing signature for display: {e}")
             return signature_data

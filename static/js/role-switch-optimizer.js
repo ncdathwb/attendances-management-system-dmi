@@ -21,15 +21,17 @@ class RoleSwitchOptimizer {
     async switchRole(newRole) {
         const now = Date.now();
         this.lastRoleSwitch = now;
-        
+
         // Check cooldown period
         const timeSinceLastSwitch = now - this.lastSuccessfulSwitch;
         if (timeSinceLastSwitch < this.minSwitchInterval) {
             const remainingTime = Math.ceil((this.minSwitchInterval - timeSinceLastSwitch) / 1000);
             this.showWarning(`Vui lòng đợi ${remainingTime} giây trước khi chuyển vai trò tiếp theo`);
-            
-            // Queue the role switch for later
-            this.roleSwitchQueue.push(newRole);
+
+            // Queue the role switch for later (avoid duplicates)
+            if (!this.roleSwitchQueue.includes(newRole)) {
+                this.roleSwitchQueue.push(newRole);
+            }
             setTimeout(() => {
                 if (this.roleSwitchQueue.length > 0) {
                     const queuedRole = this.roleSwitchQueue.shift();
@@ -38,28 +40,30 @@ class RoleSwitchOptimizer {
             }, this.minSwitchInterval - timeSinceLastSwitch);
             return;
         }
-        
+
         // Prevent rapid switching during cooldown
         if (this.switchCooldown) {
             this.showWarning('Đang xử lý chuyển vai trò, vui lòng đợi...');
             return;
         }
-        
+
         // Cancel all pending requests for current role
         this.cancelAllPendingRequests();
-        
+
         // Clear cache for new role
         this.clearCacheForRole(newRole);
-        
-        // Debounce rapid role switches
+
+        // Debounce rapid role switches (avoid duplicates in queue)
         if (this.isProcessing) {
-            this.roleSwitchQueue.push(newRole);
+            if (!this.roleSwitchQueue.includes(newRole)) {
+                this.roleSwitchQueue.push(newRole);
+            }
             return;
         }
-        
+
         this.isProcessing = true;
         this.switchCooldown = true;
-        
+
         try {
 
             

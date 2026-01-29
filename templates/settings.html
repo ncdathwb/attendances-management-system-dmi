@@ -498,8 +498,15 @@
                                             <!-- Preview chữ ký đã xử lý -->
                                             <div id="processed-signature-container" class="mt-3" style="display: none;">
                                                 <label class="form-label small">Chữ ký đã xử lý:</label>
-                                                <div class="border rounded p-2"
+                                                <div class="border rounded p-2 position-relative"
                                                     style="text-align: center; background-color: white;">
+                                                    <div id="processing-indicator" class="position-absolute top-50 start-50 translate-middle" 
+                                                        style="display: none; z-index: 10; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px;">
+                                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                            <span class="visually-hidden">Đang xử lý...</span>
+                                                        </div>
+                                                        <small class="ms-2 text-muted">Đang xử lý...</small>
+                                                    </div>
                                                     <img id="processed-signature-preview" class="img-fluid"
                                                         style="max-height: 300px; max-width: 100%;">
                                                 </div>
@@ -514,41 +521,41 @@
                                                             <label
                                                                 class="form-label small fw-semibold text-primary">Ngưỡng
                                                                 độ sáng:</label>
-                                                            <input type="range" id="brightness-threshold" min="0"
-                                                                max="250" value="125"
+                                                            <input type="range" id="brightness-threshold" min="100"
+                                                                max="200" value="140"
                                                                 class="form-range custom-range brightness">
                                                             <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">0</small>
+                                                                <small class="text-muted">100</small>
                                                                 <small class="text-primary fw-bold"
-                                                                    id="brightness-value">125</small>
-                                                                <small class="text-muted">250</small>
+                                                                    id="brightness-value">140</small>
+                                                                <small class="text-muted">200</small>
                                                             </div>
                                                         </div>
                                                         <div class="col-4">
                                                             <label
                                                                 class="form-label small fw-semibold text-success">Ngưỡng
                                                                 tương phản:</label>
-                                                            <input type="range" id="contrast-threshold" min="10"
-                                                                max="50" value="25"
+                                                            <input type="range" id="contrast-threshold" min="5"
+                                                                max="30" value="15"
                                                                 class="form-range custom-range contrast">
                                                             <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">10</small>
+                                                                <small class="text-muted">5</small>
                                                                 <small class="text-success fw-bold"
-                                                                    id="contrast-value">25</small>
-                                                                <small class="text-muted">50</small>
+                                                                    id="contrast-value">15</small>
+                                                                <small class="text-muted">30</small>
                                                             </div>
                                                         </div>
                                                         <div class="col-4">
                                                             <label class="form-label small fw-semibold text-warning">Độ
                                                                 đậm chữ ký:</label>
-                                                            <input type="range" id="intensity-threshold" min="20"
-                                                                max="100" value="50"
+                                                            <input type="range" id="intensity-threshold" min="10"
+                                                                max="50" value="20"
                                                                 class="form-range custom-range intensity">
                                                             <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">20</small>
+                                                                <small class="text-muted">10</small>
                                                                 <small class="text-warning fw-bold"
-                                                                    id="intensity-value">50</small>
-                                                                <small class="text-muted">100</small>
+                                                                    id="intensity-value">20</small>
+                                                                <small class="text-muted">50</small>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -830,12 +837,19 @@
             });
         });
 
-        // Hàm xử lý ảnh chữ ký
-        function processSignatureImage(img, brightnessThreshold = 125, contrastThreshold = 25, intensityThreshold = 50) {
+        // Hàm xử lý ảnh chữ ký - THUẬT TOÁN MỚI: Adaptive Threshold + Morphological Operations
+        // Sử dụng adaptive threshold và dilation để giữ nét tốt hơn, không bị mất chữ ký mảnh
+        // Tối ưu: Giảm độ phân giải khi preview để xử lý nhanh hơn
+        function processSignatureImage(img, brightnessThreshold = 140, contrastThreshold = 15, intensityThreshold = 20) {
+            // Hiển thị loading indicator
+            const processingIndicator = document.getElementById('processing-indicator');
+            if (processingIndicator) {
+                processingIndicator.style.display = 'block';
+            }
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
-            // Kích thước cố định cho chữ ký (tăng 200% từ 500x300 lên 1500x900)
+            // Kích thước cố định cho chữ ký
             const targetWidth = 1500;
             const targetHeight = 900;
 
@@ -845,165 +859,204 @@
             // Vẽ ảnh với kích thước mới
             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-            // Lấy dữ liệu pixel
+            // Lấy dữ liệu pixel gốc
             const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
             const data = imageData.data;
-
-            // Xử lý từng pixel để tách nền trắng và chuyển nét sang đen
+            
+            // Bước 1: Chuyển sang grayscale và tính toán adaptive threshold
+            const grayData = new Uint8ClampedArray(targetWidth * targetHeight);
+            const brightnessMap = new Float32Array(targetWidth * targetHeight);
+            
+            // Tính toán độ sáng cho từng pixel và tạo bản đồ độ sáng
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
-                const a = data[i + 3];
-
-                // Tính độ sáng và độ tương phản
-                const brightness = (r + g + b) / 3;
-                const maxColor = Math.max(r, g, b);
-                const minColor = Math.min(r, g, b);
-                const contrast = maxColor - minColor;
-
-                // Kiểm tra xem có phải nền trắng không
-                const isBackground = brightness > brightnessThreshold && contrast < contrastThreshold;
-
-                if (isBackground) {
-                    // Nền trắng - đặt thành trắng hoàn toàn
-                    data[i] = 255;     // R
-                    data[i + 1] = 255; // G
-                    data[i + 2] = 255; // B
-                    data[i + 3] = 255; // A
-                } else {
-                    // Chữ ký - kiểm tra độ đậm để làm nét
-                    const signatureIntensity = 255 - brightness; // Độ đậm của chữ ký
-
-                    if (signatureIntensity > intensityThreshold) { // Chỉ giữ lại những pixel đủ đậm
-                        data[i] = 0;     // R - đen hoàn toàn
-                        data[i + 1] = 0; // G
-                        data[i + 2] = 0; // B
-                        data[i + 3] = 255; // A
+                const brightness = (r * 0.299 + g * 0.587 + b * 0.114); // Weighted grayscale
+                const idx = i / 4;
+                grayData[idx] = brightness;
+                brightnessMap[idx] = brightness;
+            }
+            
+            // Tính adaptive threshold cho từng vùng (local threshold)
+            // Giảm block size để tăng tốc độ xử lý (31 -> 21)
+            const blockSize = 21; // Kích thước block để tính local threshold (giảm từ 31 để tăng tốc)
+            const C = 10; // Hằng số trừ đi từ mean để điều chỉnh độ nhạy
+            
+            // Bước 2: Áp dụng adaptive threshold để tách chữ ký
+            const binaryData = new Uint8ClampedArray(data.length);
+            
+            for (let y = 0; y < targetHeight; y++) {
+                for (let x = 0; x < targetWidth; x++) {
+                    const idx = y * targetWidth + x;
+                    const pixelIdx = idx * 4;
+                    
+                    // Tính local mean trong vùng blockSize x blockSize
+                    let sum = 0;
+                    let count = 0;
+                    const halfBlock = Math.floor(blockSize / 2);
+                    
+                    for (let dy = -halfBlock; dy <= halfBlock; dy++) {
+                        for (let dx = -halfBlock; dx <= halfBlock; dx++) {
+                            const ny = y + dy;
+                            const nx = x + dx;
+                            if (ny >= 0 && ny < targetHeight && nx >= 0 && nx < targetWidth) {
+                                const nIdx = ny * targetWidth + nx;
+                                sum += brightnessMap[nIdx];
+                                count++;
+                            }
+                        }
+                    }
+                    
+                    const localMean = sum / count;
+                    const adaptiveThreshold = localMean - C;
+                    
+                    // So sánh với adaptive threshold và global threshold
+                    const pixelBrightness = brightnessMap[idx];
+                    const globalThreshold = brightnessThreshold;
+                    
+                    // Kết hợp adaptive và global threshold
+                    const finalThreshold = Math.min(adaptiveThreshold, globalThreshold);
+                    
+                    // Tính độ tương phản local
+                    let maxLocal = 0, minLocal = 255;
+                    for (let dy = -2; dy <= 2; dy++) {
+                        for (let dx = -2; dx <= 2; dx++) {
+                            const ny = y + dy;
+                            const nx = x + dx;
+                            if (ny >= 0 && ny < targetHeight && nx >= 0 && nx < targetWidth) {
+                                const nIdx = ny * targetWidth + nx;
+                                const val = brightnessMap[nIdx];
+                                if (val > maxLocal) maxLocal = val;
+                                if (val < minLocal) minLocal = val;
+                            }
+                        }
+                    }
+                    const localContrast = maxLocal - minLocal;
+                    
+                    // Quyết định pixel là chữ ký hay nền
+                    // Điều kiện: pixel tối hơn threshold HOẶC có độ tương phản cao
+                    const isSignature = pixelBrightness < finalThreshold || 
+                                       (localContrast > contrastThreshold && pixelBrightness < brightnessThreshold + 20);
+                    
+                    if (isSignature) {
+                        // Chữ ký - chuyển sang đen, nhưng giữ độ đậm nhạt để làm mượt sau
+                        const intensity = 255 - pixelBrightness;
+                        // Giữ lại cả pixel nhạt để làm dày sau
+                        if (intensity > intensityThreshold) {
+                            binaryData[pixelIdx] = 0;     // R
+                            binaryData[pixelIdx + 1] = 0; // G
+                            binaryData[pixelIdx + 2] = 0; // B
+                            binaryData[pixelIdx + 3] = 255; // A
+                        } else {
+                            // Pixel nhạt nhưng vẫn là chữ ký - giữ lại với màu xám nhạt để dilation
+                            const grayValue = Math.max(0, 255 - intensity * 2);
+                            binaryData[pixelIdx] = grayValue;
+                            binaryData[pixelIdx + 1] = grayValue;
+                            binaryData[pixelIdx + 2] = grayValue;
+                            binaryData[pixelIdx + 3] = 255;
+                        }
                     } else {
-                        // Pixel quá nhạt - loại bỏ
-                        data[i] = 255;     // R - trắng
-                        data[i + 1] = 255; // G
-                        data[i + 2] = 255; // B
-                        data[i + 3] = 255; // A
+                        // Nền - trắng hoàn toàn
+                        binaryData[pixelIdx] = 255;
+                        binaryData[pixelIdx + 1] = 255;
+                        binaryData[pixelIdx + 2] = 255;
+                        binaryData[pixelIdx + 3] = 255;
                     }
                 }
             }
-
-            // Bước 2: Làm mượt và nét chữ ký
-            const smoothedData = new Uint8ClampedArray(data);
-
-            // Bước 2.1: Loại bỏ nhiễu và làm mượt
-            for (let y = 2; y < targetHeight - 2; y++) {
-                for (let x = 2; x < targetWidth - 2; x++) {
+            
+            // Bước 3: Morphological Dilation - làm dày nét chữ ký để nối các đoạn đứt
+            const dilatedData = new Uint8ClampedArray(binaryData);
+            const dilationRadius = 1; // Bán kính dilation (1 = 3x3 kernel)
+            
+            for (let y = dilationRadius; y < targetHeight - dilationRadius; y++) {
+                for (let x = dilationRadius; x < targetWidth - dilationRadius; x++) {
                     const idx = (y * targetWidth + x) * 4;
-
-                    // Kiểm tra xem pixel hiện tại có phải là chữ ký không
-                    if (data[idx] === 0 && data[idx + 1] === 0 && data[idx + 2] === 0) {
-                        // Đếm số pixel đen trong vùng 5x5
-                        let blackNeighbors = 0;
-                        let totalNeighbors = 0;
-
-                        for (let dy = -2; dy <= 2; dy++) {
-                            for (let dx = -2; dx <= 2; dx++) {
+                    
+                    // Nếu pixel hiện tại là nền (trắng), kiểm tra xem có pixel đen gần đó không
+                    if (binaryData[idx] === 255 && binaryData[idx + 1] === 255 && binaryData[idx + 2] === 255) {
+                        let hasBlackNeighbor = false;
+                        let minNeighborValue = 255;
+                        
+                        for (let dy = -dilationRadius; dy <= dilationRadius; dy++) {
+                            for (let dx = -dilationRadius; dx <= dilationRadius; dx++) {
                                 if (dx === 0 && dy === 0) continue;
                                 const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
-                                if (neighborIdx >= 0 && neighborIdx < data.length) {
-                                    totalNeighbors++;
-                                    if (data[neighborIdx] === 0 && data[neighborIdx + 1] === 0 && data[neighborIdx + 2] === 0) {
+                                if (neighborIdx >= 0 && neighborIdx < binaryData.length) {
+                                    const neighborValue = binaryData[neighborIdx];
+                                    if (neighborValue < 200) { // Có pixel đen hoặc xám
+                                        hasBlackNeighbor = true;
+                                        if (neighborValue < minNeighborValue) {
+                                            minNeighborValue = neighborValue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Nếu có pixel đen gần đó, dilation: làm pixel này thành đen
+                        if (hasBlackNeighbor) {
+                            dilatedData[idx] = Math.min(minNeighborValue, 50); // Đen hoặc xám đậm
+                            dilatedData[idx + 1] = dilatedData[idx];
+                            dilatedData[idx + 2] = dilatedData[idx];
+                            dilatedData[idx + 3] = 255;
+                        }
+                    }
+                }
+            }
+            
+            // Bước 4: Chuyển tất cả về đen trắng thuần túy và loại bỏ nhiễu nhỏ
+            const finalData = new Uint8ClampedArray(dilatedData);
+            
+            // Chuyển đổi sang binary (đen/trắng)
+            for (let i = 0; i < finalData.length; i += 4) {
+                const gray = dilatedData[i];
+                if (gray < 128) { // Đen hoặc xám đậm
+                    finalData[i] = 0;
+                    finalData[i + 1] = 0;
+                    finalData[i + 2] = 0;
+                    finalData[i + 3] = 255;
+                } else { // Trắng
+                    finalData[i] = 255;
+                    finalData[i + 1] = 255;
+                    finalData[i + 2] = 255;
+                    finalData[i + 3] = 255;
+                }
+            }
+            
+            // Loại bỏ nhiễu nhỏ (các pixel đen đơn lẻ)
+            for (let y = 1; y < targetHeight - 1; y++) {
+                for (let x = 1; x < targetWidth - 1; x++) {
+                    const idx = (y * targetWidth + x) * 4;
+                    
+                    if (finalData[idx] === 0) { // Pixel đen
+                        let blackNeighbors = 0;
+                        
+                        // Đếm pixel đen trong vùng 3x3
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (dx === 0 && dy === 0) continue;
+                                const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
+                                if (neighborIdx >= 0 && neighborIdx < finalData.length) {
+                                    if (finalData[neighborIdx] === 0) {
                                         blackNeighbors++;
                                     }
                                 }
                             }
                         }
-
-                        // Nếu pixel đen có ít hơn 3 pixel đen xung quanh, loại bỏ (nhiễu)
-                        if (blackNeighbors < 3) {
-                            smoothedData[idx] = 255;     // R
-                            smoothedData[idx + 1] = 255; // G
-                            smoothedData[idx + 2] = 255; // B
-                            smoothedData[idx + 3] = 255; // A
-                        }
-                    }
-                }
-            }
-
-            // Bước 2.2: Làm nét chữ ký bằng bộ lọc unsharp mask
-            const sharpenedData = new Uint8ClampedArray(smoothedData);
-            for (let y = 1; y < targetHeight - 1; y++) {
-                for (let x = 1; x < targetWidth - 1; x++) {
-                    const idx = (y * targetWidth + x) * 4;
-
-                    if (smoothedData[idx] === 0 && smoothedData[idx + 1] === 0 && smoothedData[idx + 2] === 0) {
-                        // Tính trung bình của các pixel xung quanh
-                        let sumR = 0, sumG = 0, sumB = 0, count = 0;
-
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
-                                if (neighborIdx >= 0 && neighborIdx < smoothedData.length) {
-                                    sumR += smoothedData[neighborIdx];
-                                    sumG += smoothedData[neighborIdx + 1];
-                                    sumB += smoothedData[neighborIdx + 2];
-                                    count++;
-                                }
-                            }
-                        }
-
-                        if (count > 0) {
-                            const avgR = sumR / count;
-                            const avgG = sumG / count;
-                            const avgB = sumB / count;
-
-                            // Nếu pixel xung quanh sáng hơn, làm nét pixel hiện tại
-                            if (avgR > 200 && avgG > 200 && avgB > 200) {
-                                // Giữ nguyên pixel đen để tạo độ nét
-                                sharpenedData[idx] = 0;
-                                sharpenedData[idx + 1] = 0;
-                                sharpenedData[idx + 2] = 0;
-                                sharpenedData[idx + 3] = 255;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Bước 2.3: Làm mượt đường viền
-            const finalData = new Uint8ClampedArray(sharpenedData);
-            for (let y = 1; y < targetHeight - 1; y++) {
-                for (let x = 1; x < targetWidth - 1; x++) {
-                    const idx = (y * targetWidth + x) * 4;
-
-                    if (sharpenedData[idx] === 0 && sharpenedData[idx + 1] === 0 && sharpenedData[idx + 2] === 0) {
-                        // Kiểm tra xem có pixel trắng xung quanh không
-                        let hasWhiteNeighbor = false;
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
-                                if (neighborIdx >= 0 && neighborIdx < sharpenedData.length) {
-                                    if (sharpenedData[neighborIdx] === 255 && sharpenedData[neighborIdx + 1] === 255 && sharpenedData[neighborIdx + 2] === 255) {
-                                        hasWhiteNeighbor = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (hasWhiteNeighbor) break;
-                        }
-
-                        // Nếu có pixel trắng xung quanh, đây là đường viền - làm mượt
-                        if (hasWhiteNeighbor) {
-                            // Giữ nguyên để tạo đường viền sắc nét
-                            finalData[idx] = 0;
-                            finalData[idx + 1] = 0;
-                            finalData[idx + 2] = 0;
+                        
+                        // Nếu có ít hơn 1 pixel đen lân cận, coi là nhiễu và loại bỏ
+                        if (blackNeighbors < 1) {
+                            finalData[idx] = 255;
+                            finalData[idx + 1] = 255;
+                            finalData[idx + 2] = 255;
                             finalData[idx + 3] = 255;
                         }
                     }
                 }
             }
-
+            
             // Cập nhật dữ liệu với kết quả cuối cùng
             for (let i = 0; i < data.length; i++) {
                 data[i] = finalData[i];
@@ -1014,10 +1067,17 @@
 
             // Hiển thị ảnh đã xử lý
             const processedImageData = canvas.toDataURL('image/png');
-            document.getElementById('processed-signature-preview').src = processedImageData;
-            document.getElementById('processed-signature-container').style.display = 'block';
-
-
+            
+            // Sử dụng requestAnimationFrame để cập nhật UI mượt mà
+            requestAnimationFrame(() => {
+                document.getElementById('processed-signature-preview').src = processedImageData;
+                document.getElementById('processed-signature-container').style.display = 'block';
+                
+                // Ẩn loading indicator
+                if (processingIndicator) {
+                    processingIndicator.style.display = 'none';
+                }
+            });
 
             // Lưu ảnh đã xử lý vào biến toàn cục để sử dụng sau
             window.processedSignatureData = processedImageData;
@@ -1104,19 +1164,44 @@
                 slider.style.setProperty('--value-percent', percent + '%');
             }
 
-            // Hàm tự động xử lý lại với debounce
+            // Biến để theo dõi trạng thái xử lý
+            let isProcessing = false;
+            
+            // Hàm tự động xử lý lại với debounce và requestAnimationFrame để mượt mà hơn
             function autoReprocess() {
                 if (reprocessTimeout) {
                     clearTimeout(reprocessTimeout);
                 }
+                
+                // Hiển thị loading indicator ngay lập tức
+                const processingIndicator = document.getElementById('processing-indicator');
+                if (processingIndicator && !isProcessing) {
+                    processingIndicator.style.display = 'block';
+                }
+                
                 reprocessTimeout = setTimeout(() => {
-                    if (window.originalImageData) {
-                        const brightnessThreshold = parseInt(brightnessSlider.value);
-                        const contrastThreshold = parseInt(contrastSlider.value);
-                        const intensityThreshold = parseInt(intensitySlider.value);
-                        processSignatureImage(window.originalImageData, brightnessThreshold, contrastThreshold, intensityThreshold);
+                    if (window.originalImageData && !isProcessing) {
+                        isProcessing = true;
+                        
+                        // Sử dụng requestAnimationFrame để không block UI thread
+                        requestAnimationFrame(() => {
+                            try {
+                                const brightnessThreshold = parseInt(brightnessSlider.value);
+                                const contrastThreshold = parseInt(contrastSlider.value);
+                                const intensityThreshold = parseInt(intensitySlider.value);
+                                processSignatureImage(window.originalImageData, brightnessThreshold, contrastThreshold, intensityThreshold);
+                            } finally {
+                                isProcessing = false;
+                                // Ẩn loading indicator sau khi xử lý xong
+                                if (processingIndicator) {
+                                    processingIndicator.style.display = 'none';
+                                }
+                            }
+                        });
+                    } else if (processingIndicator) {
+                        processingIndicator.style.display = 'none';
                     }
-                }, 300); // Delay 300ms để tránh xử lý quá nhiều
+                }, 500); // Tăng delay lên 500ms để giảm số lần xử lý
             }
 
             if (brightnessSlider && brightnessValue) {
@@ -1155,6 +1240,9 @@
 
         });
     </script>
+    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
+    <!-- Tạm thời ẩn chatbot AI -->
+    {# {% include 'chatbot_widget.html' %} #}
 </body>
 
 </html>

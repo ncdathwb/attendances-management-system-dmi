@@ -9,6 +9,7 @@ WTForms==3.1.1
 # Security dependencies
 Flask-Talisman==1.1.0  # Security headers
 Flask-Limiter==3.5.0   # Rate limiting
+Flask-Cors==4.0.0      # CORS support (optional - G3)
 cryptography==41.0.7   # Enhanced cryptography
 bcrypt==4.1.2          # Password hashing
 PyJWT==2.8.0           # JWT tokens
@@ -58,7 +59,11 @@ openpyxl==3.1.2
 # Image processing for signature optimization
 opencv-python==4.8.1.78
 Pillow==10.0.1
-numpy==1.24.3
+numpy>=1.26.0,<2.0.0  # Updated for Python 3.11 compatibility
+
+# Retrieval-Augmented Generation (chatbot kiến thức nội bộ)
+sentence-transformers==2.6.1
+chromadb==0.5.23
 
 # Additional security packages
 bandit==1.7.5          # Security linting

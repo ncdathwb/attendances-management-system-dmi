@@ -28,7 +28,7 @@ class SignatureProcessor:
                          target_size: Optional[Tuple[int, int]] = None,
                          enhance_quality: bool = True) -> str:
         """
-        处理签名图像，优化质量和尺寸
+        处理签名图像，优化质量和尺寸 - CẢI THIỆN: Tự động điều chỉnh dựa trên kích thước thực tế
         
         Args:
             signature_data: Base64编码的签名图像数据
@@ -49,18 +49,56 @@ class SignatureProcessor:
             
             # 转换为PIL图像
             pil_image = Image.open(io.BytesIO(image_data))
+            original_size = pil_image.size
             
-            # 提取签名区域
+            # 提取签名区域 (loại bỏ khoảng trắng)
             signature_region = self._extract_signature_region(pil_image)
             if signature_region is None:
-                return signature_data
+                signature_region = pil_image
+            
+            extracted_size = signature_region.size
             
             # 增强图像质量
             if enhance_quality:
                 signature_region = self._enhance_image_quality(signature_region)
             
-            # 调整尺寸
-            target_size = target_size or self.optimal_signature_size
+            # Xác định target_size thông minh
+            # Nếu không có target_size, sử dụng kích thước tối ưu
+            # Nhưng điều chỉnh dựa trên kích thước thực tế của chữ ký
+            if target_size is None:
+                # Sử dụng kích thước tối ưu làm base
+                target_size = self.optimal_signature_size
+                
+                # Điều chỉnh dựa trên kích thước thực tế của chữ ký đã extract
+                # Nếu chữ ký rất nhỏ, scale lên một chút
+                # Nếu chữ ký rất lớn, scale xuống nhưng vẫn giữ tỷ lệ
+                extracted_width, extracted_height = extracted_size
+                optimal_width, optimal_height = self.optimal_signature_size
+                
+                # Tính tỷ lệ scale dựa trên kích thước extract
+                # Đảm bảo chữ ký không quá nhỏ hoặc quá lớn
+                if extracted_width < optimal_width * 0.3 or extracted_height < optimal_height * 0.3:
+                    # Chữ ký rất nhỏ, scale lên
+                    scale_factor = max(optimal_width / extracted_width, optimal_height / extracted_height)
+                    scale_factor = min(scale_factor, 3.0)  # Giới hạn scale tối đa 3x
+                    target_size = (
+                        int(extracted_width * scale_factor),
+                        int(extracted_height * scale_factor)
+                    )
+                    # Đảm bảo không vượt quá max size
+                    target_size = (
+                        min(target_size[0], self.max_signature_size[0]),
+                        min(target_size[1], self.max_signature_size[1])
+                    )
+                elif extracted_width > optimal_width * 2 or extracted_height > optimal_height * 2:
+                    # Chữ ký rất lớn, scale xuống
+                    scale_factor = min(optimal_width / extracted_width, optimal_height / extracted_height)
+                    target_size = (
+                        int(extracted_width * scale_factor),
+                        int(extracted_height * scale_factor)
+                    )
+            
+            # 调整尺寸 với target_size đã được điều chỉnh
             resized_image = self._resize_signature(signature_region, target_size)
             
             # 转换为Base64
@@ -71,13 +109,54 @@ class SignatureProcessor:
             return signature_data
     
     def _decode_base64_image(self, base64_data: str) -> Optional[bytes]:
-        """解码Base64图像数据"""
+        """解码Base64图像数据 với validation file type"""
         try:
-            # 移除data URL前缀
-            if base64_data.startswith('data:image'):
+            # Validate data URL format trước khi decode
+            allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']
+
+            if base64_data.startswith('data:'):
+                # Extract và validate MIME type
+                header_end = base64_data.find(',')
+                if header_end == -1:
+                    logger.warning("Invalid data URL format: missing comma separator")
+                    return None
+
+                header = base64_data[:header_end].lower()
+                # Extract MIME type from "data:image/png;base64"
+                mime_start = header.find(':') + 1
+                mime_end = header.find(';') if ';' in header else len(header)
+                mime_type = header[mime_start:mime_end]
+
+                if mime_type not in allowed_types:
+                    logger.warning(f"Invalid image type: {mime_type}. Allowed: {allowed_types}")
+                    return None
+
                 base64_data = base64_data.split(',')[1]
-            
-            return base64.b64decode(base64_data)
+
+            # Decode base64
+            decoded = base64.b64decode(base64_data)
+
+            # Validate it's actually an image by checking magic bytes
+            if len(decoded) < 8:
+                logger.warning("Decoded data too small to be a valid image")
+                return None
+
+            # Check PNG magic bytes
+            if decoded[:8] == b'\x89PNG\r\n\x1a\n':
+                return decoded
+            # Check JPEG magic bytes
+            if decoded[:2] == b'\xff\xd8':
+                return decoded
+            # Check GIF magic bytes
+            if decoded[:6] in (b'GIF87a', b'GIF89a'):
+                return decoded
+            # Check WebP magic bytes
+            if decoded[:4] == b'RIFF' and decoded[8:12] == b'WEBP':
+                return decoded
+
+            logger.warning("Decoded data does not match known image magic bytes")
+            return None
+
         except Exception as e:
             logger.error(f"Error decoding base64 image: {e}")
             return None
@@ -95,43 +174,84 @@ class SignatureProcessor:
             return ""
     
     def _extract_signature_region(self, pil_image: Image.Image) -> Optional[Image.Image]:
-        """提取签名区域，去除空白背景"""
+        """提取签名区域，去除空白背景 - CẢI THIỆN: Tự động phát hiện và loại bỏ khoảng trắng tốt hơn"""
         try:
-            # 转换为OpenCV格式
-            cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            # Chuyển sang RGBA nếu chưa phải
+            if pil_image.mode != 'RGBA':
+                pil_image = pil_image.convert('RGBA')
             
-            # 转换为灰度图
-            gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+            # Chuyển đổi sang numpy array để xử lý
+            img_array = np.array(pil_image)
             
-            # 二值化处理
-            _, binary = cv2.threshold(gray, self.background_threshold, 255, cv2.THRESH_BINARY_INV)
+            # Tạo mask để tìm vùng có nội dung (không phải nền trắng hoặc trong suốt)
+            # Xử lý cả ảnh có nền trắng và ảnh có nền trong suốt
+            if img_array.shape[2] == 4:  # RGBA
+                # Tìm pixel có alpha > 0 và không phải màu trắng
+                alpha_channel = img_array[:, :, 3]
+                rgb_channels = img_array[:, :, :3]
+                
+                # Tạo mask: pixel có alpha > threshold và không phải màu trắng
+                non_white_mask = np.any(rgb_channels < self.background_threshold, axis=2)
+                has_content_mask = (alpha_channel > 10) & non_white_mask
+            else:  # RGB
+                # Tìm pixel không phải màu trắng
+                has_content_mask = np.any(img_array < self.background_threshold, axis=2)
             
-            # 查找轮廓
-            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            if not contours:
+            if not np.any(has_content_mask):
+                # Không tìm thấy nội dung, trả về ảnh gốc
                 return pil_image
             
-            # 找到最大的轮廓（通常是签名）
-            largest_contour = max(contours, key=cv2.contourArea)
+            # Tìm bounding box của vùng có nội dung
+            rows = np.any(has_content_mask, axis=1)
+            cols = np.any(has_content_mask, axis=0)
             
-            # 获取边界框
-            x, y, w, h = cv2.boundingRect(largest_contour)
+            if not np.any(rows) or not np.any(cols):
+                return pil_image
             
-            # 添加边距
-            margin = 10
-            x = max(0, x - margin)
-            y = max(0, y - margin)
-            w = min(cv_image.shape[1] - x, w + 2 * margin)
-            h = min(cv_image.shape[0] - y, h + 2 * margin)
+            top_row = np.argmax(rows)
+            bottom_row = len(rows) - np.argmax(rows[::-1])
+            left_col = np.argmax(cols)
+            right_col = len(cols) - np.argmax(cols[::-1])
             
-            # 裁剪签名区域
+            # Thêm margin để không cắt sát chữ ký
+            # Margin tỷ lệ với kích thước chữ ký
+            width = right_col - left_col
+            height = bottom_row - top_row
+            margin_ratio = 0.05  # 5% margin
+            margin_x = max(10, int(width * margin_ratio))
+            margin_y = max(10, int(height * margin_ratio))
+            
+            x = max(0, left_col - margin_x)
+            y = max(0, top_row - margin_y)
+            w = min(pil_image.width - x, right_col - left_col + 2 * margin_x)
+            h = min(pil_image.height - y, bottom_row - top_row + 2 * margin_y)
+            
+            # Cắt vùng chữ ký
             signature_region = pil_image.crop((x, y, x + w, y + h))
             
             return signature_region
             
         except Exception as e:
             logger.error(f"Error extracting signature region: {e}")
+            # Fallback: thử dùng OpenCV nếu có lỗi
+            try:
+                cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+                gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+                _, binary = cv2.threshold(gray, self.background_threshold, 255, cv2.THRESH_BINARY_INV)
+                contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                if contours:
+                    largest_contour = max(contours, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(largest_contour)
+                    margin = 10
+                    x = max(0, x - margin)
+                    y = max(0, y - margin)
+                    w = min(cv_image.shape[1] - x, w + 2 * margin)
+                    h = min(cv_image.shape[0] - y, h + 2 * margin)
+                    return pil_image.crop((x, y, x + w, y + h))
+            except:
+                pass
+            
             return pil_image
     
     def _enhance_image_quality(self, pil_image: Image.Image) -> Image.Image:
@@ -155,42 +275,65 @@ class SignatureProcessor:
             return pil_image
     
     def _resize_signature(self, pil_image: Image.Image, target_size: Tuple[int, int]) -> Image.Image:
-        """调整签名尺寸，保持宽高比 - ƯU TIÊN KÍCH THƯỚC MỤC TIÊU"""
+        """调整签名尺寸，保持宽高比 - CẢI THIỆN: Tự động điều chỉnh để vừa khít với ô và fill tốt"""
         try:
             current_width, current_height = pil_image.size
             target_width, target_height = target_size
             
-            # 计算宽高比
+            # Tỷ lệ fill tối thiểu: đảm bảo chữ ký chiếm ít nhất 80% kích thước mục tiêu
+            min_fill_ratio = 0.80
+            
             current_ratio = current_width / current_height
             target_ratio = target_width / target_height
             
-            # 根据宽高比调整尺寸 - ƯU TIÊN KÍCH THƯỚC MỤC TIÊU
+            # Tính toán kích thước mới giữ nguyên tỷ lệ và vừa khít với ô
             if current_ratio > target_ratio:
-                # 宽度优先 - ưu tiên chiều rộng
+                # Ảnh rộng hơn (tỷ lệ rộng hơn ô) -> scale theo chiều rộng để fill đầy
                 new_width = target_width
                 new_height = int(target_width / current_ratio)
             else:
-                # 高度优先 - ưu tiên chiều cao
+                # Ảnh cao hơn (tỷ lệ cao hơn ô) -> scale theo chiều cao để fill đầy
                 new_height = target_height
                 new_width = int(target_height * current_ratio)
             
-            # 确保尺寸在合理范围内 - ƯU TIÊN KÍCH THƯỚC MỤC TIÊU
-            # Nếu kích thước tính toán vượt quá mục tiêu, thu nhỏ lại
+            # Đảm bảo không vượt quá kích thước mục tiêu
             if new_width > target_width:
-                scale_factor = target_width / new_width
+                scale = target_width / new_width
                 new_width = target_width
-                new_height = int(new_height * scale_factor)
+                new_height = int(new_height * scale)
             
             if new_height > target_height:
-                scale_factor = target_height / new_height
+                scale = target_height / new_height
                 new_height = target_height
+                new_width = int(new_width * scale)
+            
+            # Kiểm tra và đảm bảo fill tối thiểu: nếu quá nhỏ, scale lên để đạt min_fill_ratio
+            width_fill_ratio = new_width / target_width
+            height_fill_ratio = new_height / target_height
+            min_actual_fill = min(width_fill_ratio, height_fill_ratio)
+            
+            if min_actual_fill < min_fill_ratio:
+                # Scale lên để đạt min_fill_ratio
+                scale_factor = min_fill_ratio / min_actual_fill
                 new_width = int(new_width * scale_factor)
+                new_height = int(new_height * scale_factor)
+                
+                # Đảm bảo không vượt quá target sau khi scale
+                if new_width > target_width:
+                    scale = target_width / new_width
+                    new_width = target_width
+                    new_height = int(new_height * scale)
+                
+                if new_height > target_height:
+                    scale = target_height / new_height
+                    new_height = target_height
+                    new_width = int(new_width * scale)
             
-            # Đảm bảo kích thước tối thiểu
-            new_width = max(self.min_signature_size[0], new_width)
-            new_height = max(self.min_signature_size[1], new_height)
+            # Đảm bảo kích thước hợp lệ (ít nhất 1 pixel)
+            new_width = max(1, new_width)
+            new_height = max(1, new_height)
             
-            # 调整尺寸
+            # Resize với LANCZOS để có chất lượng tốt nhất
             resized_image = pil_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
             return resized_image

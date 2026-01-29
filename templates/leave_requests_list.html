@@ -166,6 +166,9 @@
             margin-bottom: 1.25rem;
             box-shadow: var(--shadow-sm);
             border: 1px solid var(--border-color);
+            /* Tối ưu hiệu năng */
+            contain: layout style;
+            will-change: auto;
         }
 
         .filter-section .form-label {
@@ -173,6 +176,9 @@
             font-weight: 500;
             color: var(--primary-color);
             margin-bottom: 0.375rem;
+            height: 20px;
+            display: flex;
+            align-items: center;
         }
 
         .filter-section .form-control,
@@ -205,14 +211,57 @@
             border-radius: var(--radius-sm);
             font-weight: 500;
             font-size: 0.875rem;
-            transition: all 0.2s ease;
-            min-width: 80px;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+            min-width: 140px;
+            width: 140px;
+            height: 50px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            will-change: background-color, opacity;
+            gap: 0.5rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+            overflow: hidden;
         }
 
-        .btn-filter:hover {
+        .btn-filter:hover:not(:disabled) {
             background-color: #2980b9;
-            transform: translateY(-1px);
             box-shadow: var(--shadow-sm);
+        }
+
+        .btn-filter:disabled {
+            opacity: 0.85;
+            cursor: not-allowed;
+        }
+
+        .btn-filter.is-loading {
+            opacity: 0.9;
+        }
+
+        .btn-filter .loading {
+            flex-shrink: 0;
+        }
+
+        .btn-filter span {
+            white-space: nowrap;
+        }
+
+        /* Cố định container nút lọc để tránh layout shift */
+        .filter-buttons-container {
+            min-width: 200px;
+            width: auto;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            /* Căn chỉnh với các input fields: label height (20px) + margin-bottom (0.375rem) */
+            padding-top: calc(20px + 0.375rem);
+        }
+
+        .filter-buttons-container .d-flex {
+            align-items: flex-end;
         }
 
         /* Table Styling */
@@ -537,26 +586,39 @@
             }
         }
 
-        /* Loading Animation */
+        /* Loading Animation - Tối ưu cho mượt mà */
         .loading {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+            will-change: transform;
+            backface-visibility: hidden;
+            transform: translateZ(0);
         }
 
         @keyframes spin {
+            from {
+                transform: rotate(0deg) translateZ(0);
+            }
+
             to {
-                transform: rotate(360deg);
+                transform: rotate(360deg) translateZ(0);
             }
         }
 
-        /* Smooth Transitions */
-        * {
-            transition: all 0.3s ease;
+        /* Smooth Transitions - Loại bỏ transition cho tất cả để tránh lag */
+        /* Chỉ áp dụng transition cho các element cụ thể */
+        .filter-section {
+            transition: none;
+        }
+
+        .filter-section .d-flex {
+            transition: none;
         }
     </style>
 </head>
@@ -694,13 +756,16 @@
                     <input type="date" class="form-control modern-date" id="dateToFilter"
                         value="{{ request.args.get('date_to', '') }}" title="Lọc theo ngày kết thúc nghỉ phép">
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-filter btn-search" onclick="applyFilters()">
-                        <i class="fas fa-search me-1"></i> Lọc
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="clearFilters()" title="Xóa tất cả bộ lọc">
-                        <i class="fas fa-times me-1"></i> Xóa
-                    </button>
+                <div class="flex-grow-1 filter-buttons-container" style="min-width: 200px;">
+                    <div class="d-flex gap-2" style="align-items: flex-end; height: 100%;">
+                        <button class="btn btn-filter btn-search" onclick="applyFilters()" id="filterButton">
+                            <i class="fas fa-search me-1"></i> Lọc
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="clearFilters()" title="Xóa tất cả bộ lọc"
+                            style="height: 50px; min-width: 80px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">
+                            <i class="fas fa-times me-1"></i> Xóa
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -733,6 +798,17 @@
             <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
                 <i class="fas fa-times"></i> Xóa bộ lọc
             </button>
+        </div>
+        {% endif %}
+
+        <!-- Bulk Approve Section (Team Leader, Manager, Admin Only) -->
+        {% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
+        <div class="d-flex justify-content-end mb-3 gap-2" id="bulkActionButtons">
+            <button class="btn btn-success" onclick="showBulkApproveModal()" id="btnBulkApprove"
+                style="min-width: 180px; display: none;">
+                <i class="fas fa-check-double me-2"></i>Phê duyệt tất cả
+            </button>
+
         </div>
         {% endif %}
 
@@ -1011,7 +1087,7 @@
                 {% if pagination.has_prev %}
                 <li class="page-item">
                     <a class="page-link"
-                        href="{{ url_for('leave_requests_list', page=pagination.prev_num, **request.args) }}">
+                        href="{{ url_for_page(pagination.prev_num) }}">
                         <i class="fas fa-chevron-left"></i> Trước
                     </a>
                 </li>
@@ -1021,7 +1097,7 @@
                 {% if page_num %}
                 {% if page_num != pagination.page %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('leave_requests_list', page=page_num, **request.args) }}">{{
+                    <a class="page-link" href="{{ url_for_page(page_num) }}">{{
                         page_num }}</a>
                 </li>
                 {% else %}
@@ -1039,7 +1115,7 @@
                 {% if pagination.has_next %}
                 <li class="page-item">
                     <a class="page-link"
-                        href="{{ url_for('leave_requests_list', page=pagination.next_num, **request.args) }}">
+                        href="{{ url_for_page(pagination.next_num) }}">
                         Sau <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -1157,20 +1233,38 @@
         // Loading state for buttons
         function setButtonLoading(button, loading = true) {
             if (loading) {
+                // Lưu text gốc nếu chưa có
+                if (!button.getAttribute('data-original-text')) {
+                    button.setAttribute('data-original-text', button.innerHTML);
+                }
                 button.disabled = true;
-                button.innerHTML = '<span class="loading"></span> Đang xử lý...';
+                // Sử dụng flexbox để giữ kích thước cố định và text "Đang lọc..."
+                button.innerHTML = '<span class="loading"></span><span>Đang lọc...</span>';
+                // Thêm class để tối ưu animation
+                button.classList.add('is-loading');
             } else {
                 button.disabled = false;
-                button.innerHTML = button.getAttribute('data-original-text') || button.innerHTML;
+                button.classList.remove('is-loading');
+                button.innerHTML = button.getAttribute('data-original-text') || '<i class="fas fa-search me-1"></i> Lọc';
             }
         }
 
         // Apply filters with loading state
         function applyFilters() {
-            const filterBtn = document.querySelector('.btn-filter');
-            const originalText = filterBtn.innerHTML;
+            const filterBtn = document.getElementById('filterButton') || document.querySelector('.btn-filter');
+            if (!filterBtn) return;
 
-            setButtonLoading(filterBtn, true);
+            // Lưu text gốc trước khi thay đổi
+            if (!filterBtn.getAttribute('data-original-text')) {
+                filterBtn.setAttribute('data-original-text', filterBtn.innerHTML);
+            }
+
+            // Sử dụng double requestAnimationFrame để đảm bảo mượt mà
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setButtonLoading(filterBtn, true);
+                });
+            });
 
             const status = document.getElementById('statusFilter').value;
             const employee = document.getElementById('employeeFilter').value;
@@ -1187,9 +1281,10 @@
             if (dateFrom) params.append('date_from', dateFrom);
             if (dateTo) params.append('date_to', dateTo);
 
+            // Giảm delay để giảm lag và tăng độ mượt
             setTimeout(() => {
                 window.location.href = '{{ url_for("leave_requests_list") }}?' + params.toString();
-            }, 500);
+            }, 250);
         }
 
         // Clear all filters
@@ -1866,7 +1961,337 @@
                 tokenEventSource.close();
             }
         });
+
+        // ============================================================================
+        // BULK APPROVE/REJECT LEAVE REQUESTS - JavaScript Functions
+        // ============================================================================
+
+        // Count pending leave requests based on role
+        function getPendingLeaveRequestsCount() {
+            const table = document.querySelector('.data-table tbody');
+            if (!table) return 0;
+
+            const currentRole = "{{ current_role }}";
+            const userDepartment = "{{ user.department }}";
+            let count = 0;
+
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const statusBadge = row.querySelector('.status-badge, [class*="status-"]');
+                if (!statusBadge) return;
+
+                const status = statusBadge.textContent.trim().toLowerCase();
+
+                // Count records with "chờ" (pending) status
+                if (currentRole === 'ADMIN' || currentRole === 'MANAGER') {
+                    if (status.includes('chờ')) count++;
+                } else if (currentRole === 'TEAM_LEADER') {
+                    // Only count pending requests from same department
+                    const employeeCell = row.querySelector('td:nth-child(2)'); // Employee name column
+                    if (employeeCell && status.includes('chờ')) {
+                        count++;
+                    }
+                }
+            });
+
+            return count;
+        }
+
+        // Update button visibility based on pending records count
+        function updateBulkActionButtonsVisibility() {
+            const count = getPendingLeaveRequestsCount();
+            const container = document.getElementById('bulkActionButtons');
+            const btnApprove = document.getElementById('btnBulkApprove');
+
+            if (container) {
+                if (count > 0) {
+                    container.style.removeProperty('display');
+                    if (btnApprove) btnApprove.style.display = 'inline-block';
+                } else {
+                    container.style.setProperty('display', 'none', 'important');
+                }
+            }
+        }
+
+        // Get IDs of pending leave requests from the visible table
+        function getPendingOfferIds() {
+            const table = document.querySelector('.data-table tbody');
+            if (!table) return [];
+
+            const currentRole = "{{ current_role }}";
+            const ids = [];
+
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const statusBadge = row.querySelector('.status-badge, [class*="status-"]');
+                if (!statusBadge) return;
+
+                const status = statusBadge.textContent.trim().toLowerCase();
+                let isPending = false;
+
+                // Check pending status based on role
+                if (currentRole === 'ADMIN' || currentRole === 'MANAGER') {
+                    if (status.includes('chờ')) isPending = true;
+                } else if (currentRole === 'TEAM_LEADER') {
+                    // Only count pending requests from same department
+                    // Note: Department check is already handled by backend query usually, 
+                    // but here we just grab what's on screen which implies the user can see it.
+                    if (status.includes('chờ')) isPending = true;
+                }
+
+                if (isPending) {
+                    // Try to find the ID from the approve button first
+                    const approveBtn = row.querySelector('.btn-approve');
+                    if (approveBtn) {
+                        ids.push(approveBtn.getAttribute('data-request-id'));
+                    } else {
+                        // Fallback: try to find ID from the ID cell
+                        const idCell = row.querySelector('td:first-child span');
+                        if (idCell) {
+                            ids.push(idCell.textContent.replace('#', '').trim());
+                        }
+                    }
+                }
+            });
+
+            return ids;
+        }
+
+        function showBulkApproveModal() {
+            const ids = getPendingOfferIds();
+            const count = ids.length;
+
+            if (count === 0) {
+                showNotificationModal('Thông báo', 'Không có đơn nào cần phê duyệt!', 'warning');
+                return;
+            }
+
+            document.getElementById('bulkApproveCount').textContent = count;
+            const modal = new bootstrap.Modal(document.getElementById('bulkApproveModal'));
+            modal.show();
+        }
+
+        // Show notification modal (replaces alert)
+        function showNotificationModal(title, message, type = 'info') {
+            const modalHtml = `
+                <div class="modal fade" id="notificationModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>${title}
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-0">${message}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing notification modal if any
+            const existingModal = document.getElementById('notificationModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add new modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+            modal.show();
+
+            // Remove modal from DOM after it's hidden
+            document.getElementById('notificationModal').addEventListener('hidden.bs.modal', function () {
+                this.remove();
+            });
+        }
+
+        function bulkApproveLeaveRequests() {
+            // Disable button to prevent double-click
+            const approveBtn = event.target.closest('button');
+            if (!approveBtn) return;
+
+            approveBtn.disabled = true;
+            approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+
+            const ids = getPendingOfferIds();
+
+            fetch('/api/leave/approve-all', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    action: 'approve',
+                    leave_request_ids: ids
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotificationModal('Lỗi', data.error, 'error');
+                        approveBtn.disabled = false;
+                        approveBtn.innerHTML = '<i class="fas fa-check me-2"></i>Phê duyệt';
+                    } else {
+                        // Close the approve modal first
+                        const approveModal = bootstrap.Modal.getInstance(document.getElementById('bulkApproveModal'));
+                        if (approveModal) approveModal.hide();
+
+                        // Show success message and reload
+                        showNotificationModal('Thành công', data.message || 'Phê duyệt thành công!', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotificationModal('Lỗi', 'Có lỗi xảy ra khi phê duyệt hàng loạt!', 'error');
+                    approveBtn.disabled = false;
+                    approveBtn.innerHTML = '<i class="fas fa-check me-2"></i>Phê duyệt';
+                });
+        }
+
+        function bulkRejectLeaveRequests() {
+            const reason = document.getElementById('bulkRejectReason').value.trim();
+            const password = document.getElementById('bulkRejectPassword').value;
+
+            if (!reason) {
+                showNotificationModal('Thiếu thông tin', 'Vui lòng nhập lý do từ chối!', 'warning');
+                return;
+            }
+
+            if (!password) {
+                showNotificationModal('Thiếu thông tin', 'Vui lòng nhập mật khẩu để xác nhận!', 'warning');
+                return;
+            }
+
+            // Disable button to prevent double-click
+            const rejectBtn = event.target.closest('button');
+            if (!rejectBtn) return;
+
+            rejectBtn.disabled = true;
+            rejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+
+            fetch('/api/leave/approve-all', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    action: 'reject',
+                    reason: reason,
+                    password: password
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotificationModal('Lỗi', data.error, 'error');
+                        rejectBtn.disabled = false;
+                        rejectBtn.innerHTML = '<i class="fas fa-times me-2"></i>Từ chối';
+                    } else {
+                        // Close the reject modal first
+                        const rejectModal = bootstrap.Modal.getInstance(document.getElementById('bulkRejectModal'));
+                        if (rejectModal) rejectModal.hide();
+
+                        // Show success message and reload
+                        showNotificationModal('Thành công', data.message || 'Từ chối thành công!', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotificationModal('Lỗi', 'Có lỗi xảy ra khi từ chối hàng loạt!', 'error');
+                    rejectBtn.disabled = false;
+                    rejectBtn.innerHTML = '<i class="fas fa-times me-2"></i>Từ chối';
+                });
+        }
+
+        // Initialize button visibility on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateBulkActionButtonsVisibility();
+        });
     </script>
+
+    <!-- Bulk Approve Modal -->
+    <div class="modal fade" id="bulkApproveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-double me-2"></i>Xác nhận phê duyệt hàng loạt
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Bạn có chắc chắn muốn phê duyệt <strong id="bulkApproveCount">0</strong> đơn nghỉ
+                        phép?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Hành động này không thể hoàn tác!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success" onclick="bulkApproveLeaveRequests()">
+                        <i class="fas fa-check me-2"></i>Phê duyệt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Reject Modal -->
+    <div class="modal fade" id="bulkRejectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle me-2"></i>Xác nhận từ chối hàng loạt
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Bạn có chắc chắn muốn từ chối <strong id="bulkRejectCount">0</strong> đơn nghỉ phép?
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="bulkRejectReason" rows="3"
+                            placeholder="Nhập lý do từ chối..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="bulkRejectPassword"
+                            placeholder="Nhập mật khẩu để xác nhận từ chối tất cả" required>
+                        <small class="text-muted">Nhập mật khẩu của bạn để xác nhận hành động này</small>
+                    </div>
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Cảnh báo:</strong> Hành động này không thể hoàn tác! Tất cả các đơn sẽ bị từ chối.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger" onclick="bulkRejectLeaveRequests()">
+                        <i class="fas fa-times me-2"></i>Từ chối
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
+    <!-- Tạm thời ẩn chatbot AI -->
+    {# {% include 'chatbot_widget.html' %} #}
 </body>
 
 </html>

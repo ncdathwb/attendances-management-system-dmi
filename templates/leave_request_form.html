@@ -641,7 +641,7 @@
                         <i class="fas fa-calendar-check"></i> Hình thức nghỉ phép
                     </h4>
                     <!-- Chọn ca làm việc áp dụng khi xin nghỉ -->
-                    <div class="row g-3 mb-3 align-items-end">
+                    <div id="shiftSelectionSection" class="row g-3 mb-3 align-items-end">
                         <div class="col-md-3">
                             <label for="leave_shift_code" class="form-label">Chọn ca làm việc áp dụng <span
                                     class="required">*</span></label>
@@ -1367,7 +1367,12 @@
                 // 1. Kiểm tra các trường bắt buộc
                 const requestType = document.getElementById('requestTypeSelect').value;
                 const isLateEarly = requestType !== 'leave';
-                const requiredFields = ['employee_name', 'team', 'employee_code', 'leave_from_date', 'leave_from_time', 'leave_to_date', 'leave_to_time', 'leave_shift_code'];
+                const requiredFields = ['employee_name', 'team', 'employee_code', 'leave_from_date', 'leave_from_time', 'leave_to_date', 'leave_to_time'];
+
+                // Thêm leave_shift_code vào required fields CHỈ KHI KHÔNG PHẢI đơn nghỉ 30 phút
+                if (requestType !== '30min_break') {
+                    requiredFields.push('leave_shift_code');
+                }
 
                 // Chỉ yêu cầu lý do cho nghỉ phép và đi trễ/về sớm, không yêu cầu cho nghỉ 30 phút
                 if (requestType !== '30min_break') {
@@ -1421,37 +1426,40 @@
                 }
 
                 // 2.1. Kiểm tra giờ nghỉ phép có trong khung giờ ca làm việc
-                const selectedShiftCode = document.getElementById('leave_shift_code').value;
-                if (selectedShiftCode && (fromTimeEl.value || toTimeEl.value)) { // Kiểm tra khi có giờ được nhập
-                    const shiftRanges = {
-                        '1': { start: '07:30', end: '16:30' },
-                        '2': { start: '09:00', end: '18:00' },
-                        '3': { start: '11:00', end: '20:00' },
-                        '4': { start: '08:00', end: '17:00' }
-                    };
+                // BỎ QUA validation này cho đơn nghỉ 30 phút (cho phép chọn giờ tự do)
+                if (requestType !== '30min_break') {
+                    const selectedShiftCode = document.getElementById('leave_shift_code').value;
+                    if (selectedShiftCode && (fromTimeEl.value || toTimeEl.value)) { // Kiểm tra khi có giờ được nhập
+                        const shiftRanges = {
+                            '1': { start: '07:30', end: '16:30' },
+                            '2': { start: '09:00', end: '18:00' },
+                            '3': { start: '11:00', end: '20:00' },
+                            '4': { start: '08:00', end: '17:00' }
+                        };
 
-                    if (selectedShiftCode in shiftRanges) {
-                        const shiftStartTime = shiftRanges[selectedShiftCode].start;
-                        const shiftEndTime = shiftRanges[selectedShiftCode].end;
-                        const shiftStartMinutes = timeToMinutes(shiftStartTime);
-                        const shiftEndMinutes = timeToMinutes(shiftEndTime);
-                        const fromTimeValue = normalizeTimeFormat(fromTimeEl.value);
-                        const toTimeValue = normalizeTimeFormat(toTimeEl.value);
-                        const fromTimeMinutes = timeToMinutes(fromTimeValue);
-                        const toTimeMinutes = timeToMinutes(toTimeValue);
+                        if (selectedShiftCode in shiftRanges) {
+                            const shiftStartTime = shiftRanges[selectedShiftCode].start;
+                            const shiftEndTime = shiftRanges[selectedShiftCode].end;
+                            const shiftStartMinutes = timeToMinutes(shiftStartTime);
+                            const shiftEndMinutes = timeToMinutes(shiftEndTime);
+                            const fromTimeValue = normalizeTimeFormat(fromTimeEl.value);
+                            const toTimeValue = normalizeTimeFormat(toTimeEl.value);
+                            const fromTimeMinutes = timeToMinutes(fromTimeValue);
+                            const toTimeMinutes = timeToMinutes(toTimeValue);
 
-                        // Kiểm tra giờ bắt đầu không được trước giờ vào ca (chỉ khi có giờ bắt đầu)
-                        if (fromTimeEl.value && fromTimeMinutes < shiftStartMinutes) {
-                            hasErrors = true;
-                            fromTimeEl.classList.add('is-invalid');
-                            errorMessages.push(`❌ Giờ bắt đầu: ${fromTimeValue} → Lỗi "không được trước giờ vào ca (${shiftStartTime})"`);
-                        }
+                            // Kiểm tra giờ bắt đầu không được trước giờ vào ca (chỉ khi có giờ bắt đầu)
+                            if (fromTimeEl.value && fromTimeMinutes < shiftStartMinutes) {
+                                hasErrors = true;
+                                fromTimeEl.classList.add('is-invalid');
+                                errorMessages.push(`❌ Giờ bắt đầu: ${fromTimeValue} → Lỗi "không được trước giờ vào ca (${shiftStartTime})"`);
+                            }
 
-                        // Kiểm tra giờ kết thúc không được vượt quá giờ ra khỏi ca (chỉ khi có giờ kết thúc)
-                        if (toTimeEl.value && toTimeMinutes > shiftEndMinutes) {
-                            hasErrors = true;
-                            toTimeEl.classList.add('is-invalid');
-                            errorMessages.push(`❌ Giờ kết thúc: ${toTimeValue} → Lỗi "không được vượt quá giờ ra khỏi ca (${shiftEndTime})"`);
+                            // Kiểm tra giờ kết thúc không được vượt quá giờ ra khỏi ca (chỉ khi có giờ kết thúc)
+                            if (toTimeEl.value && toTimeMinutes > shiftEndMinutes) {
+                                hasErrors = true;
+                                toTimeEl.classList.add('is-invalid');
+                                errorMessages.push(`❌ Giờ kết thúc: ${toTimeValue} → Lỗi "không được vượt quá giờ ra khỏi ca (${shiftEndTime})"`);
+                            }
                         }
                     }
                 }
@@ -2593,6 +2601,7 @@
                                 + parseNum(document.getElementById('special_leave_days').value);
 
                             // Lấy thông tin ca làm việc
+                            // Lấy thông tin ca làm việc
                             const shiftCode = document.getElementById('leave_shift_code').value;
                             let fromTime = document.getElementById('leave_from_time').value;
                             let toTime = document.getElementById('leave_to_time').value;
@@ -2604,7 +2613,7 @@
                             // Tính toán khoảng thời gian thực tế sử dụng phép (theo ca làm việc)
                             const fromDate = new Date(document.getElementById('leave_from_date').value);
                             const toDate = new Date(document.getElementById('leave_to_date').value);
-                            const actualLeaveDays = window.calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode);
+                            const actualLeaveDays = shiftCode ? window.calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
 
                             // Gửi kết quả tính toán lên server
                             let calculatedDaysInput = document.getElementById('calculated_leave_days');
@@ -2621,18 +2630,185 @@
                             try { localStorage.removeItem('email_status_shown_request_id'); } catch (e) { }
 
                             // Gọi popup xác nhận email thay vì submit trực tiếp
-                            // console.log('[DEBUG] About to show email confirmation dialog');
                             showEmailConfirmationDialog();
                         } else {
-                            // Cho đi trễ/về sớm, submit trực tiếp không cần validation số ngày nghỉ
+                            // Cho đi trễ/về sớm và nghỉ 30 phút, submit trực tiếp không cần validation số ngày nghỉ
+
+                            // Auto-fill shift_code cho đơn nghỉ 30 phút nếu chưa có
+                            if (requestType === '30min_break') {
+                                const shiftCodeSelect = document.getElementById('leave_shift_code');
+                                if (shiftCodeSelect && !shiftCodeSelect.value) {
+                                    // Auto-fill với ca 2 (mặc định) để backend không lỗi
+                                    shiftCodeSelect.value = '2';
+                                }
+                            }
+
                             showEmailConfirmationDialog();
                         }
                     }, { once: true });
                 });
-            } catch (_) { }
-        });
-    </script>
+            } catch (err) {
+                console.error("Error in DOMContentLoaded:", err);
+            }
 
+            // Khởi tạo logic tự động điền cho nghỉ 30 phút
+            setup30MinBreakAutoFill();
+            // Khởi tạo logic tự động điền cho đi trễ/về sớm
+            setupLateEarlyAutoFill();
+        });
+
+        // Hàm thiết lập logic tự động điền cho loại nghỉ "Nghỉ 30 phút (dành cho nữ)"
+        function setup30MinBreakAutoFill() {
+            const requestTypeSelect = document.getElementById('requestTypeSelect');
+            const fromDateInput = document.getElementById('leave_from_date');
+            const toDateInput = document.getElementById('leave_to_date');
+            const fromTimeInput = document.getElementById('leave_from_time');
+            const toTimeInput = document.getElementById('leave_to_time');
+
+            if (!requestTypeSelect || !fromDateInput || !toDateInput || !fromTimeInput || !toTimeInput) return;
+
+            // Helper function to add minutes to a time string (HH:mm)
+            function addMinutes(timeStr, minutesToAdd) {
+                if (!timeStr) return '';
+
+                // Parse time
+                const [hours, minutes] = timeStr.split(':').map(Number);
+
+                // Create date object to handle overflow
+                const date = new Date();
+                date.setHours(hours);
+                date.setMinutes(minutes);
+
+                // Add minutes
+                date.setMinutes(date.getMinutes() + minutesToAdd);
+
+                // Format back to HH:mm
+                const newHours = String(date.getHours()).padStart(2, '0');
+                const newMinutes = String(date.getMinutes()).padStart(2, '0');
+
+                return `${newHours}:${newMinutes}`;
+            }
+
+            // Helper function to perform the auto-fill
+            function autoFill30Min() {
+                if (requestTypeSelect.value === '30min_break') {
+                    // 1. Sync Date: To Date = From Date
+                    if (fromDateInput.value) {
+                        toDateInput.value = fromDateInput.value;
+                        // Trigger change event to update days calculation if needed
+                        toDateInput.dispatchEvent(new Event('change'));
+                    }
+
+                    // 2. Sync Time: To Time = From Time + 30 mins
+                    if (fromTimeInput.value) {
+                        const newToTime = addMinutes(fromTimeInput.value, 30);
+                        toTimeInput.value = newToTime;
+                        // Trigger change event to update days calculation if needed
+                        toTimeInput.dispatchEvent(new Event('change'));
+                    }
+                }
+            }
+
+            // Event 1: When Request Type changes
+            requestTypeSelect.addEventListener('change', function () {
+                const shiftSection = document.getElementById('shiftSelectionSection');
+                const shiftCodeSelect = document.getElementById('leave_shift_code');
+
+                if (this.value === '30min_break') {
+                    // Ẩn section chọn ca cho đơn nghỉ 30 phút
+                    if (shiftSection) {
+                        shiftSection.style.display = 'none';
+                    }
+                    // Bỏ required attribute
+                    if (shiftCodeSelect) {
+                        shiftCodeSelect.removeAttribute('required');
+                        shiftCodeSelect.classList.remove('is-invalid');
+                    }
+                    // Auto-fill thời gian
+                    autoFill30Min();
+                } else {
+                    // Hiện lại section chọn ca cho các loại đơn khác
+                    if (shiftSection) {
+                        shiftSection.style.display = '';
+                    }
+                    // Thêm lại required attribute
+                    if (shiftCodeSelect) {
+                        shiftCodeSelect.setAttribute('required', 'required');
+                    }
+                }
+            });
+
+            // Event 2: When From Date changes
+            fromDateInput.addEventListener('change', function () {
+                if (requestTypeSelect.value === '30min_break') {
+                    // Sync date immediately
+                    toDateInput.value = this.value;
+                    toDateInput.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // Event 3: When From Time changes (blur/focusout)
+            fromTimeInput.addEventListener('change', function () {
+                if (requestTypeSelect.value === '30min_break') {
+                    autoFill30Min();
+                }
+            });
+
+            // Also listen to blur for better UX
+            fromTimeInput.addEventListener('blur', function () {
+                if (requestTypeSelect.value === '30min_break') {
+                    autoFill30Min();
+                }
+            });
+
+            // Trigger initial state on page load (for edit mode)
+            if (requestTypeSelect.value === '30min_break') {
+                const shiftSection = document.getElementById('shiftSelectionSection');
+                const shiftCodeSelect = document.getElementById('leave_shift_code');
+
+                if (shiftSection) {
+                    shiftSection.style.display = 'none';
+                }
+                if (shiftCodeSelect) {
+                    shiftCodeSelect.removeAttribute('required');
+                }
+            }
+        }
+
+        // Hàm thiết lập logic tự động điền cho loại nghỉ "Đi trễ/Về sớm"
+        function setupLateEarlyAutoFill() {
+            const requestTypeSelect = document.getElementById('requestTypeSelect');
+            const fromDateInput = document.getElementById('leave_from_date');
+            const toDateInput = document.getElementById('leave_to_date');
+
+            if (!requestTypeSelect || !fromDateInput || !toDateInput) return;
+
+            // Event: When From Date changes (blur)
+            fromDateInput.addEventListener('blur', function () {
+                if (requestTypeSelect.value === 'late_early') {
+                    // Sync date: To Date = From Date (vì đi trễ/về sớm luôn trong cùng 1 ngày)
+                    if (this.value) {
+                        toDateInput.value = this.value;
+                        // Trigger change event để update validation nếu cần
+                        toDateInput.dispatchEvent(new Event('change'));
+                    }
+                }
+            });
+
+            // Trigger initial state on page load (for edit mode)
+            if (requestTypeSelect.value === 'late_early') {
+                if (fromDateInput.value && !toDateInput.value) {
+                    toDateInput.value = fromDateInput.value;
+                }
+            }
+        }
+
+
+
+    </script>
+    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
+    <!-- Tạm thời ẩn chatbot AI -->
+    {# {% include 'chatbot_widget.html' %} #}
 </body>
 
 </html>

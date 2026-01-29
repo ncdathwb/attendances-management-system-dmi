@@ -8,9 +8,19 @@ from datetime import datetime
 import threading
 import time
 import queue
+import sys
 
 # Queue để giao tiếp giữa async thread và main thread
 db_update_queue = queue.Queue()
+
+def _safe_print(message):
+    """Print an toàn, tránh lỗi I/O operation on closed file trong thread"""
+    try:
+        if sys.stdout and not sys.stdout.closed:
+            print(message, flush=True)
+    except (ValueError, IOError, OSError):
+        # Bỏ qua lỗi khi stdout đã bị đóng
+        pass
 
 def _schedule_db_update(request_id, user_id, status, message):
     """Schedule database update to be processed by main thread"""
@@ -33,7 +43,7 @@ def process_db_updates():
         except queue.Empty:
             break
         except Exception as e:
-            print(f"❌ Error processing DB update: {e}")
+            _safe_print(f"❌ Error processing DB update: {e}")
 
 def send_leave_request_email(leave_request, user, action='create'):
     """
@@ -86,8 +96,8 @@ def send_leave_request_email_async(leave_request, user, action='create'):
             user_email = getattr(user, 'email', '')
             request_status = getattr(leave_request, 'status', 'unknown')
             
-            print(f"🚀 [ASYNC] Bắt đầu gửi email bất đồng bộ cho leave_request #{request_id}", flush=True)
-            print(f"📧 [ASYNC] Thông tin đơn: ID={request_id}, User={user_name}, Status={request_status}", flush=True)
+            _safe_print(f"🚀 [ASYNC] Bắt đầu gửi email bất đồng bộ cho leave_request #{request_id}")
+            _safe_print(f"📧 [ASYNC] Thông tin đơn: ID={request_id}, User={user_name}, Status={request_status}")
             
             # Cập nhật trạng thái đang gửi - chỉ dùng global state, không dùng DB trong thread
             from state.email_state import email_status
@@ -96,7 +106,7 @@ def send_leave_request_email_async(leave_request, user, action='create'):
                 'message': 'Đang gửi email...',
                 'timestamp': time.time()
             }
-            print(f"📤 [ASYNC] Set global status to sending for request #{request_id}")
+            _safe_print(f"📤 [ASYNC] Set global status to sending for request #{request_id}")
             
             # Tạo data dictionaries để tránh DetachedInstanceError
             # Lưu tất cả thông tin cần thiết trước khi vào thread
@@ -176,7 +186,7 @@ def send_leave_request_email_async(leave_request, user, action='create'):
                     'message': 'Email đã được gửi thành công',
                         'timestamp': time.time()
                     }
-                print(f"✅ [ASYNC] Email sent successfully for leave_request #{request_id}")
+                _safe_print(f"✅ [ASYNC] Email sent successfully for leave_request #{request_id}")
                 
                 # Cập nhật database từ main thread (scheduled task)
                 _schedule_db_update(request_id, user_id, 'success', 'Email đã được gửi thành công')
@@ -187,21 +197,24 @@ def send_leave_request_email_async(leave_request, user, action='create'):
                     'timestamp': time.time()
                 }
                 
-                print(f"❌ [ASYNC] Failed to send email for leave_request #{request_id}")
+                _safe_print(f"❌ [ASYNC] Failed to send email for leave_request #{request_id}")
                 
                 # Cập nhật database từ main thread (scheduled task)
                 _schedule_db_update(request_id, user_id, 'error', 'Không thể gửi email')
                 
         except Exception as e:
-            print(f"💥 [ASYNC] Lỗi trong thread gửi email: {e}", flush=True)
-            from state.email_state import email_status
-            email_status[request_id] = {
-                'status': 'error',
-                'message': f'Lỗi gửi email: {str(e)}',
-                'timestamp': time.time()
-            }
+            _safe_print(f"💥 [ASYNC] Lỗi trong thread gửi email: {e}")
+            try:
+                from state.email_state import email_status
+                email_status[request_id] = {
+                    'status': 'error',
+                    'message': f'Lỗi gửi email: {str(e)}',
+                    'timestamp': time.time()
+                }
+            except Exception:
+                pass
     
     # Tạo thread mới để gửi email
     thread = threading.Thread(target=send_email_thread, daemon=True)
     thread.start()
-    print(f"📤 [ASYNC] Đã khởi tạo thread gửi email cho leave_request #{leave_request.id}", flush=True)
+    _safe_print(f"📤 [ASYNC] Đã khởi tạo thread gửi email cho leave_request #{leave_request.id}")

@@ -15,17 +15,22 @@ class SignatureFitAdapter:
     
     def __init__(self):
         # Kích thước chuẩn cho các loại ô ký khác nhau
+        # Tăng nhẹ kích thước để chữ ký hiển thị RÕ và ĐỦ LỚN trong PDF,
+        # nhưng vẫn đảm bảo không bị tràn ra ngoài ô.
         self.signature_box_sizes = {
-            'manager': (140, 70),        # Ô Quản lý (PDF size)
-            'supervisor': (140, 70),     # Ô Cấp trên trực tiếp (PDF size)
-            'applicant': (140, 70),      # Ô Người xin phép (PDF size)
-            'team_leader': (100, 35),    # Ô Trưởng nhóm
-            'employee': (100, 35),       # Ô Nhân viên
-            'default': (100, 40)         # Ô mặc định
+            'manager': (155, 80),        # Ô Quản lý (PDF size, khớp với phiếu tăng ca)
+            'supervisor': (155, 80),     # Ô Cấp trên trực tiếp (PDF size)
+            'applicant': (155, 80),      # Ô Người xin phép (PDF size)
+            'team_leader': (110, 40),    # Ô Trưởng nhóm
+            'employee': (110, 40),       # Ô Nhân viên
+            'default': (110, 40)         # Ô mặc định
         }
         
         # Tỷ lệ padding bên trong ô (để chữ ký không sát viền)
-        self.padding_ratio = 0.01  # 1% padding (MaxFill)
+        # Giảm padding để chữ ký lớn hơn, fill tốt hơn (từ 1% xuống 0.5%)
+        self.padding_ratio = 0.005  # 0.5% padding để chữ ký fill tốt hơn
+        # Tỷ lệ fill mục tiêu: chữ ký sẽ chiếm 85-95% kích thước ô
+        self.fill_ratio = 0.90  # 90% fill để đảm bảo chữ ký lớn nhưng không tràn
         
         # Màu sắc cho các loại ô khác nhau
         self.box_colors = {
@@ -63,12 +68,30 @@ class SignatureFitAdapter:
             else:
                 box_size = self.signature_box_sizes.get(box_type, self.signature_box_sizes['default'])
             
-            # Tính toán kích thước thực tế cho chữ ký (trừ padding)
-            padding = int(min(box_size) * self.padding_ratio)
+            # Tính toán kích thước thực tế cho chữ ký với fill ratio để đảm bảo lớn và phù hợp
+            # Sử dụng fill_ratio để chữ ký chiếm 90% kích thước ô
             signature_size = (
-                box_size[0] - 2 * padding,
-                box_size[1] - 2 * padding
+                int(box_size[0] * self.fill_ratio),
+                int(box_size[1] * self.fill_ratio)
             )
+            
+            # Đảm bảo kích thước tối thiểu hợp lý
+            min_size = min(box_size[0], box_size[1])
+            if signature_size[0] < min_size * 0.5 or signature_size[1] < min_size * 0.5:
+                # Nếu quá nhỏ, scale lên ít nhất 50% kích thước ô
+                scale_factor = max(
+                    (min_size * 0.5) / signature_size[0],
+                    (min_size * 0.5) / signature_size[1]
+                )
+                signature_size = (
+                    int(signature_size[0] * scale_factor),
+                    int(signature_size[1] * scale_factor)
+                )
+                # Đảm bảo không vượt quá fill ratio
+                if signature_size[0] > box_size[0] * self.fill_ratio:
+                    signature_size = (int(box_size[0] * self.fill_ratio), signature_size[1])
+                if signature_size[1] > box_size[1] * self.fill_ratio:
+                    signature_size = (signature_size[0], int(box_size[1] * self.fill_ratio))
             
             # Xử lý chữ ký với kích thước mục tiêu
             processed_signature = signature_processor.process_signature(
@@ -82,7 +105,7 @@ class SignatureFitAdapter:
                     processed_signature, 
                     box_type, 
                     box_size, 
-                    padding
+                    0  # Không cần padding vì đã tính trong signature_size
                 )
             else:
                 return processed_signature

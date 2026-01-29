@@ -10,8 +10,17 @@ load_dotenv()
 
 
 class Config:
-    # Use fixed default as requested; prefer env if provided
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dmi'
+    # SECRET_KEY phải được set trong .env cho production
+    # Default 'dmi' chỉ dùng cho development - KHÔNG dùng cho production!
+    _secret = os.environ.get('SECRET_KEY')
+    if not _secret:
+        import warnings
+        warnings.warn(
+            "SECRET_KEY chưa được set! Đang dùng default 'dmi' - KHÔNG AN TOÀN cho production!",
+            UserWarning
+        )
+        _secret = 'dmi'
+    SECRET_KEY = _secret
     
     # CSRF Configuration
     WTF_CSRF_ENABLED = True
@@ -81,6 +90,13 @@ class Config:
     
     # HR Email Configuration
     HR_EMAIL = os.environ.get('HR_EMAIL') or 'dmihue-nhansu01@acraft.jp'
+
+    # G3: CORS Configuration
+    CORS_ENABLED = os.environ.get('CORS_ENABLED', 'False').lower() == 'true'
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '').split(',') if os.environ.get('CORS_ORIGINS') else []
+    CORS_SUPPORTS_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token']
+    CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 
 class DevelopmentConfig(Config):
     DEBUG = True

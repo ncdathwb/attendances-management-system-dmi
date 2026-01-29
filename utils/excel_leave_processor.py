@@ -91,7 +91,10 @@ def split_leave_by_days(leave_request) -> List[Dict]:
             'is_first_day': day_index == 0,
             'is_last_day': day_index == total_days - 1,
             'day_index': day_index,
-            'total_days': total_days
+            'total_days': total_days,
+            'request_type': getattr(leave_request, 'request_type', 'leave'),  # Thêm request_type
+            'late_early_type': getattr(leave_request, 'late_early_type', None),  # Thêm late_early_type
+            'user_id': leave_request.user_id  # Thêm user_id để lấy department
         }
         
         # Xác định loại nghỉ cho ngày này theo phân bổ xác định từ DB
@@ -128,6 +131,61 @@ def get_available_leave_types(leave_request) -> List[Dict]:
     """
     available_types = []
     
+    # Kiểm tra request_type để xử lý các loại nghỉ đặc biệt
+    request_type = getattr(leave_request, 'request_type', 'leave')
+    
+    # Xử lý các loại nghỉ đặc biệt (đi trễ, về sớm, nghỉ 30 phút)
+    if request_type == 'late_early':
+        # Đi trễ hoặc về sớm
+        late_early_type = getattr(leave_request, 'late_early_type', None)
+        if late_early_type == 'late':
+            available_types.append({
+                'type': 'late_arrival',
+                'name': 'Nghỉ đi trễ',
+                'total_days': 0.5  # Tính 0.5 ngày cho đi trễ
+            })
+        elif late_early_type == 'early':
+            available_types.append({
+                'type': 'early_departure',
+                'name': 'Nghỉ về sớm',
+                'total_days': 0.5  # Tính 0.5 ngày cho về sớm
+            })
+        else:
+            # Trường hợp không xác định late/early, đọc từ thời gian
+            start_time = leave_request.get_leave_from_datetime()
+            end_time = leave_request.get_leave_to_datetime()
+            # Nếu bắt đầu sau 7:30 => đi trễ
+            if start_time.hour > 7 or (start_time.hour == 7 and start_time.minute > 30):
+                available_types.append({
+                    'type': 'late_arrival',
+                    'name': 'Nghỉ đi trễ',
+                    'total_days': 0.5
+                })
+            # Nếu kết thúc trước 16:30 => về sớm
+            elif end_time.hour < 16 or (end_time.hour == 16 and end_time.minute < 30):
+                available_types.append({
+                    'type': 'early_departure',
+                    'name': 'Nghỉ về sớm',
+                    'total_days': 0.5
+                })
+            else:
+                available_types.append({
+                    'type': 'late_early',
+                    'name': 'Nghỉ đi trễ/về sớm',
+                    'total_days': 0.5
+                })
+        return available_types
+    
+    elif request_type == '30min_break':
+        # Nghỉ 30 phút (dành cho nhân viên nữ)
+        available_types.append({
+            'type': '30min_break',
+            'name': 'Nghỉ 30 phút',
+            'total_days': 0.0  # Không tính vào ngày nghỉ phép
+        })
+        return available_types
+    
+    # Xử lý các loại nghỉ phép thông thường
     if leave_request.annual_leave_days > 0:
         available_types.append({
             'type': 'annual',
@@ -141,7 +199,7 @@ def get_available_leave_types(leave_request) -> List[Dict]:
             'name': 'Nghỉ không lương',
             'total_days': leave_request.unpaid_leave_days
         })
-    
+
     if leave_request.special_leave_days > 0:
         available_types.append({
             'type': 'special',
@@ -149,6 +207,114 @@ def get_available_leave_types(leave_request) -> List[Dict]:
             'total_days': leave_request.special_leave_days,
             'special_type': leave_request.special_leave_type
         })
+
+    # Thêm nghỉ lễ Nhật (York)
+    japan_days = getattr(leave_request, 'japan_holiday_days', 0) or 0
+    if japan_days > 0:
+        available_types.append({
+            'type': 'japan_holiday',
+            'name': 'Nghỉ lễ Nhật',
+            'total_days': japan_days
+        })
+
+    # Thêm nghỉ Scope
+    scope_days = getattr(leave_request, 'scope_leave_days', 0) or 0
+    if scope_days > 0:
+        available_types.append({
+            'type': 'scope_leave',
+            'name': 'Nghỉ Scope',
+            'total_days': scope_days
+        })
+
+    # FALLBACK: Nếu không có loại nghỉ nào được xác định,
+    # phát hiện dựa trên thời gian (cho các bản ghi cũ không có request_type)
+    if not available_types:
+        try:
+            start_time = leave_request.get_leave_from_datetime()
+            end_time = leave_request.get_leave_to_datetime()
+            
+            # Tính thời gian nghỉ
+            duration = end_time - start_time
+            total_minutes = int(duration.total_seconds() / 60)
+            total_hours = total_minutes / 60
+            days_diff = (end_time.date() - start_time.date()).days
+            
+            # Nếu nghỉ đúng 30 phút => Nghỉ 30 phút
+            if 25 <= total_minutes <= 35:  # Cho phép sai số ±5 phút
+                available_types.append({
+                    'type': '30min_break',
+                    'name': 'Nghỉ 30 phút',
+                    'total_days': 0.0
+                })
+            # Nếu nghỉ trong khoảng 1-4 giờ trong cùng ngày => kiểm tra đi trễ/về sớm
+            elif 60 <= total_minutes <= 240 and days_diff == 0:
+                # Kiểm tra giờ để phân biệt late/early
+                # Sử dụng logic linh hoạt để áp dụng cho nhiều ca
+                morning_start = start_time.hour < 12  # Bắt đầu buổi sáng
+                afternoon_end = end_time.hour >= 12   # Kết thúc buổi chiều
+                
+                if morning_start and afternoon_end:
+                    # Nghỉ từ sáng đến chiều => có thể là cả 2
+                    available_types.append({
+                        'type': 'late_early',
+                        'name': 'Nghỉ đi trễ/về sớm',
+                        'total_days': 0.5
+                    })
+                elif morning_start:
+                    # Chỉ nghỉ buổi sáng => đi trễ
+                    available_types.append({
+                        'type': 'late_arrival',
+                        'name': 'Nghỉ đi trễ',
+                        'total_days': 0.5
+                    })
+                elif afternoon_end:
+                    # Chỉ nghỉ buổi chiều => về sớm
+                    available_types.append({
+                        'type': 'early_departure',
+                        'name': 'Nghỉ về sớm',
+                        'total_days': 0.5
+                    })
+                else:
+                    # Trường hợp khác => nghỉ ngắn
+                    available_types.append({
+                        'type': 'short_break',
+                        'name': f'Nghỉ ngắn ({total_hours:.1f}h)',
+                        'total_days': round(total_hours / 8, 1)
+                    })
+            # Nếu nghỉ nhiều hơn 4 giờ hoặc nhiều ngày => nghỉ phép thông thường
+            else:
+                # Ước tính số ngày dựa trên thời gian
+                estimated_days = max(1.0, round((total_hours / 8) * 2) / 2)  # Làm tròn đến 0.5
+                
+                # Nếu nghỉ >= 1 ngày, coi là phép năm
+                if estimated_days >= 1.0:
+                    available_types.append({
+                        'type': 'annual',
+                        'name': 'Phép năm',
+                        'total_days': estimated_days
+                    })
+                else:
+                    # < 1 ngày nhưng > 4 giờ => nghỉ nửa ngày
+                    available_types.append({
+                        'type': 'annual',
+                        'name': 'Phép năm',
+                        'total_days': 0.5
+                    })
+        except Exception as e:
+            # FALLBACK CUỐI CÙNG: Nếu có lỗi hoặc không thể phát hiện, đặt mặc định
+            import sys
+            try:
+                print(f"[WARN] Cannot detect leave type from time for request {getattr(leave_request, 'id', 'unknown')}: {e}", 
+                      flush=True, file=sys.stderr)
+            except Exception:
+                pass
+            
+            # Đặt mặc định là phép năm 1 ngày để tránh "Không xác định"
+            available_types.append({
+                'type': 'annual',
+                'name': 'Phép năm',
+                'total_days': 1.0
+            })
     
     return available_types
 

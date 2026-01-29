@@ -270,19 +270,13 @@
             <div class="page-header mb-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <h4 class="section-title"><i class="fas fa-history"></i> Lịch sử nghỉ phép</h4>
-                    {% if current_role == 'ADMIN' %}
-                    <div>
-                        <button class="btn btn-success btn-sm" onclick="exportToExcel()" title="Tải xuống file Excel">
-                            <i class="fas fa-file-excel"></i> Tải Excel
-                        </button>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
             <!-- Bộ lọc -->
             <div class="filter-card filter-row p-3 mb-3">
                 <form class="row g-2" method="get" action="{{ url_for('leave_history') }}">
+                    <!-- Dòng 1: 4 cột cân đối -->
                     <div class="col-md-3">
                         <label class="form-label small text-muted">Tên/Mã nhân viên</label>
                         <div class="search-container">
@@ -306,19 +300,7 @@
                         <small class="text-muted">Chỉ Admin mới có thể lọc theo phòng ban</small>
                         {% endif %}
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">Từ ngày nghỉ</label>
-                        <input type="date" class="form-control modern-date" name="from_date"
-                            value="{{ (current_filters.from_date if current_filters else '') or '' }}"
-                            title="Lọc theo ngày bắt đầu nghỉ phép">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">Đến ngày nghỉ</label>
-                        <input type="date" class="form-control modern-date" name="to_date"
-                            value="{{ (current_filters.to_date if current_filters else '') or '' }}"
-                            title="Lọc theo ngày kết thúc nghỉ phép">
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label class="form-label small text-muted">Loại đơn</label>
                         <select name="request_type" class="form-select modern-select">
                             <option value="">📝 Tất cả loại đơn</option>
@@ -330,7 +312,7 @@
                                 current_filters.request_type=='30min_break' %}selected{% endif %}>Nghỉ 30 phút</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label class="form-label small text-muted">Trạng thái</label>
                         <select name="status" class="form-select modern-select">
                             <option value="">📋 Tất cả</option>
@@ -346,13 +328,38 @@
                                 %}selected{% endif %}>Bị từ chối</option>
                         </select>
                     </div>
-                    <div class="col-12 d-flex gap-2 mt-2">
-                        <button class="btn btn-primary btn-search" type="submit">
-                            <i class="fas fa-filter me-1"></i>Lọc
+
+                    <!-- Dòng 2: Ngày + Nút bấm -->
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Từ ngày nghỉ</label>
+                        <input type="date" class="form-control modern-date" name="from_date"
+                            value="{{ (current_filters.from_date if current_filters else '') or '' }}"
+                            title="Lọc theo ngày bắt đầu nghỉ phép">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Đến ngày nghỉ</label>
+                        <input type="date" class="form-control modern-date" name="to_date"
+                            value="{{ (current_filters.to_date if current_filters else '') or '' }}"
+                            title="Lọc theo ngày kết thúc nghỉ phép">
+                    </div>
+                    <div class="col-md-6 d-flex gap-2 align-items-end">
+                        <button
+                            class="btn btn-primary btn-search flex-fill d-flex align-items-center justify-content-center"
+                            type="submit" style="height: 38px;">
+                            <i class="fas fa-filter me-2"></i>Lọc
                         </button>
-                        <a class="btn btn-outline-secondary" href="{{ url_for('leave_history') }}">
-                            <i class="fas fa-rotate-right me-1"></i>Đặt lại
+                        <a class="btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center"
+                            href="{{ url_for('leave_history') }}" title="Đặt lại bộ lọc" style="height: 38px;">
+                            <i class="fas fa-rotate-right me-2"></i>Đặt lại
                         </a>
+                        {% if current_role == 'ADMIN' %}
+                        <button type="button"
+                            class="btn btn-success flex-fill d-flex align-items-center justify-content-center"
+                            onclick="exportToExcel()" title="Tải xuống file Excel (tóm tắt)" style="height: 38px;">
+                            <i class="fas fa-file-excel me-2"></i>Tải Excel
+                        </button>
+
+                        {% endif %}
                     </div>
                 </form>
             </div>
@@ -496,7 +503,7 @@
 
     <script>
         // Function to export data to Excel
-        function exportToExcel() {
+        async function exportToExcel() {
             // Show loading
             Swal.fire({
                 title: 'Đang tạo file Excel...',
@@ -524,33 +531,144 @@
                 exportUrl += '?' + urlParams.toString();
             }
 
-            console.log('Export URL:', exportUrl);
-            console.log('URL Params:', urlParams.toString());
-            console.log('CSRF Token:', csrfToken);
+            try {
+                const response = await fetch(exportUrl);
 
-            // Create download link
-            const link = document.createElement('a');
-            link.href = exportUrl;
-            link.download = 'Lich_su_nghi_phep.xlsx';
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+                if (!response.ok) {
+                    throw new Error('Lỗi từ máy chủ: ' + response.statusText);
+                }
 
-            // Hide loading and show success
-            setTimeout(() => {
-                Swal.fire({
-                    title: 'Thành công!',
-                    text: 'File Excel đã được tải xuống',
+                // Get filename from header or default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'Lich_su_nghi_phep.xlsx';
+                if (contentDisposition) {
+                    const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (fileNameMatch && fileNameMatch.length === 2)
+                        filename = fileNameMatch[1];
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                // Close loading
+                Swal.close();
+
+                // Optional: Show small toast instead of full modal to avoid "fake success" feeling
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                })
+                Toast.fire({
                     icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
+                    title: 'File đã sẵn sàng tải xuống'
+                })
+
+            } catch (error) {
+                console.error('Export error:', error);
+                Swal.fire({
+                    title: 'Lỗi!',
+                    text: 'Không thể tạo file Excel. Vui lòng thử lại sau.',
+                    icon: 'error'
                 });
-            }, 1000);
+            }
+        }
+
+        // Function to export data to Excel Full (attendance format)
+        async function exportToExcelFull() {
+            // Show loading
+            Swal.fire({
+                title: 'Đang tạo file Excel Full...',
+                text: 'Vui lòng chờ trong giây lát',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Get current filter parameters
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // Lấy CSRF token
+            const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+            if (csrfToken) {
+                urlParams.append('csrf_token', csrfToken);
+            }
+
+            let exportUrl = '{{ url_for("export_attendance_excel_full") }}';
+
+            // Chỉ thêm ? nếu có tham số
+            if (urlParams.toString()) {
+                exportUrl += '?' + urlParams.toString();
+            }
+
+            try {
+                const response = await fetch(exportUrl);
+
+                if (!response.ok) {
+                    throw new Error('Lỗi từ máy chủ: ' + response.statusText);
+                }
+
+                // Get filename from header or default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'Lich_su_nghi_phep_full.xlsx';
+                if (contentDisposition) {
+                    const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (fileNameMatch && fileNameMatch.length === 2)
+                        filename = fileNameMatch[1];
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+
+                // Close loading
+                Swal.close();
+
+                // Show toast notification
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true
+                })
+                Toast.fire({
+                    icon: 'success',
+                    title: 'File Excel Full đã sẵn sàng tải xuống'
+                })
+
+            } catch (error) {
+                console.error('Export Full error:', error);
+                Swal.fire({
+                    title: 'Lỗi!',
+                    text: 'Không thể tạo file Excel Full. Vui lòng thử lại sau.',
+                    icon: 'error'
+                });
+            }
         }
 
         // Nút Test đã được loại bỏ theo yêu cầu
     </script>
+    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
+    <!-- Tạm thời ẩn chatbot AI -->
+    {# {% include 'chatbot_widget.html' %} #}
 </body>
 
 </html>

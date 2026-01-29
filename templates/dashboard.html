@@ -140,63 +140,7 @@
             background-color: #f8f9fa;
         }
 
-        /* Moon toggle styles */
-        .moon-toggle {
-            transition: all 0.3s ease;
-        }
-
-        .moon-toggle:hover {
-            transform: scale(1.1);
-        }
-
-        .moon-toggle.active #moonIcon {
-            color: #dc3545 !important;
-            /* đỏ */
-            background: linear-gradient(135deg, #fdecea 0%, #f8d7da 100%);
-            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
-        }
-
-        .moon-toggle:not(.active) #moonIcon {
-            color: #6c757d !important;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Giảm khoảng cách giữa đồng hồ và mặt trăng xuống 50% */
-        .moon-toggle {
-            top: -4px !important;
-            /* Giảm từ -8px xuống -4px */
-            right: -4px !important;
-            /* Giảm từ -8px xuống -4px */
-        }
-
-        /* Force override tất cả CSS khác */
-        #moonToggle.moon-toggle {
-            top: -4px !important;
-            right: -4px !important;
-        }
-
-        /* Đảm bảo inline style không ghi đè */
-        .moon-toggle[style*="top"],
-        .moon-toggle[style*="right"] {
-            top: -4px !important;
-            right: -4px !important;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-            .moon-toggle {
-                top: -3px !important;
-                /* Giảm từ -6px xuống -3px */
-                right: -3px !important;
-                /* Giảm từ -6px xuống -3px */
-            }
-
-            .moon-toggle #moonIcon {
-                font-size: 1rem !important;
-                padding: 3px !important;
-            }
-        }
+        /* Removed moon toggle styles - no longer needed */
 
         .form-control:focus {
             border-color: #dee2e6;
@@ -1140,7 +1084,8 @@
             </li>
 
             <!-- Menu danh sách đơn nghỉ phép và báo cáo đã được ẩn theo yêu cầu -->
-            <li class="nav-item">
+            {# Menu Cài đặt - sẽ được JavaScript điều khiển hiển thị/ẩn dựa trên role #}
+            <li class="nav-item" id="settingsMenu">
                 <a href="{{ url_for('settings') }}" class="nav-link">
                     <i class="fas fa-user-cog"></i>
                     Cài đặt
@@ -1181,12 +1126,12 @@
                                 lát...</div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            {# 
-                                Nút Refresh Token chỉ xuất hiện khi:
-                                - ĐANG Ở VAI TRÒ ADMIN (current_role == 'ADMIN')
-                                - Và ở phía JS, chỉ hiển thị khi token Google hết hạn / không hợp lệ.
-                                Điều này giữ nguyên logic cũ: nhân viên hoặc khi token còn hạn sẽ không thấy nút.
-                             #}
+                            {#
+                            Nút Refresh Token chỉ xuất hiện khi:
+                            - ĐANG Ở VAI TRÒ ADMIN (current_role == 'ADMIN')
+                            - Và ở phía JS, chỉ hiển thị khi token Google hết hạn / không hợp lệ.
+                            Điều này giữ nguyên logic cũ: nhân viên hoặc khi token còn hạn sẽ không thấy nút.
+                            #}
                             {% if current_role == 'ADMIN' %}
                             <button type="button" class="btn btn-sm btn-primary" id="btnRefreshToken"
                                 style="display: none; white-space: nowrap;">
@@ -1230,9 +1175,12 @@
                 <form id="attendanceForm">
                     <div class="row g-3 align-items-end">
                         <div class="col-6 col-md">
-                            <label for="attendanceDate" class="form-label">Ngày</label>
+                            <label for="attendanceDate" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>Ngày vào
+                            </label>
                             <input type="text" class="form-control form-control-sm" id="attendanceDate" required>
                         </div>
+
                         <div class="col-6 col-md">
                             <label for="dayType" class="form-label">
                                 <i class="fas fa-calendar-day me-1"></i>Loại ngày
@@ -1260,23 +1208,22 @@
                         </div>
                         <div class="col-6 col-md">
                             <label for="checkInTime" class="form-label">
-                                <i class="fas fa-sign-in-alt me-1"></i>Giờ vào
+                                <i class="fas fa-sign-in-alt me-1"></i>Giờ vào <small class="text-muted">(SA/AM:
+                                    00:00-11:59)</small>
                             </label>
                             <input type="time" class="form-control form-control-sm" id="checkInTime" required>
                         </div>
                         <div class="col-6 col-md">
                             <label for="checkOutTime" class="form-label">
-                                <i class="fas fa-clock me-1"></i>Giờ ra
+                                <i class="fas fa-clock me-1"></i>Giờ ra <small class="text-muted">(CH/PM:
+                                    12:00-23:59)</small>
                             </label>
-                            <div class="position-relative">
-                                <input type="time" class="form-control form-control-sm" id="checkOutTime" required
-                                    style="padding-right: 45px;">
-                                <div class="moon-toggle position-absolute" id="moonToggle"
-                                    style="top: -4px; right: -4px; cursor: pointer; z-index: 10;">
-                                    <i class="fas fa-moon" id="moonIcon"
-                                        style="font-size: 1.2rem; color: #6c757d; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;"></i>
-                                </div>
-                                <input type="hidden" id="nextDayCheckout" value="false">
+                            <div class="input-group input-group-sm">
+                                <!-- Explicit Date Input -->
+                                <input type="text" class="form-control bg-white" id="checkoutDate"
+                                    placeholder="dd/mm/yyyy" required style="flex: 1.3;">
+                                <!-- Time Input -->
+                                <input type="time" class="form-control" id="checkOutTime" required>
                             </div>
                         </div>
                         <div class="col-6 col-md">
@@ -1433,9 +1380,15 @@
             <div class="attendance-history" id="allAttendanceHistorySection" style="display:none;">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h4><i class="fas fa-history me-2"></i>Lịch sử chấm công đã phê duyệt</h4>
-                    <button class="btn btn-secondary btn-sm" id="btnBackToDashboard">
-                        <i class="fas fa-arrow-left me-2"></i>Trở về
-                    </button>
+                    <div>
+                        <button class="btn btn-success btn-sm me-2" id="btnBulkRecreate" data-bs-toggle="modal"
+                            data-bs-target="#bulkRecreateModal">
+                            <i class="fas fa-redo me-2"></i>Tạo lại bản ghi
+                        </button>
+                        <button class="btn btn-secondary btn-sm" id="btnBackToDashboard">
+                            <i class="fas fa-arrow-left me-2"></i>Trở về
+                        </button>
+                    </div>
                 </div>
                 <!-- Filter Section -->
                 <div class="row mb-3">
@@ -1466,6 +1419,30 @@
                             placeholder="Đến ngày">
                     </div>
                     <div class="col-auto">
+                        <select id="allHistoryMonthFrom" class="form-select form-select-sm">
+                            <option value="">Tháng từ</option>
+                            {% for m in range(1,13) %}
+                            <option value="{{m}}">Tháng {{m}}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <select id="allHistoryMonthTo" class="form-select form-select-sm">
+                            <option value="">Tháng đến</option>
+                            {% for m in range(1,13) %}
+                            <option value="{{m}}">Tháng {{m}}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <input type="number" id="allHistoryYearFrom" class="form-control form-control-sm"
+                            placeholder="Năm từ" min="2000" max="2100" style="width: 90px;">
+                    </div>
+                    <div class="col-auto">
+                        <input type="number" id="allHistoryYearTo" class="form-control form-control-sm"
+                            placeholder="Năm đến" min="2000" max="2100" style="width: 90px;">
+                    </div>
+                    <div class="col-auto">
                         <button class="btn btn-primary btn-sm" id="btnAllHistoryFilter">Lọc</button>
                         <button class="btn btn-secondary btn-sm" id="btnAllHistoryReset">Đặt lại</button>
                     </div>
@@ -1478,47 +1455,26 @@
                                 <h6 class="mb-0"><i class="fas fa-download me-2"></i>Xuất tăng ca hàng loạt</h6>
                             </div>
                             <div class="card-body">
-                                <div class="row align-items-end">
-                                    <div class="col-md-2">
-                                        <label for="bulkExportType" class="form-label">Loại xuất</label>
-                                        <select id="bulkExportType" class="form-select form-select-sm">
-                                            <option value="month">Theo tháng</option>
-                                            <option value="year">Theo năm</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2" id="monthSelection">
-                                        <label for="bulkExportMonth" class="form-label">Tháng</label>
-                                        <select id="bulkExportMonth" class="form-select form-select-sm">
-                                            <option value="1">Tháng 1</option>
-                                            <option value="2">Tháng 2</option>
-                                            <option value="3">Tháng 3</option>
-                                            <option value="4">Tháng 4</option>
-                                            <option value="5">Tháng 5</option>
-                                            <option value="6">Tháng 6</option>
-                                            <option value="7">Tháng 7</option>
-                                            <option value="8">Tháng 8</option>
-                                            <option value="9">Tháng 9</option>
-                                            <option value="10">Tháng 10</option>
-                                            <option value="11">Tháng 11</option>
-                                            <option value="12">Tháng 12</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="bulkExportYear" class="form-label">Năm</label>
-                                        <select id="bulkExportYear" class="form-select form-select-sm">
-                                            <!-- Will be populated by JavaScript -->
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3 d-flex gap-2">
                                         <button class="btn btn-success btn-sm" id="btnBulkExport">
                                             <i class="fas fa-file-archive me-2"></i>Tải ZIP
+                                        </button>
+                                        <button class="btn btn-primary btn-sm" id="btnExportAttendanceExcel">
+                                            <i class="fas fa-file-excel me-2"></i>Tải Excel
+                                        </button>
+                                        <button class="btn btn-info btn-sm" id="btnExportAttendanceExcelFull">
+                                            <i class="fas fa-file-excel me-2"></i>Tải Excel Full
                                         </button>
                                     </div>
                                     <div class="col-md-3">
                                         <small class="text-muted">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            <span id="bulkExportDescription">Xuất tất cả giấy tăng ca của tháng được
-                                                chọn</span>
+                                            <span id="bulkExportDescription">
+                                                Xuất tăng ca theo <strong>bộ lọc phía trên</strong>
+                                                (Từ ngày/Đến ngày hoặc Tháng từ/Tháng đến, Năm từ/Năm đến).
+                                                Nếu không chọn gì, hệ thống sẽ xuất tất cả bản ghi đã phê duyệt.
+                                            </span>
                                         </small>
                                     </div>
                                 </div>
@@ -1599,9 +1555,10 @@
                             <i class="fas fa-redo me-1"></i>Đặt lại
                         </button>
                     </div>
-                    <div class="col-auto d-flex align-items-center" id="bulkApprovalContainer" style="display: none;">
+                    <div class="col-auto d-flex align-items-center" id="bulkApprovalContainer"
+                        style="display: none !important;">
                         <button class="btn btn-success" id="btnBulkApprove" title="Phê duyệt tất cả bản ghi đang chờ">
-                            <i class="fas fa-check-double me-2"></i>Phê duyệt hết
+                            <i class="fas fa-check-double me-2"></i>Phê duyệt tất cả
                         </button>
                     </div>
                 </div>
@@ -1666,35 +1623,59 @@
     <!-- Embedded data for JS (avoids template braces inside JS code) -->
     <script id="has-signature-data" type="application/json">{{ (has_signature | default(false) | tojson) }}</script>
     <script>
-        // Moon toggle functionality for overnight shift
+        // Checkout date auto-suggestion functionality
         document.addEventListener('DOMContentLoaded', function () {
-            const moonToggle = document.getElementById('moonToggle');
-            const moonIcon = document.getElementById('moonIcon');
-            const nextDayCheckout = document.getElementById('nextDayCheckout');
+            const attendanceDateInput = document.getElementById('attendanceDate');
+            const checkoutDateInput = document.getElementById('checkoutDate');
+            const checkInTimeInput = document.getElementById('checkInTime');
+            const checkOutTimeInput = document.getElementById('checkOutTime');
 
-            if (moonToggle && moonIcon && nextDayCheckout) {
-                // Force set vị trí mặt trăng
-                moonToggle.style.top = '-4px';
-                moonToggle.style.right = '-4px';
+            // Auto-suggest checkout date when check-out time changes
+            function suggestCheckoutDate() {
+                const checkInTime = checkInTimeInput?.value;
+                const checkOutTime = checkOutTimeInput?.value;
+                const attendanceDate = attendanceDateInput?.value;
 
-                moonToggle.addEventListener('click', function () {
-                    const isActive = moonToggle.classList.contains('active');
+                if (checkInTime && checkOutTime && attendanceDate && checkoutDateInput) {
+                    // If checkout time < check-in time, suggest next day
+                    if (checkOutTime < checkInTime) {
+                        const [day, month, year] = attendanceDate.split('/');
+                        const dateObj = new Date(year, month - 1, day);
+                        dateObj.setDate(dateObj.getDate() + 1);
 
-                    if (isActive) {
-                        // Turn off overnight mode
-                        moonToggle.classList.remove('active');
-                        nextDayCheckout.value = 'false';
-                        console.log('🌙 Overnight mode: OFF');
+                        const newDay = String(dateObj.getDate()).padStart(2, '0');
+                        const newMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const newYear = dateObj.getFullYear();
+
+                        checkoutDateInput.value = `${newDay}/${newMonth}/${newYear}`;
+                        console.log('✅ Tự động điền ngày ra = ngày mai (giờ ra < giờ vào)');
                     } else {
-                        // Turn on overnight mode
-                        moonToggle.classList.add('active');
-                        nextDayCheckout.value = 'true';
-                        console.log('🌙 Overnight mode: ON');
+                        // Same day
+                        checkoutDateInput.value = attendanceDate;
+                    }
+                }
+            }
+
+            // Default checkout date = attendance date
+            if (attendanceDateInput && checkoutDateInput) {
+                attendanceDateInput.addEventListener('change', function () {
+                    // Ch\u1ec9 auto-sync n\u1ebfu KH\u00d4NG \u0111ang \u1edf ch\u1ebf \u0111\u1ed9 edit
+                    const editIdInput = document.getElementById('editAttendanceId');
+                    const isEditMode = editIdInput && editIdInput.value;
+
+                    if (!isEditMode && !checkoutDateInput.value) {
+                        // Auto-sync: Ng\u00e0y ra = Ng\u00e0y v\u00e0o (m\u1eb7c \u0111\u1ecbnh)
+                        checkoutDateInput.value = this.value;
                     }
                 });
+            }
 
-                // Add tooltip
-                moonToggle.title = 'Bật/tắt chế độ tăng ca qua đêm';
+            // Auto-suggest when times change
+            if (checkOutTimeInput) {
+                checkOutTimeInput.addEventListener('change', suggestCheckoutDate);
+            }
+            if (checkInTimeInput) {
+                checkInTimeInput.addEventListener('change', suggestCheckoutDate);
             }
         });
 
@@ -2118,6 +2099,168 @@
         document.addEventListener('DOMContentLoaded', function () {
             console.log('DOM loaded - initializing...');
 
+            // Xử lý khi người dùng nhập giờ nghỉ và focus ra - hỗ trợ nhập nhanh
+            const breakTimeInput = document.getElementById('breakTime');
+            if (breakTimeInput) {
+                breakTimeInput.addEventListener('blur', function () {
+                    let value = this.value.trim();
+
+                    // Nếu rỗng hoặc chỉ có khoảng trắng, set về 00:00
+                    if (!value || value === '') {
+                        this.value = '00:00';
+                        return;
+                    }
+
+                    // Nếu đã đúng định dạng HH:MM hoặc H:MM, format lại cho chuẩn
+                    const hhmmPattern = /^(\d{1,2}):([0-5]?\d)$/;
+                    if (hhmmPattern.test(value)) {
+                        const match = value.match(hhmmPattern);
+                        let hours = parseInt(match[1], 10);
+                        let minutes = parseInt(match[2] || '0', 10);
+
+                        // Đảm bảo giờ và phút hợp lệ
+                        if (hours > 23) hours = 23;
+                        if (minutes > 59) minutes = 59;
+
+                        this.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                        return;
+                    }
+
+                    // Kiểm tra xem có space hoặc dấu hai chấm không (ưu tiên xử lý trước)
+                    // Ví dụ: "2 45", "12 5", "12:05", "2:45"
+                    if (/[\s:]/.test(value)) {
+                        const parts = value.split(/[\s:]+/).filter(p => p);
+                        if (parts.length === 2) {
+                            let hours = parseInt(parts[0], 10);
+                            let minutes = parseInt(parts[1], 10);
+
+                            if (isNaN(hours)) hours = 0;
+                            if (isNaN(minutes)) minutes = 0;
+
+                            if (hours > 23) hours = 23;
+                            if (minutes > 59) minutes = 59;
+
+                            this.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                            return;
+                        }
+                    }
+
+                    // Xử lý các trường hợp nhập nhanh chỉ có số
+                    // Loại bỏ tất cả ký tự không phải số
+                    const numbersOnly = value.replace(/[^\d]/g, '');
+
+                    if (numbersOnly === '0' || numbersOnly === '') {
+                        // Nhập "0" → "00:00"
+                        this.value = '00:00';
+                    } else if (numbersOnly.length === 1 || numbersOnly.length === 2) {
+                        // Nhập 1-2 chữ số → coi như phút (ví dụ: "45" → "00:45", "1" → "00:01", "01" → "00:01")
+                        const minutes = parseInt(numbersOnly, 10);
+                        if (minutes > 59) {
+                            // Nếu > 59, coi như giờ:phút (ví dụ: "60" → "06:00")
+                            this.value = `${numbersOnly.padStart(2, '0')}:00`;
+                        } else {
+                            this.value = `00:${minutes.toString().padStart(2, '0')}`;
+                        }
+                    } else if (numbersOnly.length === 3) {
+                        // Nhập 3 chữ số → coi như H:MM (ví dụ: "245" → "02:45")
+                        const hours = parseInt(numbersOnly[0], 10);
+                        const minutes = parseInt(numbersOnly.substring(1), 10);
+                        if (minutes > 59) {
+                            // Nếu phút > 59, coi như HH:MM (ví dụ: "260" → "02:60" không hợp lệ, nên coi như "26:00")
+                            this.value = `${numbersOnly.substring(0, 2).padStart(2, '0')}:00`;
+                        } else {
+                            this.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                        }
+                    } else if (numbersOnly.length === 4) {
+                        // Nhập 4 chữ số → coi như HH:MM (ví dụ: "1245" → "12:45")
+                        const hours = parseInt(numbersOnly.substring(0, 2), 10);
+                        const minutes = parseInt(numbersOnly.substring(2), 10);
+                        if (hours > 23) hours = 23;
+                        if (minutes > 59) minutes = 59;
+                        this.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    } else {
+                        // Không parse được, set về 00:00
+                        this.value = '00:00';
+                    }
+                });
+            }
+
+            // Xử lý logic AM/PM tự động cho Giờ vào và Giờ ra
+            const checkInTimeInput = document.getElementById('checkInTime');
+            const checkOutTimeInput = document.getElementById('checkOutTime');
+
+            // Giờ vào: Mặc định là SÁNG (AM) - Giữ nguyên 01:00-11:00
+            if (checkInTimeInput) {
+                checkInTimeInput.addEventListener('blur', function () {
+                    const value = this.value;
+                    if (!value) return;
+
+                    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+                    if (match) {
+                        let hours = parseInt(match[1], 10);
+                        const minutes = match[2];
+
+                        // Nếu giờ từ 1-11 → Giữ nguyên (coi như sáng)
+                        // Nếu giờ 0 → Giữ nguyên 00:xx
+                        // Nếu giờ >= 12 → Giữ nguyên (đã đúng định dạng 24h)
+
+                        // Đảm bảo format chuẩn
+                        this.value = `${String(hours).padStart(2, '0')}:${minutes}`;
+                    }
+                });
+            }
+
+            // Giờ ra: Giữ nguyên giá trị người dùng nhập, chỉ format chuẩn + validate
+            if (checkOutTimeInput) {
+                checkOutTimeInput.addEventListener('blur', function () {
+                    const value = this.value;
+                    if (!value) return;
+
+                    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+                    if (match) {
+                        const hours = parseInt(match[1], 10);
+                        const minutes = match[2];
+
+                        // Chỉ format chuẩn, không tự động chuyển đổi AM/PM
+                        // Người dùng đã chọn đúng giờ từ time picker
+                        this.value = `${String(hours).padStart(2, '0')}:${minutes}`;
+                    }
+
+                    // Validate: Giờ vào >= Giờ ra khi cùng ngày
+                    const checkInTime = document.getElementById('checkInTime')?.value;
+                    const checkOutTime = this.value;
+                    const attendanceDate = document.getElementById('attendanceDate')?.value;
+                    const checkoutDateInput = document.getElementById('checkoutDate');
+                    let checkoutDate = checkoutDateInput?._flatpickr?.selectedDates[0]
+                        ? checkoutDateInput._flatpickr.formatDate(checkoutDateInput._flatpickr.selectedDates[0], 'Y-m-d')
+                        : checkoutDateInput?.value || '';
+
+                    // Convert checkoutDate từ DD/MM/YYYY sang YYYY-MM-DD nếu cần
+                    if (checkoutDate && checkoutDate.includes('/')) {
+                        const [d, m, y] = checkoutDate.split('/');
+                        checkoutDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                    }
+
+                    // Convert attendanceDate từ DD/MM/YYYY sang YYYY-MM-DD nếu cần
+                    let entryDate = attendanceDate || '';
+                    if (entryDate && entryDate.includes('/')) {
+                        const [d, m, y] = entryDate.split('/');
+                        entryDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                    }
+
+                    if (checkInTime && checkOutTime && entryDate && checkoutDate && entryDate === checkoutDate) {
+                        const [inH, inM] = checkInTime.split(':').map(Number);
+                        const [outH, outM] = checkOutTime.split(':').map(Number);
+                        const inMinutes = inH * 60 + inM;
+                        const outMinutes = outH * 60 + outM;
+
+                        if (inMinutes >= outMinutes) {
+                            showAlert('Giờ vào phải nhỏ hơn giờ ra khi cùng ngày. Nếu làm ca đêm (SA/AM), vui lòng chọn ngày ra là ngày hôm sau.', 'warning');
+                        }
+                    }
+                });
+            }
+
             // Đợi một chút để đảm bảo DOM được render hoàn toàn
             setTimeout(function () {
                 // Lấy vai trò hiện tại
@@ -2265,11 +2408,11 @@
                     // Hàm xác định loại ngày (tách ra để tái sử dụng)
                     async function determineDayType(dateStr) {
                         if (!dateStr) return;
-                        
+
                         try {
                             const url = `/api/get-day-type?date=${dateStr}`;
                             console.log(`🔍 Gọi API: ${url}`);
-                            
+
                             const response = await fetch(url, {
                                 method: 'GET',
                                 headers: {
@@ -2278,9 +2421,9 @@
                                 },
                                 credentials: 'same-origin'
                             });
-                            
+
                             console.log(`📡 Response status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
-                            
+
                             // Kiểm tra content-type để đảm bảo là JSON
                             const contentType = response.headers.get('content-type');
                             if (!contentType || !contentType.includes('application/json')) {
@@ -2293,7 +2436,7 @@
                                 });
                                 return;
                             }
-                            
+
                             if (response.ok) {
                                 const data = await response.json();
                                 console.log('✅ API response:', data);
@@ -2302,11 +2445,11 @@
                                     dayTypeSelect.value = data.day_type;
                                     // Trigger change event để cập nhật UI
                                     dayTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                                    
+
                                     // Hiển thị thông báo nếu có
                                     if (data.reason) {
-                                        const reasonText = data.holiday_name 
-                                            ? `${data.reason}: ${data.holiday_name}` 
+                                        const reasonText = data.holiday_name
+                                            ? `${data.reason}: ${data.holiday_name}`
                                             : data.reason;
                                         console.log(`✅ Đã tự động chọn loại ngày: ${reasonText}`);
                                     }
@@ -2325,7 +2468,8 @@
                             console.error('❌ Lỗi khi lấy loại ngày:', error);
                         }
                     }
-                    
+
+
                     const flatpickrInstance = flatpickr("#attendanceDate", {
                         dateFormat: "Y-m-d", // Format backend cần
                         locale: "vn",
@@ -2339,12 +2483,108 @@
                                 instance.input.placeholder = 'Chọn ngày...';
                                 return;
                             }
-                            
+
+                            // Khi đang edit (bấm Sửa), form sẽ được set dayType/shift từ backend.
+                            // Tránh auto-detect dayType (async) gây race-condition và ghi đè ca/ngày ra.
+                            if (window.__suppressDayTypeDetect) return;
+
                             // Tự động xác định loại ngày khi chọn ngày
                             await determineDayType(dateStr);
+
+                            // AUTO-SYNC: Cập nhật ngày ra = ngày vào khi người dùng chọn ngày vào
+                            // Giúp giảm thao tác cho các ca thông thường (cùng ngày)
+                            // NOTE: Khi đang "Sửa" bản ghi, checkout_date sẽ được set từ backend.
+                            // Tránh async onChange ghi đè checkout_date (race condition).
+                            if (window.__suppressCheckoutDateSync) return;
+                            const checkoutFp = document.getElementById('checkoutDate')._flatpickr;
+                            if (checkoutFp) {
+                                checkoutFp.setDate(dateStr, true);
+
+                                // Logic validation/highlighting
+                                const entryDate = selectedDates[0];
+                                const checkoutDate = checkoutFp.selectedDates[0];
+
+                                if (entryDate && checkoutDate) {
+                                    const entryDateOnly = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+                                    const checkoutDateOnly = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate());
+
+                                    // Nếu ngày ra < ngày vào mới → reset ngày ra về ngày vào
+                                    if (checkoutDateOnly < entryDateOnly) {
+                                        checkoutFp.setDate(entryDate, true);
+                                    }
+
+                                    // Cập nhật highlight
+                                    const altInput = checkoutFp.altInput;
+                                    if (altInput) {
+                                        const newCheckoutDate = checkoutFp.selectedDates[0];
+                                        const newCheckoutDateOnly = new Date(newCheckoutDate.getFullYear(), newCheckoutDate.getMonth(), newCheckoutDate.getDate());
+
+                                        if (newCheckoutDateOnly.getTime() !== entryDateOnly.getTime()) {
+                                            altInput.style.backgroundColor = '#fff3cd';
+                                            altInput.style.borderColor = '#ffc107';
+                                            altInput.style.fontWeight = 'bold';
+                                            altInput.title = 'Ca qua đêm: Ngày ra khác ngày vào';
+                                        } else {
+                                            altInput.style.backgroundColor = '';
+                                            altInput.style.borderColor = '';
+                                            altInput.style.fontWeight = '';
+                                            altInput.title = '';
+                                        }
+                                    }
+                                }
+                            }
                         }
                     });
-                    
+
+                    // Initialize flatpickr for checkoutDate (Ngày ra)
+                    const checkoutDateFlatpickr = flatpickr("#checkoutDate", {
+                        dateFormat: "Y-m-d", // Format backend cần
+                        locale: "vn",
+                        allowInput: false,
+                        altInput: true,
+                        altFormat: "d/m/Y", // Hiển thị DD/MM/YYYY
+                        placeholder: "Chọn ngày ra...",
+                        defaultDate: new Date(), // Mặc định cùng ngày
+                        onChange: function (selectedDates, dateStr, instance) {
+                            // Lấy ngày vào từ flatpickr
+                            const attendanceDateInput = document.getElementById('attendanceDate');
+                            const entryDate = attendanceDateInput?._flatpickr?.selectedDates[0];
+                            const checkoutDate = selectedDates[0];
+
+                            if (entryDate && checkoutDate) {
+                                // Reset time để so sánh chỉ ngày
+                                const entryDateOnly = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+                                const checkoutDateOnly = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate());
+
+                                // Validate: Ngày ra không được nhỏ hơn ngày vào
+                                if (checkoutDateOnly < entryDateOnly) {
+                                    showAlert('Ngày ra không được nhỏ hơn ngày vào!', 'warning');
+                                    // Reset về ngày vào
+                                    instance.setDate(entryDate, true);
+                                    return;
+                                }
+
+                                // Highlight nếu ngày ra khác ngày vào (ca qua đêm)
+                                const altInput = instance.altInput;
+                                if (altInput) {
+                                    if (checkoutDateOnly.getTime() !== entryDateOnly.getTime()) {
+                                        // Ngày khác nhau → highlight
+                                        altInput.style.backgroundColor = '#fff3cd';
+                                        altInput.style.borderColor = '#ffc107';
+                                        altInput.style.fontWeight = 'bold';
+                                        altInput.title = 'Ca qua đêm: Ngày ra khác ngày vào';
+                                    } else {
+                                        // Cùng ngày → bỏ highlight
+                                        altInput.style.backgroundColor = '';
+                                        altInput.style.borderColor = '';
+                                        altInput.style.fontWeight = '';
+                                        altInput.title = '';
+                                    }
+                                }
+                            }
+                        }
+                    });
+
                     // Tự động xác định loại ngày cho ngày mặc định (hôm nay)
                     // Sử dụng setTimeout để đảm bảo flatpickr đã khởi tạo xong
                     setTimeout(() => {
@@ -2640,12 +2880,27 @@
             const department = document.getElementById('allHistoryDepartment')?.value || '';
             const dateFrom = document.getElementById('allHistoryDateFrom')?.value || '';
             const dateTo = document.getElementById('allHistoryDateTo')?.value || '';
+            const monthFrom = document.getElementById('allHistoryMonthFrom')?.value || '';
+            const monthTo = document.getElementById('allHistoryMonthTo')?.value || '';
+            const yearFrom = document.getElementById('allHistoryYearFrom')?.value || '';
+            const yearTo = document.getElementById('allHistoryYearTo')?.value || '';
+
+            // Cảnh báo nhanh nếu khoảng ngày không hợp lệ
+            if (dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) {
+                showToast('Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc', 'warning');
+                tbody.innerHTML = '<tr><td colspan="16" class="no-data-row">Khoảng ngày không hợp lệ</td></tr>';
+                return;
+            }
 
             let url = `/api/attendance/history?all=1&page=${page}&per_page=10`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
             if (department) url += `&department=${encodeURIComponent(department)}`;
             if (dateFrom) url += `&date_from=${encodeURIComponent(dateFrom)}`;
             if (dateTo) url += `&date_to=${encodeURIComponent(dateTo)}`;
+            if (monthFrom) url += `&month_from=${encodeURIComponent(monthFrom)}`;
+            if (monthTo) url += `&month_to=${encodeURIComponent(monthTo)}`;
+            if (yearFrom) url += `&year_from=${encodeURIComponent(yearFrom)}`;
+            if (yearTo) url += `&year_to=${encodeURIComponent(yearTo)}`;
 
             fetch(url)
                 .then(res => res.json())
@@ -2790,9 +3045,19 @@
                     <td>${record.user_name || '-'}</td>
                     <td>${record.department || '-'}</td>
                     <td>${statusText}</td>
-                    <td style="height: 50px; width: 120px; padding: 0 !important;">
+                    <td style="height: 50px; width: 200px; padding: 0 !important;">
                         <div class="action-container">
-                            ${(() => { const adminNow = document.getElementById('role-select')?.value === 'ADMIN'; return (record.approved && adminNow) ? `<a href="/admin/attendance/${record.id}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class='fas fa-print'></i> In giấy tăng ca</a>` : ''; })()}
+                            ${(() => {
+                        const adminNow = document.getElementById('role-select')?.value === 'ADMIN';
+                        let buttons = '';
+                        if (record.approved && adminNow) {
+                            buttons += `<a href="/admin/attendance/${record.id}/export-overtime-pdf" class="btn btn-outline-primary btn-sm ms-1"><i class='fas fa-print'></i> In giấy tăng ca</a>`;
+                            buttons += `<button class="btn btn-outline-success btn-sm ms-1 duplicate-attendance-btn" data-id="${record.id}" data-date="${record.date}" data-user="${record.user_name || ''}" title="Tạo lại bản ghi chấm công này để phê duyệt lại từ đầu">
+                                        <i class="fas fa-copy"></i> Tạo lại
+                                    </button>`;
+                        }
+                        return buttons;
+                    })()}
                         </div>
                     </td>
                     <td class="note-cell" data-full-note="${record.note || ''}">${record.note || '-'}</td>
@@ -2812,6 +3077,89 @@
                     <td style="height: 50px;"></td>
                 `;
                 tbody.appendChild(emptyRow);
+            }
+
+            // Gắn event listener cho các nút "Tạo lại"
+            document.querySelectorAll('.duplicate-attendance-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const attendanceId = this.getAttribute('data-id');
+                    const date = this.getAttribute('data-date');
+                    const userName = this.getAttribute('data-user');
+                    duplicateAttendance(attendanceId, date, userName);
+                });
+            });
+        }
+
+        // Hàm duplicate attendance
+        async function duplicateAttendance(attendanceId, date, userName) {
+            const result = await Swal.fire({
+                title: 'Xác nhận tạo lại',
+                html: `Bạn có chắc chắn muốn tạo lại bản ghi chấm công?<br><br>
+                       <strong>Ngày:</strong> ${date}<br>
+                       <strong>Nhân viên:</strong> ${userName}<br><br>
+                       <small class="text-muted">Bản ghi mới sẽ ở trạng thái "Chờ phê duyệt" và bạn có thể phê duyệt lại từ đầu.</small>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Tạo lại',
+                cancelButtonText: 'Hủy',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d'
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            // Hiển thị loading
+            Swal.fire({
+                title: 'Đang xử lý...',
+                html: '<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo lại bản ghi chấm công',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false
+            });
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const response = await fetch(`/api/attendance/${attendanceId}/duplicate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    Swal.fire({
+                        title: 'Thành công!',
+                        html: `${data.message}<br><br>
+                               <strong>ID bản ghi mới:</strong> ${data.new_attendance_id}<br>
+                               <strong>Ngày:</strong> ${data.date}<br>
+                               <strong>Nhân viên:</strong> ${data.user_name}`,
+                        icon: 'success',
+                        confirmButtonText: 'Đóng'
+                    });
+
+                    // Reload lại danh sách
+                    loadAllAttendanceHistory(allCurrentPage);
+                } else {
+                    Swal.fire({
+                        title: 'Lỗi',
+                        text: data.error || 'Đã xảy ra lỗi khi tạo lại bản ghi chấm công',
+                        icon: 'error',
+                        confirmButtonText: 'Đóng'
+                    });
+                }
+            } catch (error) {
+                console.error('Error duplicating attendance:', error);
+                Swal.fire({
+                    title: 'Lỗi',
+                    text: 'Đã xảy ra lỗi khi tạo lại bản ghi chấm công. Vui lòng thử lại sau.',
+                    icon: 'error',
+                    confirmButtonText: 'Đóng'
+                });
             }
         }
 
@@ -2845,8 +3193,15 @@
                 if (!result.data || result.data.length === 0) {
                     approvalBody.innerHTML = '<tr><td colspan="16" class="no-data-row">Không có bản ghi chấm công chờ phê duyệt</td></tr>';
                     renderApprovalPagination(1, 1);
+                    // Hide bulk approval button
+                    const bulkContainer = document.getElementById('bulkApprovalContainer');
+                    if (bulkContainer) bulkContainer.style.setProperty('display', 'none', 'important');
                     return;
                 }
+
+                // Show bulk approval button if there is data
+                const bulkContainer = document.getElementById('bulkApprovalContainer');
+                if (bulkContainer) bulkContainer.style.removeProperty('display');
                 result.data.forEach(record => {
                     const row = document.createElement('tr');
 
@@ -3108,6 +3463,7 @@
             const adminHolidaysMenu = document.getElementById('adminHolidaysMenu');
             const adminLeaveHistoryAllMenu = document.getElementById('adminLeaveHistoryAllMenu');
             const attendanceHistoryMenuWrapper = document.getElementById('attendanceHistoryMenuWrapper');
+            const settingsMenu = document.getElementById('settingsMenu');
 
             console.log('🔍 Admin menu elements found:', {
                 adminUsersMenu: !!adminUsersMenu,
@@ -3163,6 +3519,13 @@
             if (employeeLeaveHistoryMenu) employeeLeaveHistoryMenu.style.display = 'none';
             if (managerLeaveMenu) managerLeaveMenu.style.display = 'none';
 
+            // Ẩn menu Cài đặt mặc định cho ADMIN
+            if (settingsMenu && role === 'ADMIN') {
+                settingsMenu.style.display = 'none';
+            } else if (settingsMenu) {
+                settingsMenu.style.display = 'block';
+            }
+
             // Ẩn nút test chữ ký mặc định
             if (testSignatureButtonContainer) testSignatureButtonContainer.style.display = 'none';
 
@@ -3176,6 +3539,8 @@
                 if (employeeLeaveMenu) employeeLeaveMenu.style.display = 'block';
                 if (employeeLeaveStatusMenu) employeeLeaveStatusMenu.style.display = 'block';
                 if (employeeLeaveHistoryMenu) employeeLeaveHistoryMenu.style.display = 'block';
+                // Hiển thị menu Cài đặt cho nhân viên
+                if (settingsMenu) settingsMenu.style.display = 'block';
 
                 // Đợi một chút để đảm bảo DOM được cập nhật trước khi gọi API
                 setTimeout(() => {
@@ -3242,6 +3607,13 @@
                 // Chỉ hiển thị menu lịch sử chấm công cho ADMIN
                 if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
                     attendanceHistoryMenuWrapper.style.display = 'block';
+                }
+                // Ẩn menu Cài đặt cho ADMIN
+                if (role === 'ADMIN' && settingsMenu) {
+                    settingsMenu.style.display = 'none';
+                } else if (settingsMenu) {
+                    // Hiển thị menu Cài đặt cho các role khác (TEAM_LEADER, MANAGER)
+                    settingsMenu.style.display = 'block';
                 }
                 // Hiển thị menu nghỉ phép cần phê duyệt cho trưởng nhóm/quản lý/quản trị viên
                 if (managerLeaveMenu) managerLeaveMenu.style.display = 'block';
@@ -4110,10 +4482,25 @@
             if (btnAllHistoryReset) {
                 btnAllHistoryReset.addEventListener('click', function () {
                     // Reset các filter
-                    document.getElementById('allHistorySearchName').value = '';
-                    document.getElementById('allHistoryDepartment').value = '';
-                    document.getElementById('allHistoryDateFrom').value = '';
-                    document.getElementById('allHistoryDateTo').value = '';
+                    const fieldsToClear = [
+                        'allHistorySearchName',
+                        'allHistoryDepartment',
+                        'allHistoryDateFrom',
+                        'allHistoryDateTo',
+                        'allHistoryMonthFrom',
+                        'allHistoryMonthTo',
+                        'allHistoryYearFrom',
+                        'allHistoryYearTo'
+                    ];
+                    fieldsToClear.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        el.value = '';
+                        // Đảm bảo flatpickr (nếu có) cũng được clear để UI hiển thị trống
+                        if (el._flatpickr) {
+                            el._flatpickr.clear();
+                        }
+                    });
 
                     // Reload dữ liệu
                     allCurrentPage = 1;
@@ -4128,6 +4515,196 @@
                     if (e.key === 'Enter') {
                         allCurrentPage = 1;
                         loadAllAttendanceHistory(allCurrentPage);
+                    }
+                });
+            }
+
+            // Khởi tạo năm cho dropdown (từ 2020 đến năm hiện tại + 1)
+            const currentYear = new Date().getFullYear();
+            const yearSelects = ['recreateYearFrom', 'recreateYearTo'];
+            yearSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    for (let year = 2020; year <= currentYear + 1; year++) {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year;
+                        select.appendChild(option);
+                    }
+                    // Mặc định chọn năm hiện tại
+                    select.value = currentYear;
+                }
+            });
+
+            // Xử lý nút tạo lại hàng loạt
+            const btnConfirmBulkRecreate = document.getElementById('btnConfirmBulkRecreate');
+            if (btnConfirmBulkRecreate) {
+                btnConfirmBulkRecreate.addEventListener('click', async function () {
+                    // Kiểm tra tab đang active - ưu tiên kiểm tra tab link active, sau đó kiểm tra pane visible
+                    const activeTabLink = document.querySelector('#recreateTabs .nav-link.active');
+                    let activePaneId = null;
+
+                    if (activeTabLink) {
+                        const target = activeTabLink.getAttribute('data-bs-target') || activeTabLink.getAttribute('href');
+                        if (target) {
+                            activePaneId = target.startsWith('#') ? target : '#' + target;
+                        }
+                    }
+
+                    // Fallback: kiểm tra pane nào đang visible
+                    if (!activePaneId) {
+                        const dateRangePane = document.getElementById('dateRangePane');
+                        const monthRangePane = document.getElementById('monthRangePane');
+                        const specificDatePane = document.getElementById('specificDatePane');
+
+                        if (dateRangePane && (dateRangePane.classList.contains('show') || dateRangePane.classList.contains('active'))) {
+                            activePaneId = '#dateRangePane';
+                        } else if (monthRangePane && (monthRangePane.classList.contains('show') || monthRangePane.classList.contains('active'))) {
+                            activePaneId = '#monthRangePane';
+                        } else if (specificDatePane && (specificDatePane.classList.contains('show') || specificDatePane.classList.contains('active'))) {
+                            activePaneId = '#specificDatePane';
+                        } else {
+                            // Mặc định sử dụng tab đầu tiên (Khoảng ngày) nếu không phát hiện được tab nào
+                            activePaneId = '#dateRangePane';
+                        }
+                    }
+
+                    let requestData = {};
+
+                    // Xử lý theo tab đang active
+                    if (activePaneId === '#dateRangePane') {
+                        // Khoảng ngày
+                        const dateFrom = document.getElementById('recreateDateFrom').value;
+                        const dateTo = document.getElementById('recreateDateTo').value;
+
+                        if (!dateFrom || !dateTo) {
+                            showToast('Vui lòng chọn đầy đủ từ ngày và đến ngày', 'error');
+                            return;
+                        }
+
+                        if (new Date(dateFrom) > new Date(dateTo)) {
+                            showToast('Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc', 'error');
+                            return;
+                        }
+
+                        requestData = {
+                            date_from: dateFrom,
+                            date_to: dateTo
+                        };
+                    } else if (activePaneId === '#monthRangePane') {
+                        // Khoảng tháng
+                        const monthFrom = document.getElementById('recreateMonthFrom').value;
+                        const yearFrom = document.getElementById('recreateYearFrom').value;
+                        const monthTo = document.getElementById('recreateMonthTo').value;
+                        const yearTo = document.getElementById('recreateYearTo').value;
+
+                        if (!monthFrom || !yearFrom || !monthTo || !yearTo) {
+                            showToast('Vui lòng chọn đầy đủ tháng và năm', 'error');
+                            return;
+                        }
+
+                        requestData = {
+                            month_from: parseInt(monthFrom),
+                            year_from: parseInt(yearFrom),
+                            month_to: parseInt(monthTo),
+                            year_to: parseInt(yearTo)
+                        };
+                    } else if (activePaneId === '#specificDatePane') {
+                        // Ngày cụ thể
+                        const specificDate = document.getElementById('recreateSpecificDate').value;
+
+                        if (!specificDate) {
+                            showToast('Vui lòng chọn ngày', 'error');
+                            return;
+                        }
+
+                        requestData = {
+                            specific_date: specificDate
+                        };
+                    } else {
+                        showToast('Vui lòng chọn một phương thức tạo lại', 'error');
+                        return;
+                    }
+
+                    // Xác nhận trước khi thực hiện
+                    const confirmResult = await Swal.fire({
+                        title: 'Xác nhận tạo lại',
+                        html: `Bạn có chắc chắn muốn tạo lại các bản ghi chấm công?<br>
+                               <small class="text-muted">Các bản ghi mới sẽ ở trạng thái "Chờ phê duyệt"</small>`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#28a745',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Xác nhận',
+                        cancelButtonText: 'Hủy'
+                    });
+
+                    if (!confirmResult.isConfirmed) {
+                        return;
+                    }
+
+                    // Disable nút trong khi xử lý
+                    btnConfirmBulkRecreate.disabled = true;
+                    btnConfirmBulkRecreate.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+
+                    try {
+                        const response = await fetch('/api/attendance/bulk-recreate', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content ||
+                                    document.querySelector('input[name="csrf_token"]')?.value || ''
+                            },
+                            body: JSON.stringify(requestData)
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.success) {
+                            // Đóng modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkRecreateModal'));
+                            if (modal) modal.hide();
+
+                            // Reset form
+                            document.getElementById('recreateDateFrom').value = '';
+                            document.getElementById('recreateDateTo').value = '';
+                            document.getElementById('recreateMonthFrom').value = '';
+                            document.getElementById('recreateMonthTo').value = '';
+                            document.getElementById('recreateSpecificDate').value = '';
+
+                            // Hiển thị kết quả
+                            let message = result.message;
+                            if (result.recreated_count > 0) {
+                                message += `<br><strong>Đã tạo lại: ${result.recreated_count} bản ghi</strong>`;
+                            }
+                            if (result.skipped_count > 0) {
+                                message += `<br>Bỏ qua: ${result.skipped_count} bản ghi (đã tồn tại)`;
+                            }
+                            if (result.error_count > 0) {
+                                message += `<br>Có lỗi: ${result.error_count} bản ghi`;
+                            }
+
+                            await Swal.fire({
+                                title: 'Thành công',
+                                html: message,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            });
+
+                            // Reload lịch sử chấm công
+                            if (allCurrentPage) {
+                                loadAllAttendanceHistory(allCurrentPage);
+                            }
+                        } else {
+                            showToast(result.error || 'Đã xảy ra lỗi khi tạo lại bản ghi', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error bulk recreating attendance:', error);
+                        showToast('Đã xảy ra lỗi khi tạo lại bản ghi: ' + error.message, 'error');
+                    } finally {
+                        // Enable lại nút
+                        btnConfirmBulkRecreate.disabled = false;
+                        btnConfirmBulkRecreate.innerHTML = '<i class="fas fa-redo me-2"></i>Xác nhận tạo lại';
                     }
                 });
             }
@@ -4510,6 +5087,9 @@
 
         // Cập nhật UI dựa trên token status
         function updateTokenStatusUI(status) {
+            // Cập nhật lại trạng thái admin trước khi kiểm tra
+            checkIfAdmin();
+
             tokenStatus = status;
             const isLicenseWarning = status && typeof status.message === 'string' &&
                 (status.message.includes('ỨNG DỤNG CHẤM CÔNG') || status.message.includes('LICENSE'));
@@ -4941,6 +5521,155 @@
     {% endfor %}
     {% endif %}
     {% endwith %}
+
+    <!-- Modal: Tạo lại bản ghi chấm công hàng loạt -->
+    <div class="modal fade" id="bulkRecreateModal" tabindex="-1" aria-labelledby="bulkRecreateModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="bulkRecreateModalLabel">
+                        <i class="fas fa-redo me-2"></i>Tạo lại bản ghi chấm công từ lịch sử đã phê duyệt
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Tính năng này sẽ tạo lại các bản ghi chấm công từ các bản ghi đã được phê duyệt.
+                        Các bản ghi mới sẽ ở trạng thái "Chờ phê duyệt" và cần được phê duyệt lại.
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" id="recreateTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="dateRangeTab" data-bs-toggle="tab"
+                                data-bs-target="#dateRangePane" type="button" role="tab">
+                                <i class="fas fa-calendar-alt me-2"></i>Khoảng ngày
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="monthRangeTab" data-bs-toggle="tab"
+                                data-bs-target="#monthRangePane" type="button" role="tab">
+                                <i class="fas fa-calendar me-2"></i>Khoảng tháng
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="specificDateTab" data-bs-toggle="tab"
+                                data-bs-target="#specificDatePane" type="button" role="tab">
+                                <i class="fas fa-calendar-day me-2"></i>Ngày cụ thể
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="recreateTabContent">
+                        <!-- Tab: Khoảng ngày -->
+                        <div class="tab-pane fade show active" id="dateRangePane" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="recreateDateFrom" class="form-label">Từ ngày <span
+                                            class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="recreateDateFrom" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="recreateDateTo" class="form-label">Đến ngày <span
+                                            class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="recreateDateTo" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Khoảng tháng -->
+                        <div class="tab-pane fade" id="monthRangePane" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="recreateMonthFrom" class="form-label">Từ tháng <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="recreateMonthFrom" required>
+                                        <option value="">-- Chọn tháng --</option>
+                                        <option value="1">Tháng 1</option>
+                                        <option value="2">Tháng 2</option>
+                                        <option value="3">Tháng 3</option>
+                                        <option value="4">Tháng 4</option>
+                                        <option value="5">Tháng 5</option>
+                                        <option value="6">Tháng 6</option>
+                                        <option value="7">Tháng 7</option>
+                                        <option value="8">Tháng 8</option>
+                                        <option value="9">Tháng 9</option>
+                                        <option value="10">Tháng 10</option>
+                                        <option value="11">Tháng 11</option>
+                                        <option value="12">Tháng 12</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="recreateYearFrom" class="form-label">Năm <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="recreateYearFrom" required>
+                                        <option value="">-- Chọn năm --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="text-muted small">Đến</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="recreateMonthTo" class="form-label">Đến tháng <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="recreateMonthTo" required>
+                                        <option value="">-- Chọn tháng --</option>
+                                        <option value="1">Tháng 1</option>
+                                        <option value="2">Tháng 2</option>
+                                        <option value="3">Tháng 3</option>
+                                        <option value="4">Tháng 4</option>
+                                        <option value="5">Tháng 5</option>
+                                        <option value="6">Tháng 6</option>
+                                        <option value="7">Tháng 7</option>
+                                        <option value="8">Tháng 8</option>
+                                        <option value="9">Tháng 9</option>
+                                        <option value="10">Tháng 10</option>
+                                        <option value="11">Tháng 11</option>
+                                        <option value="12">Tháng 12</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="recreateYearTo" class="form-label">Năm <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="recreateYearTo" required>
+                                        <option value="">-- Chọn năm --</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Ngày cụ thể -->
+                        <div class="tab-pane fade" id="specificDatePane" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label for="recreateSpecificDate" class="form-label">Chọn ngày <span
+                                            class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="recreateSpecificDate" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success" id="btnConfirmBulkRecreate">
+                        <i class="fas fa-redo me-2"></i>Xác nhận tạo lại
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
+    <!-- Tạm thời ẩn chatbot AI -->
+    {# {% include 'chatbot_widget.html' %} #}
+
+    <!-- Excel Full Export Button -->
+    <script
+        src="{{ url_for('static', filename='js/attendance_excel_full.js') }}?v={{ range(1, 99999) | random }}"></script>
 </body>
 
 </html>

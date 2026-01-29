@@ -5,14 +5,23 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta, time
+from sqlalchemy.orm import validates
 import logging
+import re
 
 db = SQLAlchemy()
+
+# C3: Email validation regex
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 class User(db.Model, UserMixin):
     """User model for employees, managers, and admins"""
     __tablename__ = 'users'
-    
+    __table_args__ = (
+        db.Index('idx_user_department', 'department'),  # Index for department filtering
+        db.Index('idx_user_is_deleted', 'is_deleted'),  # Index for soft delete queries
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     password_hash = db.Column(db.String(120), nullable=False)
     name = db.Column(db.String(100), nullable=False)
@@ -26,6 +35,8 @@ class User(db.Model, UserMixin):
     phone = db.Column(db.String(20), nullable=True)
     remember_token = db.Column(db.String(255), nullable=True)
     remember_token_expires = db.Column(db.DateTime, nullable=True)
+    remember_token_ip = db.Column(db.String(45), nullable=True)  # B4: IP binding for remember token security
+    remember_token_user_agent = db.Column(db.String(255), nullable=True)  # B4: User-Agent binding for remember token
     personal_signature = db.Column(db.Text, nullable=True)  # Chữ ký cá nhân duy nhất
     is_deleted = db.Column(db.Boolean, default=False)  # Soft delete flag
     # Chính sách linh hoạt cho mẹ có con < 12 tháng: chỉ cần 7h nhưng đủ công
@@ -67,6 +78,24 @@ class User(db.Model, UserMixin):
         """Check if user is soft deleted"""
         return self.is_deleted
 
+    # C3: Model-level validation
+    @validates('email')
+    def validate_email(self, key, email):
+        """Validate email format"""
+        if email is not None and email.strip():
+            email = email.strip().lower()
+            if not EMAIL_REGEX.match(email):
+                raise ValueError(f"Invalid email format: {email}")
+        return email
+
+    @validates('maternity_flex_from', 'maternity_flex_until')
+    def validate_maternity_dates(self, key, value):
+        """Validate maternity flex dates logic"""
+        if value is not None and key == 'maternity_flex_until':
+            if self.maternity_flex_from and value < self.maternity_flex_from:
+                raise ValueError("maternity_flex_until must be >= maternity_flex_from")
+        return value
+
     @classmethod
     def get_active_users(cls):
         """Get all non-deleted users"""
@@ -83,13 +112,20 @@ class User(db.Model, UserMixin):
 class Attendance(db.Model):
     """Attendance records model"""
     __tablename__ = 'attendances'
-    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'date', name='uq_attendance_user_date'),  # B1: Prevent duplicate attendance records
+        db.Index('idx_attendance_user_date', 'user_id', 'date'),  # Composite index for user+date queries
+        db.Index('idx_attendance_status', 'status'),  # Index for status filtering
+        db.Index('idx_attendance_date', 'date'),  # Index for date range queries
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     check_in = db.Column(db.DateTime, nullable=True)
     check_out = db.Column(db.DateTime, nullable=True)
     date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
+    version = db.Column(db.Integer, nullable=False, default=1)  # B3: Optimistic locking for approval workflow
     note = db.Column(db.Text, nullable=True)
     break_time = db.Column(db.Float, nullable=False, default=1.0)
     # Giờ đối ứng trong ca làm việc: trừ vào giờ công thường (PHÚT - không lẻ)
@@ -113,8 +149,19 @@ class Attendance(db.Model):
     overtime_comp_time_minutes = db.Column(db.Integer, nullable=False, default=0)  # NEW - phút chính xác
     is_holiday = db.Column(db.Boolean, nullable=False, default=False)
     holiday_type = db.Column(db.String(20), nullable=True)
-    total_work_hours = db.Column(db.Float, nullable=True)
-    regular_work_hours = db.Column(db.Float, nullable=True)
+    
+    # ===== LEGACY Float columns (deprecated - use *_minutes instead) =====
+    total_work_hours = db.Column(db.Float, nullable=True)  # Legacy - use total_work_minutes
+    regular_work_hours = db.Column(db.Float, nullable=True)  # Legacy - use regular_work_minutes
+    # ===== END Legacy =====
+    
+    # ===== NEW Integer Minutes columns (PRECISION - NO FLOATING POINT ERRORS) =====
+    break_time_minutes = db.Column(db.Integer, nullable=False, default=60)  # 60 minutes = 1 hour
+    total_work_minutes = db.Column(db.Integer, nullable=True)  # Total work time in minutes
+    regular_work_minutes = db.Column(db.Integer, nullable=True)  # Regular work hours in minutes
+    required_minutes = db.Column(db.Integer, nullable=True, default=480)  # 480 minutes = 8 hours
+    # ===== END Integer Minutes =====
+    
     overtime_before_22 = db.Column(db.String(5), nullable=True)
     overtime_after_22 = db.Column(db.String(5), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -139,7 +186,16 @@ class Attendance(db.Model):
     team_leader_signer = db.relationship('User', foreign_keys=[team_leader_signer_id], backref=db.backref('team_leader_signed_attendances', lazy=True))
     manager_signer = db.relationship('User', foreign_keys=[manager_signer_id], backref=db.backref('manager_signed_attendances', lazy=True))
     # Số giờ tối thiểu cần đạt để đủ công trong ngày (lưu lại tại thời điểm chấm)
-    required_hours = db.Column(db.Float, nullable=True, default=8.0)
+    required_hours = db.Column(db.Float, nullable=True, default=8.0)  # Legacy - use required_minutes
+
+    # C3: Model-level validation for Attendance
+    @validates('check_out')
+    def validate_check_out(self, key, check_out):
+        """Validate check_out > check_in"""
+        if check_out is not None and self.check_in is not None:
+            if check_out <= self.check_in:
+                raise ValueError("check_out must be after check_in")
+        return check_out
 
     def update_work_hours(self):
         """Calculate and update work hours and overtime with precision handling"""
@@ -156,6 +212,14 @@ class Attendance(db.Model):
             from utils.precision_utils import safe_minutes_to_hours, format_hours_minutes_precise
             hours = safe_minutes_to_hours(minutes)
             return format_hours_minutes_precise(hours)
+        
+        def minutes_to_hhmm(minutes):
+            """Convert integer minutes to H:MM string - PURE INTEGER, NO FLOAT ERRORS"""
+            if minutes is None or minutes < 0:
+                return "0:00"
+            hours = minutes // 60
+            mins = minutes % 60
+            return f"{hours}:{mins:02d}"
 
         # Định nghĩa 5 ca chuẩn (bao gồm ca đặc biệt cho ngày nghỉ)
         shift_map = {
@@ -234,14 +298,21 @@ class Attendance(db.Model):
             twenty_two = datetime.combine(self.date, time(22, 0))
 
             # 2. Giờ công thường: xử lý theo loại ngày
-            overlap_start = max(self.check_in, ca_start)
-            overlap_end = min(self.check_out, ca_end)
-            # Xử lý trường hợp ca qua đêm: nếu overlap_end <= overlap_start có thể là do ca qua đêm
-            if overlap_end <= overlap_start and self.check_out.time() < self.check_in.time():
-                # Trường hợp ca qua đêm: tính từ check_in đến ca_end
-                time_in_shift = round(max(0, (ca_end - self.check_in).total_seconds() / 3600), 2)
+            # FIX: Xử lý đúng trường hợp ca qua đêm khi check_out.date() != check_in.date()
+            if self.check_out.date() > self.check_in.date():
+                # CA QUA ĐÊM THỰC SỰ: check_out ở ngày khác check_in
+                # Tính thời gian làm việc = check_out - check_in (bao gồm cả phần qua đêm)
+                time_in_shift = round((self.check_out - self.check_in).total_seconds() / 3600, 2)
             else:
-                time_in_shift = round(max(0, (overlap_end - overlap_start).total_seconds() / 3600), 2) if overlap_end > overlap_start else 0
+                # CA TRONG CÙNG NGÀY: logic cũ vẫn đúng
+                overlap_start = max(self.check_in, ca_start)
+                overlap_end = min(self.check_out, ca_end)
+                # Xử lý trường hợp ca qua đêm trong cùng ngày (edge case - hiếm xảy ra)
+                if overlap_end <= overlap_start and self.check_out.time() < self.check_in.time():
+                    # Trường hợp ca qua đêm: tính từ check_in đến ca_end
+                    time_in_shift = round(max(0, (ca_end - self.check_in).total_seconds() / 3600), 2)
+                else:
+                    time_in_shift = round(max(0, (overlap_end - overlap_start).total_seconds() / 3600), 2) if overlap_end > overlap_start else 0
             
             # Xử lý giờ công chính thức theo loại ngày
             if self.holiday_type == 'vietnamese_holiday':
@@ -292,65 +363,81 @@ class Attendance(db.Model):
                     comp_time_regular_hours = (self.comp_time_regular_minutes or 0) / 60.0
                     effective_break_regular = self.break_time + comp_time_regular_hours
                     regular_hours = round(max(0, time_in_shift - effective_break_regular), 2)
-                    self.regular_work_hours = min(regular_hours, 8.0)  # Giới hạn tối đa 8 giờ cho ngày thường
+                    if self.shift_code == '5':
+                        # Ca 5: KHÔNG có giờ công (regular). Tất cả thời gian là OT trước/sau 22h.
+                        self.regular_work_hours = 0.0
+                    else:
+                        self.regular_work_hours = min(regular_hours, 8.0)  # Giới hạn tối đa 8 giờ cho ngày thường
                 break_time_for_overtime = 0
 
             # 3. Tăng ca: tính thô hai phần trước/sau 22h
             # Sau đó trừ "giờ nghỉ hiệu lực" theo từng phần:
             # - phần trước 22h: trừ comp_time_ot_before_22
             # - phần sau 22h: trừ comp_time_ot_after_22
+            
+            # Initialize OT variables as INTEGER MINUTES (NO FLOAT ERRORS)
+            ot_before_minutes = 0
+            ot_after_minutes = 0
+            
             if self.holiday_type in ['vietnamese_holiday', 'weekend']:
-                # Ngày lễ và cuối tuần: tính thời gian từ check_in đến 22:00
+                # Ngày lễ và cuối tuần: tính thời gian từ check_in đến 22:00 - DÙNG INTEGER MINUTES
                 check_in_time = self.check_in.time()
                 check_out_time = self.check_out.time()
                 
-                # Tính tăng ca trước 22h
+                # Tính tăng ca trước 22h - INTEGER MINUTES (NO FLOAT ERRORS)
                 if self.holiday_type == 'vietnamese_holiday':
                     # Lễ Việt Nam: giới hạn đến 22:00
                     if self.check_out <= twenty_two:
                         # Toàn bộ thời gian làm việc trước 22h
-                        overtime_before_22 = (self.check_out - self.check_in).total_seconds() / 3600
+                        ot_before_minutes = int(round((self.check_out - self.check_in).total_seconds() / 60))
                     else:
                         # Tính thời gian từ check_in đến 22:00
                         if self.check_in < twenty_two:
                             # Có thời gian trước 22h
-                            overtime_before_22 = (twenty_two - self.check_in).total_seconds() / 3600
+                            ot_before_minutes = int(round((twenty_two - self.check_in).total_seconds() / 60))
                         else:
                             # Không có thời gian trước 22h
-                            overtime_before_22 = 0
+                            ot_before_minutes = 0
                 else:
-                    # Cuối tuần: vẫn phân biệt tăng ca trước và sau 22h
+                    # Cuối tuần: vẫn phân biệt tăng ca trước và sau 22h - INTEGER MINUTES
                     # Tăng ca trước 22h: từ check_in đến min(22:00, check_out) (đã trừ giờ nghỉ)
                     if self.check_in < twenty_two:
                         # Giới hạn bởi thời gian làm việc thực tế
                         actual_end = min(self.check_out, twenty_two)
-                        overtime_before_22 = (actual_end - self.check_in).total_seconds() / 3600
-                        # Trừ giờ nghỉ ngay từ đầu cho cuối tuần
-                        overtime_before_22 = max(0.0, overtime_before_22 - self.break_time)
+                        ot_before_minutes = int(round((actual_end - self.check_in).total_seconds() / 60))
+                        # Trừ giờ nghỉ ngay từ đầu cho cuối tuần - DÙNG INTEGER MINUTES
+                        break_mins = self.break_time_minutes if self.break_time_minutes else 60
+                        ot_before_minutes = max(0, ot_before_minutes - break_mins)
                     else:
-                        overtime_before_22 = 0
+                        ot_before_minutes = 0
             elif self.holiday_type == 'japanese_holiday':
-                # Lễ Nhật: tăng ca = tổng giờ làm - giờ công
+                # Lễ Nhật: tăng ca = tổng giờ làm - giờ công - DÙNG INTEGER MINUTES
                 # Phân bổ ưu tiên phần sau 22h trước, phần còn lại cho trước 22h để phản ánh đúng mốc thời gian thực tế
-                overtime_total = max(0.0, (self.total_work_hours or 0.0) - (self.regular_work_hours or 0.0))
-                overtime_before_22 = 0.0
-                overtime_after_22 = 0.0
-                if overtime_total > 0.0:
-                    regular_end = self.check_in + timedelta(hours=self.regular_work_hours or 0.0)
-                    # Dung lượng trước 22h (và trước giờ ra)
+                work_minutes = self.total_work_minutes or 0
+                regular_minutes = self.regular_work_minutes or 0
+                overtime_total_minutes = max(0, work_minutes - regular_minutes)
+                
+                if overtime_total_minutes > 0:
+                    # Tính regular_end từ regular_minutes
+                    regular_mins_val = self.regular_work_minutes or 0
+                    regular_end = self.check_in + timedelta(minutes=regular_mins_val)
+                    
+                    # Dung lượng trước 22h (và trước giờ ra) - INTEGER MINUTES
                     before_window_end = min(self.check_out, twenty_two)
-                    capacity_before = 0.0
+                    capacity_before_minutes = 0
                     if before_window_end > regular_end:
-                        capacity_before = max(0.0, (before_window_end - regular_end).total_seconds() / 3600)
-                    # Dung lượng sau 22h (sau max(regular_end, 22:00) tới check_out)
+                        capacity_before_minutes = int(round((before_window_end - regular_end).total_seconds() / 60))
+                    
+                    # Dung lượng sau 22h (sau max(regular_end, 22:00) tới check_out) - INTEGER MINUTES
                     after_window_start = max(regular_end, twenty_two)
-                    capacity_after = 0.0
+                    capacity_after_minutes = 0
                     if self.check_out > after_window_start:
-                        capacity_after = max(0.0, (self.check_out - after_window_start).total_seconds() / 3600)
-                    # Phân bổ: sau 22h trước
-                    overtime_after_22 = min(overtime_total, capacity_after)
-                    remaining = max(0.0, overtime_total - overtime_after_22)
-                    overtime_before_22 = min(capacity_before, remaining)
+                        capacity_after_minutes = int(round((self.check_out - after_window_start).total_seconds() / 60))
+                    
+                    # Phân bổ: sau 22h trước - INTEGER MINUTES
+                    ot_after_minutes = min(overtime_total_minutes, capacity_after_minutes)
+                    remaining_minutes = max(0, overtime_total_minutes - ot_after_minutes)
+                    ot_before_minutes = min(capacity_before_minutes, remaining_minutes)
             else:
                 # Ngày thường: Tính OT trước 22h
                 # Xử lý đặc biệt cho mẹ <12 tháng (ca 1-4)
@@ -360,81 +447,87 @@ class Attendance(db.Model):
                     and self.shift_code in ('1', '2', '3', '4')
                 )
                 if is_maternity_flex:
-                    # Mẹ <12 tháng: logic tăng ca đơn giản hóa
+                    # Mẹ <12 tháng: logic tăng ca đơn giản hóa - INTEGER MINUTES
                     # Tính phần làm sau ca (qua giờ hành chính) - từ giờ kết thúc ca đến check_out
-                    post_shift_ot = 0.0
+                    post_shift_ot_minutes = 0
                     if self.check_out > ca_end:
                         # Có làm qua giờ hành chính
                         ot_end_22 = min(self.check_out, twenty_two)  # Giới hạn tới 22h
                         if ot_end_22 > ca_end:
-                            post_shift_ot = (ot_end_22 - ca_end).total_seconds() / 3600
+                            post_shift_ot_minutes = int(round((ot_end_22 - ca_end).total_seconds() / 60))
                     
-                    # Lấy bonus overflow từ phần giờ công (khi actual + 1h > 8h)
-                    maternity_bonus = getattr(self, '_maternity_overtime_bonus', 0.0)
+                    # Lấy bonus overflow từ phần giờ công (khi actual + 1h > 8h) - convert to minutes
+                    maternity_bonus_float = getattr(self, '_maternity_overtime_bonus', 0.0)
+                    maternity_bonus_minutes = int(round(maternity_bonus_float * 60))
                     
-                    # Tăng ca trước 22h = tăng ca ngoài giờ + bonus overflow
-                    overtime_before_22 = post_shift_ot + maternity_bonus
+                    # Tăng ca trước 22h = tăng ca ngoài giờ + bonus overflow - INTEGER MINUTES
+                    ot_before_minutes = post_shift_ot_minutes + maternity_bonus_minutes
                     
-                    # Tính tăng ca sau 22h riêng
-                    overtime_after_22 = 0.0
+                    # Tính tăng ca sau 22h riêng - INTEGER MINUTES
+                    ot_after_minutes = 0
                     if self.check_out > twenty_two:
-                        overtime_after_22 = (self.check_out - twenty_two).total_seconds() / 3600
+                        ot_after_minutes = int(round((self.check_out - twenty_two).total_seconds() / 60))
                 elif self.shift_code == '5':
-                    # Ca 5 (tự do): tính cả đi làm sớm và về muộn
-                    # 1) Trước giờ vào ca
+                    # Ca 5 (tự do): KHÔNG có "giờ công", chỉ chia OT trước/sau 22h theo thời gian thực tế.
+                    # OT trước 22h: từ check_in đến min(check_out, 22:00 ngày vào)
+                    # OT sau 22h: từ max(check_in, 22:00 ngày vào) đến check_out (kể cả qua đêm)
+                    before_end = min(self.check_out, twenty_two)
+                    raw_before = int(round((before_end - self.check_in).total_seconds() / 60)) if before_end > self.check_in else 0
+
+                    after_start = max(self.check_in, twenty_two)
+                    raw_after = int(round((self.check_out - after_start).total_seconds() / 60)) if self.check_out > after_start else 0
+
+                    # Trừ giờ nghỉ vào OT (ưu tiên trừ phần trước 22h trước, còn dư trừ sang sau 22h)
+                    break_mins = self.break_time_minutes if self.break_time_minutes else int(round((self.break_time or 0.0) * 60))
+                    deduct = max(0, int(break_mins or 0))
+                    deduct_before = min(raw_before, deduct)
+                    raw_before -= deduct_before
+                    deduct -= deduct_before
+                    if deduct > 0:
+                        raw_after = max(0, raw_after - deduct)
+
+                    ot_before_minutes = raw_before
+                    ot_after_minutes = raw_after
+                else:
+                    # Ca 1-4: tính CẢ đi làm sớm VÀ về muộn - INTEGER MINUTES
+                    # 1) Đi làm sớm (trước giờ vào ca)
                     pre_start = self.check_in
                     pre_end = min(self.check_out, ca_start, twenty_two)
-                    pre_shift_ot = max(0, (pre_end - pre_start).total_seconds() / 3600) if pre_end > pre_start and self.check_in < ca_start else 0
-
-                    # 2) Sau giờ ra ca nhưng trước 22h
+                    pre_shift_ot_minutes = max(0, int(round((pre_end - pre_start).total_seconds() / 60))) if pre_end > pre_start and self.check_in < ca_start else 0
+                    logger.debug(f"Pre shift OT (early arrival): pre_start={pre_start}, pre_end={pre_end}, ca_start={ca_start}")
+                    logger.debug(f"Pre shift OT result: {pre_shift_ot_minutes} minutes")
+                    
+                    # 2) Về muộn (sau giờ ra ca nhưng trước 22h)
                     post_start = max(self.check_in, ca_end)
                     post_end = min(self.check_out, twenty_two)
-                    # Điều kiện: phải có thời gian sau ca và trước 22h
-                    logger.debug(f"Post shift OT: post_start={post_start}, post_end={post_end}, ca_end={ca_end}, check_out={self.check_out}")
-                    post_shift_ot = max(0, (post_end - post_start).total_seconds() / 3600) if post_end > post_start and self.check_out > ca_end else 0
-                    logger.debug(f"Post shift OT result: {post_shift_ot}")
-
-                    overtime_before_22 = pre_shift_ot + post_shift_ot
-                else:
-                    # Ca 1-4: chỉ tính về muộn, không tính đi làm sớm
-                    # Chỉ tính phần sau giờ ra ca nhưng trước 22h
-                    post_start = max(self.check_in, ca_end)
-                    post_end = min(self.check_out, twenty_two)
-                    # Điều kiện: phải có thời gian sau ca và trước 22h
-                    logger.debug(f"Post shift OT: post_start={post_start}, post_end={post_end}, ca_end={ca_end}, check_out={self.check_out}")
-                    post_shift_ot = max(0, (post_end - post_start).total_seconds() / 3600) if post_end > post_start and self.check_out > ca_end else 0
-                    logger.debug(f"Post shift OT result: {post_shift_ot}")
-
-                    overtime_before_22 = post_shift_ot
+                    post_shift_ot_minutes = max(0, int(round((post_end - post_start).total_seconds() / 60))) if post_end > post_start and self.check_out > ca_end else 0
+                    logger.debug(f"Post shift OT (late departure): post_start={post_start}, post_end={post_end}, ca_end={ca_end}, check_out={self.check_out}")
+                    logger.debug(f"Post shift OT result: {post_shift_ot_minutes} minutes")
+                    
+                    ot_before_minutes = pre_shift_ot_minutes + post_shift_ot_minutes
+                    logger.debug(f"Total overtime before 22h: {ot_before_minutes} minutes (early: {pre_shift_ot_minutes}, late: {post_shift_ot_minutes})")
             
-            # 4. Tăng ca sau 22h: thời gian từ 22:00 (ngày check_in) đến khi ra (kể cả qua đêm)
+            # 4. Tăng ca sau 22h: thời gian từ 22:00 (ngày check_in) đến khi ra (kể cả qua đêm) - INTEGER MINUTES
             if self.holiday_type in ['vietnamese_holiday', 'weekend']:
                 if self.holiday_type == 'vietnamese_holiday':
-                    # Lễ Việt Nam: hợp nhất xử lý, tính cả phần qua đêm
+                    # Lễ Việt Nam: hợp nhất xử lý, tính cả phần qua đêm - INTEGER MINUTES
                     ot2_start = max(self.check_in, twenty_two)
                     if self.check_out > ot2_start:
-                        overtime_after_22 = (self.check_out - ot2_start).total_seconds() / 3600
+                        ot_after_minutes = int(round((self.check_out - ot2_start).total_seconds() / 60))
                     else:
-                        overtime_after_22 = 0
+                        ot_after_minutes = 0
                 else:
-                    # Cuối tuần: tăng ca sau 22h từ 22:00 đến check_out
+                    # Cuối tuần: tăng ca sau 22h từ 22:00 đến check_out - INTEGER MINUTES
                     if self.check_out > twenty_two:
-                        overtime_after_22 = (self.check_out - twenty_two).total_seconds() / 3600
+                        ot_after_minutes = int(round((self.check_out - twenty_two).total_seconds() / 60))
                     else:
-                        overtime_after_22 = 0
+                        ot_after_minutes = 0
             elif self.holiday_type == 'japanese_holiday':
-                # Nếu trước đó đã phân bổ rồi thì giữ nguyên; nếu chưa (trường hợp hiếm), fallback về tính toán an toàn
-                if 'overtime_after_22' not in locals():
-                    overtime_total = max(0.0, (self.total_work_hours or 0.0) - (self.regular_work_hours or 0.0))
-                    regular_end = self.check_in + timedelta(hours=self.regular_work_hours or 0.0)
-                    after_window_start = max(regular_end, twenty_two)
-                    if self.check_out > after_window_start:
-                        raw_capacity_after = (self.check_out - after_window_start).total_seconds() / 3600
-                        overtime_after_22 = min(overtime_total, max(0.0, raw_capacity_after))
-                    else:
-                        overtime_after_22 = 0.0
+                # Japanese holiday: ot_after_minutes đã được tính ở trên (dòng 384)
+                # Không cần làm gì thêm
+                pass
             else:
-                # Ngày thường: hợp nhất xử lý, tính cả phần qua đêm
+                # Ngày thường: hợp nhất xử lý, tính cả phần qua đêm - INTEGER MINUTES
                 # Nếu là mẹ <12 tháng, OT sau 22h đã được tính trong phần trên
                 is_maternity_flex = (
                     getattr(self, 'user', None)
@@ -442,52 +535,50 @@ class Attendance(db.Model):
                     and self.shift_code in ('1', '2', '3', '4')
                 )
                 if not is_maternity_flex:
-                    # Nhân viên thường: tính OT sau 22h từ 22h đến check_out
+                    # Nhân viên thường: tính OT sau 22h từ 22h đến check_out - INTEGER MINUTES
                     ot2_start = max(self.check_in, twenty_two)
                     if self.check_out > ot2_start:
-                        overtime_after_22 = (self.check_out - ot2_start).total_seconds() / 3600
+                        ot_after_minutes = int(round((self.check_out - ot2_start).total_seconds() / 60))
                     else:
-                        overtime_after_22 = 0
-                # Nếu là mẹ <12 tháng, overtime_after_22 đã được tính trong phần trên, giữ nguyên
+                        ot_after_minutes = 0
+                # Nếu là mẹ <12 tháng, ot_after_minutes đã được tính trong phần trên, giữ nguyên
 
-            # 5. Trừ giờ nghỉ hiệu lực vào từng phần OT
-            overtime_before_22 = max(0.0, overtime_before_22)
-            overtime_after_22 = max(0.0, overtime_after_22)
-            
-            # Trừ giờ đối ứng theo từng loại tăng ca - SỬ DỤNG CỘT MINUTES MỚI
+
+            # 5. Trừ giờ đối ứng theo từng loại tăng ca - DÙNG INTEGER MINUTES (NO FLOAT ERRORS)
             # Đối ứng tăng ca trước 22h
             comp_minutes_before_22 = self.comp_time_ot_before_22_minutes or 0
             if comp_minutes_before_22 > 0:
-                overtime_before_22 = max(0.0, overtime_before_22 - (comp_minutes_before_22 / 60.0))
+                ot_before_minutes = max(0, ot_before_minutes - comp_minutes_before_22)
             
             # Đối ứng tăng ca sau 22h  
             comp_minutes_after_22 = self.comp_time_ot_after_22_minutes or 0
             if comp_minutes_after_22 > 0:
-                overtime_after_22 = max(0.0, overtime_after_22 - (comp_minutes_after_22 / 60.0))
+                ot_after_minutes = max(0, ot_after_minutes - comp_minutes_after_22)
             
-            # Legacy: trừ comp_time_overtime (tổng tăng ca) - SỬ DỤNG CỘT MINUTES MỚI
+            # Legacy: trừ comp_time_overtime (tổng tăng ca) - DÙNG INTEGER MINUTES
             comp_minutes_overtime = self.comp_time_overtime_minutes or 0
             if comp_minutes_overtime > 0:
-                total_overtime = overtime_before_22 + overtime_after_22
-                deduction = min(comp_minutes_overtime / 60.0, total_overtime)
-                if deduction > 0:
-                    deduct_before = min(overtime_before_22, deduction)
-                    overtime_before_22 -= deduct_before
-                    deduction -= deduct_before
-                    if deduction > 0:
-                        overtime_after_22 = max(0.0, overtime_after_22 - deduction)
+                total_ot_minutes = ot_before_minutes + ot_after_minutes
+                deduction_minutes = min(comp_minutes_overtime, total_ot_minutes)
+                if deduction_minutes > 0:
+                    deduct_before = min(ot_before_minutes, deduction_minutes)
+                    ot_before_minutes -= deduct_before
+                    deduction_minutes -= deduct_before
+                    if deduction_minutes > 0:
+                        ot_after_minutes = max(0, ot_after_minutes - deduction_minutes)
             
-            # Xử lý giờ nghỉ theo loại ngày
+            # Xử lý giờ nghỉ theo loại ngày - DÙNG INTEGER MINUTES
             if self.holiday_type == 'vietnamese_holiday':
                 # Ngày lễ Việt Nam: giờ nghỉ trừ vào tăng ca trước 22h
-                if overtime_before_22 > 0:
-                    overtime_before_22 = max(0.0, overtime_before_22 - self.break_time)
+                if ot_before_minutes > 0:
+                    break_mins = self.break_time_minutes if self.break_time_minutes else 60
+                    ot_before_minutes = max(0, ot_before_minutes - break_mins)
             # Cuối tuần: giờ nghỉ đã được trừ ngay từ đầu khi tính tăng ca trước 22h
             # Ngày thường và lễ Nhật: giờ nghỉ đã được trừ vào giờ công thường rồi, không trừ vào OT
 
-            # Gán chuỗi H:MM
-            self.overtime_before_22 = minutes_to_hhmm_precise(overtime_before_22 * 60)
-            self.overtime_after_22 = minutes_to_hhmm_precise(overtime_after_22 * 60)
+            # Gán chuỗi H:MM - DÙNG INTEGER MINUTES (NO FLOAT ERRORS)
+            self.overtime_before_22 = minutes_to_hhmm(ot_before_minutes)
+            self.overtime_after_22 = minutes_to_hhmm(ot_after_minutes)
         else:
             # Nếu không có ca chuẩn, xử lý theo loại ngày
             if self.holiday_type == 'vietnamese_holiday':
@@ -589,6 +680,11 @@ class Attendance(db.Model):
     def calculate_regular_work_hours(self):
         """Calculate regular work hours (excluding overtime)"""
         if not self.check_in or not self.check_out:
+            return 0.0
+
+        # Ca 5 (tự do): không có giờ công thường (regular). Toàn bộ là OT trước/sau 22h.
+        # Ngoại lệ: Lễ Việt Nam vẫn được 8h giờ công mặc định (xử lý bên dưới theo holiday_type).
+        if self.shift_code == '5' and self.holiday_type != 'vietnamese_holiday':
             return 0.0
 
         # Helper: áp dụng trần giờ công theo required_hours nếu có (cho ngày thường / lễ Nhật)
@@ -798,9 +894,9 @@ class Department(db.Model):
 class AuditLog(db.Model):
     """Audit log for tracking changes"""
     __tablename__ = 'audit_logs'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     action = db.Column(db.String(50), nullable=False)
     table_name = db.Column(db.String(50), nullable=False)
     record_id = db.Column(db.Integer, nullable=True)
@@ -810,8 +906,8 @@ class AuditLog(db.Model):
     user_agent = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships
-    user = db.relationship('User', backref=db.backref('audit_logs', lazy=True))
+    # Relationships - C2: Fix cascade delete, never delete audit logs when user is deleted
+    user = db.relationship('User', backref=db.backref('audit_logs', lazy=True, passive_deletes=True))
 
     def __repr__(self):
         return f'<AuditLog {self.action} on {self.table_name}>' 
@@ -844,7 +940,12 @@ class PasswordResetToken(db.Model):
 class LeaveRequest(db.Model):
     """Leave request model for employees"""
     __tablename__ = 'leave_requests'
-    
+    __table_args__ = (
+        db.Index('idx_leave_request_status', 'status'),  # Index for status filtering
+        db.Index('idx_leave_request_user', 'user_id'),  # Index for user queries
+        db.Index('idx_leave_request_google_sync', 'google_sheet_synced'),  # Index for sync status
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
@@ -886,6 +987,8 @@ class LeaveRequest(db.Model):
     annual_leave_days = db.Column(db.Float, default=0.0)             # Số ngày phép năm (hỗ trợ 0.5)
     unpaid_leave_days = db.Column(db.Float, default=0.0)             # Số ngày nghỉ không lương (hỗ trợ 0.5)
     special_leave_days = db.Column(db.Float, default=0.0)            # Số ngày nghỉ đặc biệt (hỗ trợ 0.5)
+    japan_holiday_days = db.Column(db.Float, default=0.0)            # Số ngày nghỉ lễ Nhật (York) (hỗ trợ 0.5)
+    scope_leave_days = db.Column(db.Float, default=0.0)              # Số ngày nghỉ Scope (hỗ trợ 0.5)
     special_leave_type = db.Column(db.String(50), nullable=True)     # Loại nghỉ đặc biệt (kết hôn, đám tang)
     
     # Người đảm trách công việc thay thế
@@ -929,7 +1032,13 @@ class LeaveRequest(db.Model):
     
     # Ca làm việc áp dụng khi xin nghỉ
     shift_code = db.Column(db.String(10), nullable=True)  # Mã ca: 1,2,3,4
-    
+
+    # Trạng thái đồng bộ Google Sheet
+    google_sheet_synced = db.Column(db.Boolean, default=False)  # True = đã đồng bộ thành công
+    google_sheet_sync_at = db.Column(db.DateTime, nullable=True)  # Thời điểm đồng bộ thành công
+    google_sheet_sync_error = db.Column(db.Text, nullable=True)  # Lỗi nếu đồng bộ thất bại
+    google_sheet_sync_attempts = db.Column(db.Integer, default=0)  # Số lần thử đồng bộ
+
     # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('leave_requests', lazy=True))
     current_approver = db.relationship('User', foreign_keys=[current_approver_id], backref=db.backref('current_approval_leaves', lazy=True))
@@ -937,7 +1046,19 @@ class LeaveRequest(db.Model):
     manager_signer = db.relationship('User', foreign_keys=[manager_signer_id], backref=db.backref('manager_approved_leaves', lazy=True))
     admin_signer = db.relationship('User', foreign_keys=[admin_signer_id], backref=db.backref('admin_approved_leaves', lazy=True))
     direct_superior_signer = db.relationship('User', foreign_keys=[direct_superior_signer_id], backref=db.backref('superior_approved_leaves', lazy=True))
-    
+
+    # C3: Model-level validation for LeaveRequest
+    def validate_leave_dates(self):
+        """Validate leave_to >= leave_from - call before commit"""
+        try:
+            from_dt = self.get_leave_from_datetime()
+            to_dt = self.get_leave_to_datetime()
+            if to_dt < from_dt:
+                raise ValueError("leave_to datetime must be >= leave_from datetime")
+        except (ValueError, TypeError):
+            pass  # Skip validation if dates are incomplete
+        return True
+
     def get_display_updated_at(self):
         """
         Thời điểm hiển thị ở cột 'Ngày cập nhật' trong lịch sử nghỉ phép.
@@ -970,7 +1091,15 @@ class LeaveRequest(db.Model):
         end = self.get_leave_to_datetime()
         delta = end - start
         return delta.days + 1  # Include both start and end day
-    
+
+    def get_total_requested_days(self):
+        """Get total requested leave days (sum of all leave types)"""
+        return ((self.annual_leave_days or 0) +
+                (self.unpaid_leave_days or 0) +
+                (self.special_leave_days or 0) +
+                (self.japan_holiday_days or 0) +
+                (self.scope_leave_days or 0))
+
     def get_reason_text(self):
         """Get human readable reason text.
         Ưu tiên dùng trường mô tả tự do `leave_reason` từ form "Lý do nghỉ phép *".
@@ -992,16 +1121,53 @@ class LeaveRequest(db.Model):
     
     def get_leave_type_text(self):
         """Get human readable leave type text"""
-        types = []
-        if self.annual_leave_days > 0:
-            types.append(f"Phép năm: {self.annual_leave_days} ngày")
-        if self.unpaid_leave_days > 0:
-            types.append(f"Nghỉ không lương: {self.unpaid_leave_days} ngày")
-        if self.special_leave_days > 0:
-            types.append(f"Nghỉ đặc biệt: {self.special_leave_days} ngày")
-            if self.special_leave_type:
-                types[-1] += f" ({self.special_leave_type})"
-        return ", ".join(types) if types else "Không xác định"
+        # Sử dụng cùng logic với get_available_leave_types trong excel_leave_processor
+        from utils.excel_leave_processor import get_available_leave_types
+        
+        try:
+            available_types = get_available_leave_types(self)
+            
+            if not available_types:
+                return "Không xác định"
+            
+            # Format text từ available_types
+            types_text = []
+            for leave_type in available_types:
+                name = leave_type.get('name', 'Không xác định')
+                total_days = leave_type.get('total_days', 0)
+                special_type = leave_type.get('special_type')
+                
+                # Với các loại nghỉ đặc biệt (đi trễ, về sớm, nghỉ 30 phút), không hiển thị số ngày
+                if leave_type.get('type') in ['late_arrival', 'early_departure', '30min_break', 'late_early', 'short_break']:
+                    types_text.append(name)
+                else:
+                    # Với nghỉ phép thông thường, hiển thị số ngày
+                    if special_type:
+                        types_text.append(f"{name}: {total_days} ngày ({special_type})")
+                    else:
+                        types_text.append(f"{name}: {total_days} ngày")
+            
+            return ", ".join(types_text)
+        except Exception as e:
+            # Fallback to old logic if there's any error
+            import sys
+            try:
+                print(f"[WARN] Error in get_leave_type_text for request {self.id}: {e}", 
+                      flush=True, file=sys.stderr)
+            except Exception:
+                pass
+            
+            # Old logic as fallback
+            types = []
+            if self.annual_leave_days > 0:
+                types.append(f"Phép năm: {self.annual_leave_days} ngày")
+            if self.unpaid_leave_days > 0:
+                types.append(f"Nghỉ không lương: {self.unpaid_leave_days} ngày")
+            if self.special_leave_days > 0:
+                types.append(f"Nghỉ đặc biệt: {self.special_leave_days} ngày")
+                if self.special_leave_type:
+                    types[-1] += f" ({self.special_leave_type})"
+            return ", ".join(types) if types else "Không xác định"
     
     def __repr__(self):
         return f'<LeaveRequest {self.employee_name} ({self.get_leave_from_datetime().strftime("%d/%m/%Y")} - {self.get_leave_to_datetime().strftime("%d/%m/%Y")})>' 
