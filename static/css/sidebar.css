@@ -239,6 +239,27 @@
     color: white;
 }
 
+.sidebar .nav-link i.fa-building {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-user-plus {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-clock {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+/* Fallback for any undefined icons */
+.sidebar .nav-link i.fas:not([class*="fa-home"]):not([class*="fa-users"]):not([class*="fa-calendar"]):not([class*="fa-clipboard"]):not([class*="fa-list"]):not([class*="fa-history"]):not([class*="fa-user-cog"]):not([class*="fa-cog"]):not([class*="fa-sign-out"]):not([class*="fa-plus"]):not([class*="fa-edit"]):not([class*="fa-pen"]):not([class*="fa-trash"]):not([class*="fa-file"]):not([class*="fa-chart"]):not([class*="fa-envelope"]):not([class*="fa-bell"]):not([class*="fa-shield"]):not([class*="fa-lock"]):not([class*="fa-sync"]):not([class*="fa-signature"]):not([class*="fa-building"]):not([class*="fa-clock"]) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
 .sidebar .nav-link:hover i,
 .sidebar .nav-link.active i {
     transform: scale(1.1);

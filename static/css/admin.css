@@ -115,6 +115,24 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+.admin-sidebar .sidebar-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-sidebar .sidebar-header h3 i {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    border-radius: 10px;
+    font-size: 1rem;
+    box-shadow: 0 4px 15px rgba(137, 247, 254, 0.4);
+}
+
 /* Main Content for Admin Pages */
 .admin-main-content {
     margin-left: 260px;

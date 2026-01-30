@@ -164,10 +164,59 @@ body {
     color: white;
 }
 
+.nav-link i.fa-user-circle,
+.nav-link i.fa-user {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.nav-link i.fa-arrow-left {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
 .nav-link:hover i,
 .nav-link.active i {
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Sidebar header icon */
+.sidebar-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-header h3 i {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    border-radius: 10px;
+    font-size: 1rem;
+    box-shadow: 0 4px 15px rgba(137, 247, 254, 0.4);
+}
+
+/* User avatar */
+.user-avatar {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-avatar i {
+    font-size: 24px;
+    color: white;
 }
 
 .nav-link:hover {

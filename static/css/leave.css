@@ -115,13 +115,30 @@
     color: white;
 }
 
+.sidebar .nav-link i.fa-tasks {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-times {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-calendar-alt,
+.sidebar .nav-link i.fa-calendar {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
 .sidebar .nav-link:hover i,
 .sidebar .nav-link.active i {
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.sidebar-header h3 i {
+.sidebar-header h3 i,
+.sidebar-header h5 i {
     width: 36px;
     height: 36px;
     display: inline-flex;
@@ -131,6 +148,28 @@
     border-radius: 10px;
     font-size: 1rem;
     box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+}
+
+/* Close button style */
+.sidebar-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .sidebar .nav-link:hover {
