@@ -1,31 +1,36 @@
 <!-- Leave Request Form Sidebar Navigation -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
+    <!-- Close button for mobile -->
+    <button class="sidebar-close" id="sidebarClose" aria-label="Đóng menu">
+        <i class="fas fa-times"></i>
+    </button>
+
     <div class="sidebar-header">
         <h3><i class="fas fa-calendar-alt me-2"></i>Nghỉ Phép</h3>
     </div>
     <ul class="nav-menu">
         <li class="nav-item">
-            <a href="{{ url_for('back_to_dashboard') }}" class="nav-link">
+            <a href="{{ url_for('back_to_dashboard') }}" class="nav-link" data-tooltip="Trang chủ">
                 <i class="fas fa-home"></i>
-                Trang chủ
+                <span>Trang chủ</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ url_for('leave_request_form') }}" class="nav-link active">
+            <a href="{{ url_for('leave_request_form') }}" class="nav-link active" data-tooltip="Đăng ký nghỉ phép">
                 <i class="fas fa-calendar-plus"></i>
-                Đăng ký nghỉ phép
+                <span>Đăng ký nghỉ phép</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ url_for('leave_requests_list', status='pending') }}" class="nav-link">
+            <a href="{{ url_for('leave_requests_list', status='pending') }}" class="nav-link" data-tooltip="Theo dõi tình trạng">
                 <i class="fas fa-tasks"></i>
-                Theo dõi tình trạng
+                <span>Theo dõi tình trạng</span>
             </a>
         </li>
         <li class="nav-item">
-            <a href="{{ url_for('leave_history') }}" class="nav-link">
+            <a href="{{ url_for('leave_history') }}" class="nav-link" data-tooltip="Lịch sử nghỉ phép">
                 <i class="fas fa-history"></i>
-                Lịch sử nghỉ phép
+                <span>Lịch sử nghỉ phép</span>
             </a>
         </li>
     </ul>

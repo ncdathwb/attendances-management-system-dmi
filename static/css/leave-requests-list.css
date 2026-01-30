@@ -385,6 +385,41 @@
     }
 }
 
+/* Responsive - Tablet */
+@media (max-width: 992px) and (min-width: 769px) {
+    /* Content adjustments for collapsed sidebar */
+    .page-header {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.35rem;
+    }
+
+    /* Filter section adjustments */
+    .filter-section .d-flex.flex-wrap {
+        gap: 0.75rem !important;
+    }
+
+    .filter-section .flex-grow-1 {
+        min-width: 150px !important;
+    }
+
+    /* Table font size */
+    .data-table {
+        font-size: 0.75rem;
+    }
+
+    .data-table thead th {
+        font-size: 0.7rem;
+        padding: 0.6rem 0.4rem;
+    }
+
+    .data-table tbody td {
+        padding: 0.6rem 0.4rem;
+    }
+}
+
 /* Responsive - Mobile */
 @media (max-width: 768px) {
     .data-table {
@@ -414,6 +449,226 @@
 
     .filter-section .d-flex>div:last-child {
         margin-bottom: 0;
+    }
+
+    /* Page header */
+    .page-header {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.25rem;
+    }
+
+    /* Filter buttons full width */
+    .filter-buttons-container {
+        min-width: 100% !important;
+        width: 100%;
+        padding-top: 0;
+    }
+
+    .filter-buttons-container .d-flex {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .filter-buttons-container .btn-filter,
+    .filter-buttons-container .btn-outline-secondary {
+        width: 100%;
+        min-width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Approval banner */
+    .approval-banner {
+        flex-direction: column;
+        text-align: center;
+        padding: 0.75rem;
+    }
+
+    .approval-banner i {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Bulk action buttons */
+    #bulkActionButtons {
+        flex-direction: column;
+    }
+
+    #bulkActionButtons .btn {
+        width: 100%;
+    }
+
+    /* Table container */
+    .table-container {
+        margin: 0 -15px;
+        border-radius: 0;
+    }
+
+    .table-responsive {
+        border-radius: 0;
+    }
+
+    /* Pagination */
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .pagination .page-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* Modal adjustments */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        padding: 0.75rem;
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+        margin: 0;
+    }
+}
+
+/* Small Mobile (< 576px) */
+@media (max-width: 576px) {
+    /* Page header compact */
+    .page-header {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.1rem;
+    }
+
+    .page-title i {
+        font-size: 1rem;
+    }
+
+    /* Filter section compact */
+    .filter-section {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-section .form-label {
+        font-size: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Touch-friendly inputs */
+    .filter-section .form-control,
+    .filter-section .form-select {
+        font-size: 16px !important;
+        padding: 0.5rem 0.75rem;
+        height: auto;
+    }
+
+    .btn-filter {
+        height: 44px;
+        font-size: 0.9rem;
+    }
+
+    /* Table compact */
+    .data-table {
+        font-size: 0.75rem;
+    }
+
+    .data-table thead th {
+        font-size: 0.65rem;
+        padding: 0.5rem 0.25rem;
+    }
+
+    .data-table tbody td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    /* Status badge compact */
+    .status-badge {
+        font-size: 0.6rem;
+        padding: 0.2rem 0.4rem;
+        min-width: 50px;
+    }
+
+    /* Action buttons compact */
+    .btn-action {
+        min-width: 40px;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.65rem;
+    }
+
+    .btn-action i {
+        font-size: 0.7rem;
+    }
+
+    /* Hide action text on very small screens */
+    .btn-action span {
+        display: none;
+    }
+
+    /* Alert info compact */
+    .alert.d-flex {
+        flex-direction: column;
+        text-align: center;
+        padding: 0.75rem;
+    }
+
+    .alert.d-flex .d-flex {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+    }
+
+    .alert.d-flex .badge {
+        font-size: 0.7rem;
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+
+    .empty-state i {
+        font-size: 2rem;
+    }
+
+    .empty-state h4 {
+        font-size: 1rem;
+    }
+
+    .empty-state p {
+        font-size: 0.85rem;
+    }
+
+    /* Token status banner compact */
+    #tokenStatusBanner {
+        margin: 10px !important;
+    }
+
+    #tokenStatusBanner .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    #tokenStatusTitle {
+        font-size: 0.9rem !important;
+    }
+
+    #tokenStatusMessage {
+        font-size: 0.8rem !important;
     }
 }
 
@@ -463,4 +718,37 @@
 
 .filter-buttons-container .d-flex {
     align-items: flex-end;
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .mobile-menu-toggle,
+    .sidebar-overlay,
+    .filter-section,
+    .approval-banner,
+    #bulkActionButtons,
+    #tokenStatusBanner,
+    .btn-action,
+    .pagination {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    .table-container {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    .data-table th:first-child,
+    .data-table td:first-child,
+    .data-table th:last-child,
+    .data-table td:last-child {
+        position: static;
+        box-shadow: none;
+    }
 }

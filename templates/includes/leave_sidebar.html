@@ -1,42 +1,47 @@
 <!-- Leave Sidebar Navigation -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
+    <!-- Close button for mobile -->
+    <button class="sidebar-close" id="sidebarClose" aria-label="Đóng menu">
+        <i class="fas fa-times"></i>
+    </button>
+
     <div class="sidebar-header">
         <h5 class="m-0"><i class="fas fa-calendar-alt me-2"></i>Nghỉ Phép</h5>
     </div>
     <ul class="nav-menu">
         <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('back_to_dashboard') }}">
-                <i class="fas fa-home"></i>Trang chủ
+            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('back_to_dashboard') }}" data-tooltip="Trang chủ">
+                <i class="fas fa-home"></i><span>Trang chủ</span>
             </a>
         </li>
         {% if current_role == 'EMPLOYEE' or current_role is not defined %}
         <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'leave_request_form' %}active{% endif %}" href="{{ url_for('leave_request_form') }}">
-                <i class="fas fa-calendar-plus"></i>Đăng ký nghỉ phép
+            <a class="nav-link {% if request.endpoint == 'leave_request_form' %}active{% endif %}" href="{{ url_for('leave_request_form') }}" data-tooltip="Đăng ký nghỉ phép">
+                <i class="fas fa-calendar-plus"></i><span>Đăng ký nghỉ phép</span>
             </a>
         </li>
         {% endif %}
         {% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
         <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}">
-                <i class="fas fa-calendar-check"></i>Nghỉ phép cần phê duyệt
+            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}" data-tooltip="Phê duyệt">
+                <i class="fas fa-calendar-check"></i><span>Nghỉ phép cần phê duyệt</span>
             </a>
         </li>
         {% else %}
         <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}">
-                <i class="fas fa-tasks"></i>Theo dõi tình trạng
+            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}" data-tooltip="Theo dõi">
+                <i class="fas fa-tasks"></i><span>Theo dõi tình trạng</span>
             </a>
         </li>
         {% endif %}
         <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'leave_history' %}active{% endif %}" href="{{ url_for('leave_history') }}">
-                <i class="fas fa-history"></i>Lịch sử nghỉ phép
+            <a class="nav-link {% if request.endpoint == 'leave_history' %}active{% endif %}" href="{{ url_for('leave_history') }}" data-tooltip="Lịch sử">
+                <i class="fas fa-history"></i><span>Lịch sử nghỉ phép</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('logout') }}">
-                <i class="fas fa-sign-out-alt"></i>Đăng xuất
+            <a class="nav-link" href="{{ url_for('logout') }}" data-tooltip="Đăng xuất">
+                <i class="fas fa-sign-out-alt"></i><span>Đăng xuất</span>
             </a>
         </li>
     </ul>

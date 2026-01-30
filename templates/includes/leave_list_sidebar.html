@@ -1,23 +1,28 @@
 <!-- Leave List Sidebar Navigation -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
+    <!-- Close button for mobile -->
+    <button class="sidebar-close" id="sidebarClose" aria-label="Đóng menu">
+        <i class="fas fa-times"></i>
+    </button>
+
     <div class="sidebar-header">
         <h5><i class="fas fa-clock me-2"></i>Chấm công</h5>
         <div class="user-info">{{ user.name }}</div>
     </div>
-    <ul class="nav flex-column">
+    <ul class="nav-menu">
         <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard') }}" onclick="return handleNavigation(this)">
-                <i class="fas fa-home"></i> Trang chủ
+            <a class="nav-link" href="{{ url_for('dashboard') }}" onclick="return handleNavigation(this)" data-tooltip="Trang chủ">
+                <i class="fas fa-home"></i><span>Trang chủ</span>
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('leave_request_form') }}">
-                <i class="fas fa-plus"></i> Tạo đơn mới
+            <a class="nav-link" href="{{ url_for('leave_request_form') }}" data-tooltip="Tạo đơn mới">
+                <i class="fas fa-plus"></i><span>Tạo đơn mới</span>
             </a>
         </li>
         <li class="nav-item position-relative">
-            <a class="nav-link active" href="{{ url_for('leave_requests_list') }}">
-                <i class="fas fa-list"></i> Danh sách đơn
+            <a class="nav-link active" href="{{ url_for('leave_requests_list') }}" data-tooltip="Danh sách đơn">
+                <i class="fas fa-list"></i><span>Danh sách đơn</span>
                 {% set rejected_count = leave_requests|selectattr('status','equalto','rejected')|list|length %}
                 {% if rejected_count > 0 %}
                 <span class="badge bg-danger position-absolute translate-middle" style="top:8px; left: 145px;">{{ rejected_count }}</span>

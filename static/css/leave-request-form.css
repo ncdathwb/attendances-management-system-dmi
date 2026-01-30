@@ -161,6 +161,75 @@
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+    /* Page header adjustments */
+    .d-flex.justify-content-between.flex-wrap {
+        gap: 1rem;
+    }
+
+    h4.mb-4 {
+        font-size: 1.15rem;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Card layout */
+    .form-section .card-body {
+        padding: 0.75rem;
+    }
+
+    .form-section .row.align-items-center {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-section .row.align-items-center [class*="col-"] {
+        width: 100%;
+    }
+
+    /* Loại đơn select */
+    #requestTypeSelect {
+        font-size: 1rem;
+    }
+
+    /* Status section */
+    .row.g-3.align-items-center > [class*="col-md-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Dates section */
+    .row.mb-4 > [class*="col-md-"] {
+        margin-bottom: 1rem;
+    }
+
+    /* Leave days grid - 2 columns on mobile */
+    #leaveDaysSection .row.g-3 > [class*="col-md-2"] {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    /* Total display full width */
+    #leaveDaysSection .row.g-3 > .col-md-2.d-flex {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Alert compact */
+    #leaveDaysSection .alert-info {
+        padding: 0.75rem;
+    }
+
+    #leaveDaysSection .alert-info h6 {
+        font-size: 0.85rem;
+    }
+
+    #leaveDaysSection .alert-info p {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+}
+
 @media (max-width: 576px) {
     .is-invalid {
         border-color: #dc3545 !important;
@@ -170,5 +239,88 @@
     .invalid-feedback {
         display: block !important;
         width: 100%;
+    }
+
+    /* Form section compact */
+    .form-section {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+    }
+
+    /* Leave days - single column on very small screens */
+    #leaveDaysSection .row.g-3 > [class*="col-md-2"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Employee info grid */
+    .row.g-3.align-items-end > .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Replacement person */
+    #replacementSection .row.g-3.align-items-end > .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Reason and attachment side by side to stacked */
+    .form-section .row.g-3 > .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Date time inputs */
+    .row.g-2 > .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Shift selection */
+    #shiftSelectionSection > [class*="col-md-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Attachment guidelines compact */
+    #attachmentGuidelinesSection {
+        padding: 0.5rem;
+    }
+
+    #attachmentGuidelinesSection h6 {
+        font-size: 0.8rem;
+    }
+
+    #attachmentGuidelinesSection ul {
+        font-size: 0.75rem;
+        padding-left: 1rem;
+    }
+
+    #attachmentGuidelinesSection .row > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* List group compact */
+    .list-group-item {
+        padding: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    /* File upload area */
+    #file-preview h6 {
+        font-size: 0.9rem;
+    }
+
+    /* Hide helper text on very small screens */
+    #leaveDaysSection .col-md-2 small.text-muted {
+        font-size: 0.7rem;
     }
 }
