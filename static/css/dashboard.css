@@ -44,7 +44,23 @@
 .sidebar-header h3 {
     margin: 0;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.sidebar-header h3 i {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .user-profile {
@@ -56,13 +72,15 @@
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background-color: var(--accent-color);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 2em;
     margin: 0 auto 15px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .user-info h4 {
@@ -104,8 +122,72 @@
 
 .nav-link i {
     margin-right: 10px;
-    width: 20px;
+    width: 28px;
+    height: 28px;
     text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+/* Colored icons for nav items */
+.nav-link i.fa-home {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.nav-link i.fa-users {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.nav-link i.fa-calendar-alt {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.nav-link i.fa-clipboard-list {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.nav-link i.fa-calendar-check {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.nav-link i.fa-calendar-plus {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.nav-link i.fa-list-alt {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #5a5a5a;
+}
+
+.nav-link i.fa-history {
+    background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+    color: #5a5a5a;
+}
+
+.nav-link i.fa-user-cog {
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    color: white;
+}
+
+.nav-link i.fa-sign-out-alt {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.nav-link:hover i,
+.nav-link.active i {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* =========================================
@@ -120,17 +202,44 @@
 }
 
 .page-header {
-    background-color: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    padding: 15px 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     margin-bottom: 15px;
+    border-left: 4px solid;
+    border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
 }
 
 .page-title {
     margin: 0;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.page-title::before {
+    content: '\\f0e4';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: white;
+    background-clip: unset;
+    border-radius: 10px;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 /* =========================================
@@ -283,21 +392,75 @@ td span {
 }
 
 /* =========================================
-   BUTTON STYLES
+   BUTTON STYLES - Enhanced
    ========================================= */
 
 .btn-primary {
-    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     transition: all 0.3s ease;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: 10px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.35);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border: none;
+    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.35);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #0f8a80 0%, #2dd66e 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(17, 153, 142, 0.45);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(245, 87, 108, 0.35);
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e085ec 0%, #e04a5f 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 87, 108, 0.45);
+    color: white;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    border: none;
+    box-shadow: 0 4px 15px rgba(255, 117, 140, 0.35);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #f0687f 0%, #f070a5 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 117, 140, 0.45);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.35);
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #3d9bf0 0%, #00dce8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.45);
+    color: white;
 }
 
 .btn-sm {
@@ -312,17 +475,55 @@ td span {
 }
 
 /* =========================================
-   ATTENDANCE FORM SECTION
+   ATTENDANCE FORM SECTION - Enhanced
    ========================================= */
 
 .attendance-form {
-    background-color: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     margin-bottom: 15px;
     max-width: 100%;
     overflow: hidden;
+    position: relative;
+}
+
+.attendance-form::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
+}
+
+.attendance-form h4,
+.attendance-form h5 {
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.attendance-form h4 i,
+.attendance-form h5 i {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+}
+
+.attendance-form .form-label i {
+    color: #667eea;
 }
 
 @media (max-width: 767px) {
@@ -341,17 +542,51 @@ td span {
 }
 
 /* =========================================
-   ATTENDANCE HISTORY SECTION
+   ATTENDANCE HISTORY SECTION - Enhanced
    ========================================= */
 
 .attendance-history {
-    background-color: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     max-width: 100%;
     margin: 0;
+    position: relative;
+}
+
+.attendance-history::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.attendance-history h4,
+.attendance-history h5 {
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.attendance-history h4 i,
+.attendance-history h5 i {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .table {
@@ -822,7 +1057,7 @@ body {
 }
 
 /* =========================================
-   STATS CARDS (nếu cần)
+   STATS CARDS - Enhanced Design
    ========================================= */
 
 .stats-cards {
@@ -835,31 +1070,84 @@ body {
 .stat-card {
     background-color: white;
     padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-color), var(--success-color));
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
 }
 
 .stat-card .icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5em;
     margin-bottom: 15px;
+    position: relative;
+}
+
+/* Calendar check icon - blue gradient */
+.stat-card .icon:has(.fa-calendar-check),
+.stat-card .icon[style*="rgba(52, 152, 219"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
+}
+
+/* Clock icon - green gradient */
+.stat-card .icon:has(.fa-clock),
+.stat-card .icon[style*="rgba(46, 204, 113"] {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    color: white !important;
+    box-shadow: 0 8px 20px rgba(17, 153, 142, 0.35);
+}
+
+/* Calendar minus icon - orange/yellow gradient */
+.stat-card .icon:has(.fa-calendar-minus),
+.stat-card .icon[style*="rgba(241, 196, 15"] {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    box-shadow: 0 8px 20px rgba(245, 87, 108, 0.35);
+}
+
+.stat-card .icon i {
+    position: relative;
+    z-index: 1;
 }
 
 .stat-card .title {
     font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 5px;
+    color: #64748b;
+    margin-bottom: 8px;
+    font-weight: 500;
 }
 
 .stat-card .value {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 2rem;
+    font-weight: 700;
     margin: 0;
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /* =========================================
