@@ -12,6 +12,223 @@
             // Hiển thị toast thông báo khi truy cập trang đăng ký nghỉ phép
             showToast('Chào mừng bạn đến với hệ thống đăng ký nghỉ phép.', 'success');
 
+            // Biến lưu trữ thông tin ngày loại trừ
+            let excludedDaysData = {
+                excluded_days: [],
+                total_excluded: 0,
+                weekendCount: 0,
+                vietnameseHolidayCount: 0,
+                japaneseHolidayCount: 0,
+                totalCalendarDays: 0,
+                totalWorkingDays: 0
+            };
+
+            // Hàm fetch danh sách ngày loại trừ từ API
+            async function fetchExcludedDays(fromDate, toDate) {
+                try {
+                    const response = await fetch(`/api/get-excluded-days?from_date=${fromDate}&to_date=${toDate}`);
+                    if (!response.ok) {
+                        console.error('API error:', response.status);
+                        return null;
+                    }
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.error('Fetch excluded days error:', error);
+                    return null;
+                }
+            }
+
+            // Hàm cập nhật hiển thị thông tin ngày loại trừ
+            function updateExcludedDaysDisplay() {
+                const section = document.getElementById('excludedDaysSection');
+                const totalCalendarEl = document.getElementById('totalCalendarDays');
+                const totalExcludedEl = document.getElementById('totalExcludedDays');
+                const totalWorkingEl = document.getElementById('totalWorkingDays');
+                const breakdownEl = document.getElementById('excludedBreakdown');
+                const listEl = document.getElementById('excludedDaysList');
+
+                if (!section) return;
+
+                if (excludedDaysData.totalCalendarDays === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+
+                section.style.display = 'block';
+
+                // Cập nhật summary
+                totalCalendarEl.textContent = excludedDaysData.totalCalendarDays;
+                totalExcludedEl.textContent = excludedDaysData.total_excluded;
+                totalWorkingEl.textContent = excludedDaysData.totalWorkingDays;
+
+                // Cập nhật breakdown badges
+                let breakdownHtml = '';
+                if (excludedDaysData.weekendCount > 0) {
+                    breakdownHtml += `<span class="breakdown-badge weekend"><i class="fas fa-calendar-week"></i> Cuối tuần: ${excludedDaysData.weekendCount}</span>`;
+                }
+                if (excludedDaysData.vietnameseHolidayCount > 0) {
+                    breakdownHtml += `<span class="breakdown-badge vietnamese"><i class="fas fa-flag"></i> Lễ VN: ${excludedDaysData.vietnameseHolidayCount}</span>`;
+                }
+                if (excludedDaysData.japaneseHolidayCount > 0) {
+                    breakdownHtml += `<span class="breakdown-badge japanese"><i class="fas fa-torii-gate"></i> Lễ Nhật: ${excludedDaysData.japaneseHolidayCount}</span>`;
+                }
+                breakdownEl.innerHTML = breakdownHtml;
+
+                // Cập nhật danh sách chi tiết
+                if (excludedDaysData.excluded_days.length > 0) {
+                    let listHtml = '';
+                    excludedDaysData.excluded_days.forEach(day => {
+                        const dateObj = new Date(day.date);
+                        const formattedDate = dateObj.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                        let typeClass = 'weekend';
+                        let typeLabel = 'Cuối tuần';
+                        if (day.type === 'vietnamese_holiday') {
+                            typeClass = 'vietnamese';
+                            typeLabel = 'Lễ VN';
+                        } else if (day.type === 'japanese_holiday') {
+                            typeClass = 'japanese';
+                            typeLabel = 'Lễ Nhật';
+                        }
+
+                        listHtml += `
+                            <div class="excluded-day-item">
+                                <span class="day-date">${formattedDate}</span>
+                                <span class="day-type ${typeClass}">${typeLabel}</span>
+                                ${day.name ? `<span class="day-name">${day.name}</span>` : ''}
+                            </div>
+                        `;
+                    });
+                    listEl.innerHTML = listHtml;
+                }
+            }
+
+            // Toggle hiển thị chi tiết
+            const toggleBtn = document.getElementById('toggleExcludedDetails');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function() {
+                    const listEl = document.getElementById('excludedDaysList');
+                    if (listEl.style.display === 'none') {
+                        listEl.style.display = 'block';
+                        toggleBtn.innerHTML = '<i class="fas fa-chevron-up me-1"></i> Ẩn chi tiết';
+                        toggleBtn.classList.add('expanded');
+                    } else {
+                        listEl.style.display = 'none';
+                        toggleBtn.innerHTML = '<i class="fas fa-chevron-down me-1"></i> Xem chi tiết';
+                        toggleBtn.classList.remove('expanded');
+                    }
+                });
+            }
+
+            // Hàm tính và cập nhật ngày loại trừ khi thay đổi ngày
+            async function calculateExcludedDays() {
+                const fromDateEl = document.getElementById('leave_from_date');
+                const toDateEl = document.getElementById('leave_to_date');
+
+                if (!fromDateEl.value || !toDateEl.value) {
+                    excludedDaysData = {
+                        excluded_days: [],
+                        total_excluded: 0,
+                        weekendCount: 0,
+                        vietnameseHolidayCount: 0,
+                        japaneseHolidayCount: 0,
+                        totalCalendarDays: 0,
+                        totalWorkingDays: 0
+                    };
+                    updateExcludedDaysDisplay();
+                    return;
+                }
+
+                const fromDate = new Date(fromDateEl.value);
+                const toDate = new Date(toDateEl.value);
+
+                if (fromDate > toDate) {
+                    return;
+                }
+
+                // Tính tổng số ngày lịch
+                const totalCalendarDays = Math.floor((toDate - fromDate) / (24 * 60 * 60 * 1000)) + 1;
+
+                // Fetch dữ liệu từ API
+                const data = await fetchExcludedDays(fromDateEl.value, toDateEl.value);
+
+                if (data && !data.error) {
+                    // Đếm số lượng theo loại
+                    let weekendCount = 0;
+                    let vietnameseHolidayCount = 0;
+                    let japaneseHolidayCount = 0;
+
+                    data.excluded_days.forEach(day => {
+                        if (day.type === 'weekend') weekendCount++;
+                        else if (day.type === 'vietnamese_holiday') vietnameseHolidayCount++;
+                        else if (day.type === 'japanese_holiday') japaneseHolidayCount++;
+                    });
+
+                    excludedDaysData = {
+                        excluded_days: data.excluded_days,
+                        total_excluded: data.total_excluded,
+                        weekendCount: weekendCount,
+                        vietnameseHolidayCount: vietnameseHolidayCount,
+                        japaneseHolidayCount: japaneseHolidayCount,
+                        totalCalendarDays: totalCalendarDays,
+                        totalWorkingDays: totalCalendarDays - data.total_excluded
+                    };
+                } else {
+                    // Fallback: chỉ tính cuối tuần nếu API fail
+                    let weekendCount = 0;
+                    let currentDate = new Date(fromDate);
+                    while (currentDate <= toDate) {
+                        const dayOfWeek = currentDate.getDay();
+                        if (dayOfWeek === 0 || dayOfWeek === 6) weekendCount++;
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+
+                    excludedDaysData = {
+                        excluded_days: [],
+                        total_excluded: weekendCount,
+                        weekendCount: weekendCount,
+                        vietnameseHolidayCount: 0,
+                        japaneseHolidayCount: 0,
+                        totalCalendarDays: totalCalendarDays,
+                        totalWorkingDays: totalCalendarDays - weekendCount
+                    };
+                }
+
+                updateExcludedDaysDisplay();
+                updateHiddenInputs(); // Cập nhật hidden inputs để gửi lên server
+                updateTotalDays(); // Cập nhật lại validation số ngày
+            }
+
+            // Hàm cập nhật hidden inputs để gửi dữ liệu lên server
+            function updateHiddenInputs() {
+                const jsonInput = document.getElementById('excluded_days_json');
+                const calendarInput = document.getElementById('total_calendar_days_input');
+                const excludedInput = document.getElementById('total_excluded_days_input');
+                const workingInput = document.getElementById('total_working_days_input');
+                const weekendInput = document.getElementById('weekend_count_input');
+                const vnHolidayInput = document.getElementById('vietnamese_holiday_count_input');
+                const jpHolidayInput = document.getElementById('japanese_holiday_count_input');
+
+                if (jsonInput) jsonInput.value = JSON.stringify(excludedDaysData.excluded_days);
+                if (calendarInput) calendarInput.value = excludedDaysData.totalCalendarDays;
+                if (excludedInput) excludedInput.value = excludedDaysData.total_excluded;
+                if (workingInput) workingInput.value = excludedDaysData.totalWorkingDays;
+                if (weekendInput) weekendInput.value = excludedDaysData.weekendCount;
+                if (vnHolidayInput) vnHolidayInput.value = excludedDaysData.vietnameseHolidayCount;
+                if (jpHolidayInput) jpHolidayInput.value = excludedDaysData.japaneseHolidayCount;
+            }
+
+            // Lắng nghe sự kiện thay đổi ngày
+            const leaveFromDateEl = document.getElementById('leave_from_date');
+            const leaveToDateEl = document.getElementById('leave_to_date');
+            if (leaveFromDateEl) {
+                leaveFromDateEl.addEventListener('change', calculateExcludedDays);
+            }
+            if (leaveToDateEl) {
+                leaveToDateEl.addEventListener('change', calculateExcludedDays);
+            }
+
             // You can add logic here to auto-fill user info from session
             // For now, we'll leave it manual
             const halfStepFields = ['annual_leave_days', 'unpaid_leave_days', 'special_leave_days'];
@@ -105,23 +322,68 @@
                     fromTime = normalizeTimeFormat(fromTime);
                     toTime = normalizeTimeFormat(toTime);
 
-                    const actualLeaveDays = shiftCode ? calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
+                    // Sử dụng số ngày làm việc từ excludedDaysData nếu có
+                    // Kết hợp với tính toán theo ca để xử lý nửa ngày
+                    let actualLeaveDays = 0;
 
-                    // Cập nhật trạng thái
-                    if (total > actualLeaveDays) {
-                        daysStatus.innerHTML = `<span class="text-danger"><strong>❌ VƯỢT QUÁ!</strong> Cần giảm xuống còn ${actualLeaveDays} ngày để gửi đơn</span>`;
-                    } else if (total === actualLeaveDays) {
-                        daysStatus.innerHTML = `<span class="text-success"><strong>✅ ĐÚNG RỒI!</strong> Đã xin đúng ${actualLeaveDays} ngày - có thể gửi đơn</span>`;
-                    } else if (total > 0) {
-                        daysStatus.innerHTML = `<span class="text-warning"><strong>⚠️ CHƯA ĐỦ!</strong> Cần thêm ${actualLeaveDays - total} ngày nữa để gửi đơn</span>`;
+                    if (excludedDaysData && excludedDaysData.totalWorkingDays > 0) {
+                        // Có dữ liệu ngày loại trừ từ API
+                        const workingDays = excludedDaysData.totalWorkingDays;
+
+                        // Tính theo ca cho trường hợp cùng ngày (nửa ngày)
+                        const calendarDays = excludedDaysData.totalCalendarDays;
+
+                        if (calendarDays === 1) {
+                            // Cùng ngày: tính theo giờ ca làm việc
+                            actualLeaveDays = shiftCode ? calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
+                        } else {
+                            // Nhiều ngày: dùng số ngày làm việc từ API
+                            // Nhưng cần điều chỉnh cho ngày đầu và ngày cuối nếu không full ngày
+                            const shiftBasedDays = shiftCode ? calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : workingDays;
+
+                            // Nếu shiftBasedDays < totalCalendarDays thì có nghĩa là có nửa ngày
+                            // Ta cần tính: workingDays - (số ngày loại trừ trong khoảng làm việc)
+                            // Đơn giản: dùng workingDays nếu full ngày, hoặc điều chỉnh
+
+                            // So sánh với tính toán cũ để xác định tỷ lệ
+                            if (shiftBasedDays >= calendarDays) {
+                                // Full ngày cả ngày đầu và cuối
+                                actualLeaveDays = workingDays;
+                            } else {
+                                // Có nửa ngày - tính tỷ lệ
+                                const ratio = shiftBasedDays / calendarDays;
+                                actualLeaveDays = Math.round(workingDays * ratio * 2) / 2; // Làm tròn đến 0.5
+                            }
+                        }
                     } else {
-                        daysStatus.innerHTML = `<span class="text-info"><strong>ℹ️ HƯỚNG DẪN:</strong> Cần xin đúng ${actualLeaveDays} ngày để gửi đơn</span>`;
+                        // Fallback: dùng tính toán cũ theo ca
+                        actualLeaveDays = shiftCode ? calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
+                    }
+
+                    // Cập nhật trạng thái với thông tin chi tiết hơn
+                    let excludedInfo = '';
+                    if (excludedDaysData && excludedDaysData.total_excluded > 0) {
+                        excludedInfo = ` (đã loại trừ ${excludedDaysData.total_excluded} ngày nghỉ)`;
+                    }
+
+                    if (total > actualLeaveDays) {
+                        daysStatus.innerHTML = `<span class="text-danger"><strong>❌ VƯỢT QUÁ!</strong> Cần giảm xuống còn ${actualLeaveDays} ngày${excludedInfo}</span>`;
+                    } else if (total === actualLeaveDays) {
+                        daysStatus.innerHTML = `<span class="text-success"><strong>✅ ĐÚNG RỒI!</strong> Đã xin đúng ${actualLeaveDays} ngày${excludedInfo} - có thể gửi đơn</span>`;
+                    } else if (total > 0) {
+                        daysStatus.innerHTML = `<span class="text-warning"><strong>⚠️ CHƯA ĐỦ!</strong> Cần thêm ${actualLeaveDays - total} ngày nữa${excludedInfo}</span>`;
+                    } else {
+                        daysStatus.innerHTML = `<span class="text-info"><strong>ℹ️ HƯỚNG DẪN:</strong> Cần xin đúng ${actualLeaveDays} ngày${excludedInfo}</span>`;
                     }
 
                     // Thêm thông tin số ngày cần thiết
-                    const requiredDays = document.querySelector('.alert-info p:last-child');
+                    const requiredDays = document.querySelector('.info-alert p:last-child');
                     if (requiredDays) {
-                        requiredDays.innerHTML = `Khoảng thời gian thực tế: ${actualLeaveDays} ngày (tính theo ca ${shiftCode})`;
+                        if (excludedDaysData && excludedDaysData.total_excluded > 0) {
+                            requiredDays.innerHTML = `Ngày làm việc thực tế: <strong>${actualLeaveDays}</strong> ngày (đã loại trừ ${excludedDaysData.total_excluded} ngày cuối tuần/lễ)`;
+                        } else {
+                            requiredDays.innerHTML = `Khoảng thời gian thực tế: ${actualLeaveDays} ngày (tính theo ca ${shiftCode})`;
+                        }
                     }
                 } else {
                     daysStatus.innerHTML = 'Chọn đầy đủ thông tin để xem giới hạn';

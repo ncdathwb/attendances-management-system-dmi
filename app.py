@@ -17334,7 +17334,15 @@ def submit_leave_request():
             # Lưu ca áp dụng khi xin nghỉ (tùy chọn)
             # Tương thích: nếu không có, giữ None
             shift_code=data.get('leave_shift_code') if data.get('leave_shift_code') in ['1','2','3','4'] else None,
-            status='pending'
+            status='pending',
+            # Thông tin ngày loại trừ (cuối tuần, lễ Việt, lễ Nhật)
+            excluded_days_json=data.get('excluded_days_json') if data.get('excluded_days_json') else None,
+            total_calendar_days=int(data.get('total_calendar_days', 0) or 0),
+            total_excluded_days=int(data.get('total_excluded_days', 0) or 0),
+            total_working_days=float(data.get('total_working_days', 0) or 0),
+            weekend_count=int(data.get('weekend_count', 0) or 0),
+            vietnamese_holiday_count=int(data.get('vietnamese_holiday_count', 0) or 0),
+            japanese_holiday_count=int(data.get('japanese_holiday_count', 0) or 0)
         )
         
         # Lưu use_lunch_break vào notes dưới dạng JSON
@@ -18867,7 +18875,16 @@ def edit_leave_request(request_id):
                 # Kết hợp attachments cũ và mới
                 all_attachments = existing_attachments + new_attachments
                 leave_request.attachments = json.dumps(all_attachments) if all_attachments else None
-            
+
+            # Cập nhật thông tin ngày loại trừ (cuối tuần, lễ Việt, lễ Nhật)
+            leave_request.excluded_days_json = data.get('excluded_days_json') if data.get('excluded_days_json') else None
+            leave_request.total_calendar_days = int(data.get('total_calendar_days', 0) or 0)
+            leave_request.total_excluded_days = int(data.get('total_excluded_days', 0) or 0)
+            leave_request.total_working_days = float(data.get('total_working_days', 0) or 0)
+            leave_request.weekend_count = int(data.get('weekend_count', 0) or 0)
+            leave_request.vietnamese_holiday_count = int(data.get('vietnamese_holiday_count', 0) or 0)
+            leave_request.japanese_holiday_count = int(data.get('japanese_holiday_count', 0) or 0)
+
             db.session.commit()
             
             # Kiểm tra xem người dùng có muốn gửi email hay không

@@ -1039,6 +1039,15 @@ class LeaveRequest(db.Model):
     google_sheet_sync_error = db.Column(db.Text, nullable=True)  # Lỗi nếu đồng bộ thất bại
     google_sheet_sync_attempts = db.Column(db.Integer, default=0)  # Số lần thử đồng bộ
 
+    # Thông tin ngày loại trừ (cuối tuần, lễ Việt, lễ Nhật)
+    excluded_days_json = db.Column(db.Text, nullable=True)  # JSON lưu danh sách ngày loại trừ
+    total_calendar_days = db.Column(db.Integer, default=0)  # Tổng số ngày lịch
+    total_excluded_days = db.Column(db.Integer, default=0)  # Tổng số ngày bị loại trừ
+    total_working_days = db.Column(db.Float, default=0.0)   # Số ngày làm việc thực tế
+    weekend_count = db.Column(db.Integer, default=0)        # Số ngày cuối tuần
+    vietnamese_holiday_count = db.Column(db.Integer, default=0)  # Số ngày lễ Việt Nam
+    japanese_holiday_count = db.Column(db.Integer, default=0)    # Số ngày lễ Nhật Bản
+
     # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('leave_requests', lazy=True))
     current_approver = db.relationship('User', foreign_keys=[current_approver_id], backref=db.backref('current_approval_leaves', lazy=True))

@@ -58,6 +58,14 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="request_type" id="requestType"
             value="{% if leave_request %}{{ leave_request.request_type }}{% else %}leave{% endif %}">
+        <!-- Hidden inputs for excluded days data -->
+        <input type="hidden" name="excluded_days_json" id="excluded_days_json" value="">
+        <input type="hidden" name="total_calendar_days" id="total_calendar_days_input" value="0">
+        <input type="hidden" name="total_excluded_days" id="total_excluded_days_input" value="0">
+        <input type="hidden" name="total_working_days" id="total_working_days_input" value="0">
+        <input type="hidden" name="weekend_count" id="weekend_count_input" value="0">
+        <input type="hidden" name="vietnamese_holiday_count" id="vietnamese_holiday_count_input" value="0">
+        <input type="hidden" name="japanese_holiday_count" id="japanese_holiday_count_input" value="0">
 
         {% if leave_request %}
         <!-- Status Section -->
@@ -270,11 +278,45 @@
                 </div>
             </div>
 
+            <!-- Excluded Days Info -->
+            <div id="excludedDaysSection" class="mt-4" style="display: none;">
+                <div class="excluded-days-alert">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="excluded-icon">
+                            <i class="fas fa-calendar-times"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i> Thông tin ngày loại trừ</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="excluded-summary mb-2">
+                                        <span class="summary-item"><i class="fas fa-calendar-day text-primary"></i> Tổng ngày: <strong id="totalCalendarDays">0</strong></span>
+                                        <span class="summary-item"><i class="fas fa-minus-circle text-danger"></i> Loại trừ: <strong id="totalExcludedDays">0</strong></span>
+                                        <span class="summary-item"><i class="fas fa-briefcase text-success"></i> Ngày làm việc: <strong id="totalWorkingDays">0</strong></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="excluded-breakdown" id="excludedBreakdown">
+                                        <!-- Will be populated by JS -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="excludedDaysList" class="excluded-days-list mt-2" style="display: none;">
+                                <!-- Will be populated by JS -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="toggleExcludedDetails">
+                                <i class="fas fa-chevron-down me-1"></i> Xem chi tiết
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Leave Days Section -->
             <div id="leaveDaysSection" class="mt-4">
                 <div class="info-alert">
                     <h6><i class="fas fa-lightbulb"></i> Hướng dẫn nhập số ngày nghỉ</h6>
-                    <p class="mb-1"><strong>Lưu ý:</strong> Tổng số ngày phải <strong>bằng chính xác</strong> khoảng thời gian thực tế (tính theo ca làm việc).</p>
+                    <p class="mb-1"><strong>Lưu ý:</strong> Tổng số ngày phải <strong>bằng chính xác</strong> số ngày làm việc thực tế (đã loại trừ cuối tuần và lễ).</p>
                     <p class="mb-0">Hệ thống sẽ tự động tính toán. Chỉ chấp nhận bội số của 0.5 (ví dụ: 0.5, 1, 1.5, 2...)</p>
                 </div>
 
