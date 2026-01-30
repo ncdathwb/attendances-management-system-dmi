@@ -1,0 +1,43 @@
+<!-- Leave Sidebar Navigation -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h5 class="m-0"><i class="fas fa-calendar-alt me-2"></i>Nghỉ Phép</h5>
+    </div>
+    <ul class="nav-menu">
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('back_to_dashboard') }}">
+                <i class="fas fa-home"></i>Trang chủ
+            </a>
+        </li>
+        {% if current_role == 'EMPLOYEE' or current_role is not defined %}
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'leave_request_form' %}active{% endif %}" href="{{ url_for('leave_request_form') }}">
+                <i class="fas fa-calendar-plus"></i>Đăng ký nghỉ phép
+            </a>
+        </li>
+        {% endif %}
+        {% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}">
+                <i class="fas fa-calendar-check"></i>Nghỉ phép cần phê duyệt
+            </a>
+        </li>
+        {% else %}
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'leave_requests_list' %}active{% endif %}" href="{{ url_for('leave_requests_list') }}">
+                <i class="fas fa-tasks"></i>Theo dõi tình trạng
+            </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'leave_history' %}active{% endif %}" href="{{ url_for('leave_history') }}">
+                <i class="fas fa-history"></i>Lịch sử nghỉ phép
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">
+                <i class="fas fa-sign-out-alt"></i>Đăng xuất
+            </a>
+        </li>
+    </ul>
+</div>

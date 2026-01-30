@@ -1,2814 +1,434 @@
-<!DOCTYPE html>
-<html lang="vi">
+{% extends "base/base_leave.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if is_edit %}Sửa đơn{% else %}Đăng ký{% endif %} {% if leave_request and leave_request.request_type ==
-        'late_early' %}đi trễ/về sớm{% else %}nghỉ phép{% endif %} - Hệ thống quản lý chấm công</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --success-color: #2ecc71;
-            --warning-color: #f1c40f;
-            --danger-color: #e74c3c;
-            --light-bg: #f8f9fa;
-            --dark-text: #2c3e50;
-        }
+{% block title %}{% if is_edit %}Sửa đơn{% else %}Đăng ký{% endif %} {% if leave_request and leave_request.request_type == 'late_early' %}đi trễ/về sớm{% else %}nghỉ phép{% endif %} - Hệ thống quản lý chấm công{% endblock %}
 
-        .form-section {
-            background-color: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 0.375rem;
-            margin-bottom: 1.5rem;
-        }
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/leave-request-form.css') }}">
+{% endblock %}
 
-        .section-title {
-            color: #495057;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #dee2e6;
-        }
+{% block sidebar %}
+{% include 'includes/leave_form_sidebar.html' %}
+{% endblock %}
 
-        .required {
-            color: #dc3545;
-        }
-
-        .form-check-label {
-            font-weight: normal;
-        }
-
-        /* Custom styles for email confirmation popup */
-        .swal2-popup-custom {
-            border-radius: 15px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
-        }
-
-        .swal2-popup-custom .swal2-title {
-            color: #2c3e50 !important;
-            font-weight: 600 !important;
-        }
-
-        .swal2-popup-custom .alert {
-            margin: 0 !important;
-            border-radius: 8px !important;
-        }
-
-        .swal2-popup-custom .btn {
-            padding: 10px 20px !important;
-            border-radius: 8px !important;
-            font-weight: 500 !important;
-            margin: 0 5px !important;
-        }
-
-        /* Sidebar styling - Đồng bộ hoàn toàn với dashboard */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 220px;
-            background-color: var(--primary-color);
-            padding: 15px;
-            color: white;
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-
-        .sidebar-header {
-            padding: 20px 0;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar-header h3 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-item {
-            margin: 0;
-        }
-
-        .sidebar .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border-left: 3px solid transparent;
-            margin: 5px 0;
-            border-radius: 5px;
-        }
-
-        .sidebar .nav-link:hover {
-            color: white;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-left-color: var(--accent-color);
-        }
-
-        .sidebar .nav-link.active {
-            color: white;
-            background-color: rgba(255, 255, 255, 0.2);
-            border-left-color: var(--accent-color);
-        }
-
-        .sidebar .nav-link i {
-            width: 20px;
-            margin-right: 12px;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-
-        /* Cải thiện giao diện sidebar */
-        .sidebar {
-            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar-header h3 {
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        }
-
-        .sidebar .nav-link {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .sidebar .nav-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            transition: left 0.5s;
-        }
-
-        .sidebar .nav-link:hover::before {
-            left: 100%;
-        }
-
-        .sidebar-header {
-            position: relative;
-        }
-
-        .sidebar-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-        }
-
-        /* Main content styling */
-        .main-content {
-            margin-left: 220px;
-            background-color: #f8f9fa;
-            min-height: 100vh;
-            padding: 0;
-            overflow-x: hidden;
-            /* tránh tràn ngang khi có .row margin âm */
-        }
-
-        /* Bù margin âm của .row trong bootstrap để không bị tràn ngang */
-        .main-content .container-fluid {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            overflow-x: hidden;
-        }
-
-        /* Custom styles for professional look - Đồng bộ với dashboard */
-        .form-control:focus,
-        .form-select:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-        }
-
-        .form-control:focus {
-            border-color: #dee2e6;
-        }
-
-        .form-check-input:checked {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
-        }
-
-        /* Validation feedback - keep layout stable and avoid breaking UI */
-        .invalid-feedback {
-            display: block;
-            /* keep element in DOM flow */
-            visibility: hidden;
-            /* hidden by default */
-            width: 100%;
-            height: 0;
-            /* do not take space initially */
-            margin: 0;
-            /* no gap when hidden */
-            font-size: 0.875em;
-            color: #dc3545;
-            line-height: 1.2;
-            overflow: hidden;
-            /* avoid layout shift */
-        }
-
-        .form-control.is-invalid~.invalid-feedback {
-            visibility: visible;
-            /* show text */
-            height: auto;
-            /* take natural height */
-            margin-top: 0.25rem;
-            /* add spacing when visible */
-        }
-
-        /* Force clear validation state on page load */
-        .form-control.is-invalid {
-            border-color: #ced4da !important;
-            box-shadow: none !important;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-            border: none;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-        }
-
-        .input-group-text {
-            background-color: #f8f9fa;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                padding: 0;
-                overflow: hidden;
-                transition: width 0.3s ease;
-            }
-
-            .main-content {
-                margin-left: 0;
-                transition: margin-left 0.3s ease;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .sidebar-header h3 {
-                font-size: 1.3rem;
-            }
-
-            .sidebar .nav-link {
-                padding: 10px 15px;
-                font-size: 0.95rem;
-            }
-
-            .sidebar .nav-link i {
-                font-size: 1rem;
-                margin-right: 10px;
-            }
-
-            /* Validation styles - Fix triệt để */
-            .is-invalid {
-                border-color: #dc3545 !important;
-                box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
-            }
-
-            .invalid-feedback {
-                display: block !important;
-                width: 100%;
-                margin-top: 0.25rem;
-                font-size: 0.875em;
-                color: #dc3545;
-                line-height: 1.2;
-                min-height: 1.2em;
-                position: relative;
-                z-index: 10;
-                clear: both;
-            }
-
-            /* Ẩn helper text khi có lỗi để tránh chồng lấp */
-            .form-control.is-invalid~small.text-muted {
-                display: none !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            /* Đảm bảo container có đủ không gian và không bị align-items-end ảnh hưởng */
-            .row.g-3 .col-md-2 {
-                margin-bottom: 1.5rem !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-
-            /* Fix cho các field có validation */
-            .form-control.is-invalid+small+.invalid-feedback {
-                margin-top: 0.25rem;
-                display: block !important;
-                position: relative !important;
-                z-index: 10 !important;
-            }
-
-            /* Override Bootstrap align-items-end */
-            .row.g-3 {
-                align-items: flex-start !important;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h3><i class="fas fa-calendar-alt me-2"></i>Nghỉ Phép</h3>
+{% block content %}
+    <div class="container-fluid p-0">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h4 class="mb-4"><i class="fas fa-calendar-plus me-2"></i>{% if is_edit %}Sửa đơn nghỉ phép{% else %}Đăng ký nghỉ phép{% endif %}</h4>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                <a href="{{ url_for('leave_requests_list') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Quay lại
+                </a>
+            </div>
         </div>
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="{{ url_for('back_to_dashboard') }}" class="nav-link">
-                    <i class="fas fa-home"></i>
-                    Trang chủ
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ url_for('leave_request_form') }}" class="nav-link active">
-                    <i class="fas fa-calendar-plus"></i>
-                    Đăng ký nghỉ phép
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ url_for('leave_requests_list', status='pending') }}" class="nav-link">
-                    <i class="fas fa-tasks"></i>
-                    Theo dõi tình trạng
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="{{ url_for('leave_history') }}" class="nav-link">
-                    <i class="fas fa-history"></i>
-                    Lịch sử nghỉ phép
-                </a>
-            </li>
-        </ul>
-    </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="container-fluid p-0">
-            <div
-                class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h4 class="mb-4"><i class="fas fa-calendar-plus me-2"></i>{% if is_edit %}Sửa đơn nghỉ phép{% else
-                    %}Đăng ký nghỉ phép{% endif %}</h4>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <a href="{{ url_for('leave_requests_list') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> Quay lại
-                    </a>
-                </div>
-            </div>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
 
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
-                role="alert">
-                <i
-                    class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
-            {% endif %}
-            {% endwith %}
-
-            <!-- Toggle chế độ form -->
-            <div class="form-section mb-4">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Loại đơn</h5>
-                            </div>
-                            <div class="col-md-6">
-                                <select class="form-select" id="requestTypeSelect">
-                                    <option value="leave" {% if not leave_request or leave_request.request_type=='leave'
-                                        %}selected{% endif %}>Nghỉ phép</option>
-                                    <option value="late_early" {% if leave_request and
-                                        leave_request.request_type=='late_early' %}selected{% endif %}>Đi trễ/Về sớm
-                                    </option>
-                                    <option value="30min_break" {% if leave_request and
-                                        leave_request.request_type=='30min_break' %}selected{% endif %}>Nghỉ 30 phút
-                                        (dành cho nữ)</option>
-                                </select>
-                            </div>
+        <!-- Toggle chế độ form -->
+        <div class="form-section mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Loại đơn</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select" id="requestTypeSelect">
+                                <option value="leave" {% if not leave_request or leave_request.request_type=='leave' %}selected{% endif %}>Nghỉ phép</option>
+                                <option value="late_early" {% if leave_request and leave_request.request_type=='late_early' %}selected{% endif %}>Đi trễ/Về sớm</option>
+                                <option value="30min_break" {% if leave_request and leave_request.request_type=='30min_break' %}selected{% endif %}>Nghỉ 30 phút (dành cho nữ)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <form method="POST" id="leaveRequestForm" enctype="multipart/form-data"
-                action="{% if is_edit %}{{ url_for('edit_leave_request', request_id=leave_request.id) }}{% else %}{{ url_for('submit_leave_request') }}{% endif %}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="request_type" id="requestType"
-                    value="{% if leave_request and leave_request.request_type == 'late_early' %}late_early{% else %}leave{% endif %}">
-                {% if leave_request %}
-                <!-- Tình trạng đơn -->
-                <div class="form-section">
-                    <h4 class="section-title">
-                        <i class="fas fa-clipboard-check"></i> Tình trạng đơn xin nghỉ phép
-                    </h4>
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-4">
-                            <label class="form-label">Trạng thái hiện tại</label>
-                            {% if leave_request.status == 'pending' %}
-                            <span class="badge bg-warning text-dark">Chờ phê duyệt</span>
-                            {% elif leave_request.status == 'approved' %}
-                            <span class="badge bg-success">Đã phê duyệt</span>
+        <form method="POST" id="leaveRequestForm" enctype="multipart/form-data"
+            action="{% if is_edit %}{{ url_for('edit_leave_request', request_id=leave_request.id) }}{% else %}{{ url_for('submit_leave_request') }}{% endif %}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="request_type" id="requestType"
+                value="{% if leave_request and leave_request.request_type == 'late_early' %}late_early{% else %}leave{% endif %}">
+
+            {% if leave_request %}
+            <!-- Tình trạng đơn -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-clipboard-check"></i> Tình trạng đơn xin nghỉ phép
+                </h4>
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <label class="form-label">Trạng thái hiện tại</label>
+                        {% if leave_request.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Chờ phê duyệt</span>
+                        {% elif leave_request.status == 'approved' %}
+                        <span class="badge bg-success">Đã phê duyệt</span>
+                        {% elif leave_request.status == 'rejected' %}
+                        <span class="badge bg-danger">Từ chối</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ leave_request.status }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Ngày tạo</label>
+                        <div>{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Cập nhật gần nhất</label>
+                        <div>{{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-file-alt me-2 text-muted"></i>Đã tạo đơn</span>
+                            <small class="text-muted">{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </li>
+                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-user-check me-2 text-muted"></i>Phê duyệt</span>
+                            {% if leave_request.status == 'approved' %}
+                            <small class="text-success">Đã phê duyệt {{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
                             {% elif leave_request.status == 'rejected' %}
-                            <span class="badge bg-danger">Từ chối</span>
+                            <small class="text-danger">Đã từ chối {{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
                             {% else %}
-                            <span class="badge bg-secondary">{{ leave_request.status }}</span>
+                            <small class="text-muted">Đang chờ...</small>
                             {% endif %}
+                        </li>
+                        {% if leave_request.notes %}
+                        <li class="list-group-item px-0">
+                            <div class="small text-muted mb-1"><i class="fas fa-sticky-note me-2"></i>Ghi chú</div>
+                            <div>{{ leave_request.notes | filter_leave_notes }}</div>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Thông tin nhân viên -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-user"></i> Thông tin nhân viên
+                </h4>
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-md">
+                        <label for="employee_name" class="form-label">Họ và tên <span class="required">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="employee_name" name="employee_name"
+                            value="{{ leave_request.employee_name if leave_request else (user.name if user else '') }}"
+                            required readonly>
+                    </div>
+                    <div class="col-6 col-md">
+                        <label for="team" class="form-label">Nhóm <span class="required">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="team" name="team"
+                            value="{{ leave_request.team if leave_request else (user.department if user else '') }}"
+                            required readonly>
+                    </div>
+                    <div class="col-6 col-md">
+                        <label for="employee_code" class="form-label">Mã nhân viên <span class="required">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="employee_code" name="employee_code"
+                            value="{{ leave_request.employee_code if leave_request else (user.employee_id if user else '') }}"
+                            required readonly>
+                    </div>
+                </div>
+                <!-- Trường động theo nhóm -->
+                <div class="row g-3 mt-2" id="team-dynamic-row" style="display:none;">
+                    <div class="col-md-4" id="scope-days-wrapper" style="display:none;">
+                        <label for="scope_leave_days" class="form-label">Số ngày nghỉ Scope</label>
+                        <input type="number" min="0" step="0.5" class="form-control form-control-sm"
+                            id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1, 1.5...">
+                        <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
+                    </div>
+                    <div class="col-md-4" id="york-days-wrapper" style="display:none;">
+                        <label for="japan_holiday_days" class="form-label">Số ngày nghỉ lễ Nhật</label>
+                        <input type="number" min="0" step="0.5" class="form-control form-control-sm"
+                            id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1, 1.5...">
+                        <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lý do nghỉ phép và Chứng từ đính kèm -->
+            <div class="form-section">
+                <h4 class="section-title" id="reasonSectionTitle">
+                    <i class="fas fa-clipboard-list"></i> Lý do nghỉ phép & Chứng từ đính kèm
+                </h4>
+
+                <!-- Mô tả các trường hợp cần chứng từ -->
+                <div class="alert alert-info mb-3" id="attachmentGuidelinesSection">
+                    <h6><i class="fas fa-info-circle me-2"></i>Các trường hợp cần chứng từ (Có thể bổ sung sau khi đã phê duyệt):</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="mb-0">
+                                <li><strong>Ốm / Con ốm / Người nhà ốm:</strong> Giấy xác nhận bệnh viện</li>
+                                <li><strong>Đám cưới / Kết hôn:</strong> Thiệp mời đám cưới / Giấy đăng ký kết hôn</li>
+                            </ul>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Ngày tạo</label>
-                            <div>{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                        <div class="col-md-6">
+                            <ul class="mb-0">
+                                <li><strong>Tang lễ:</strong> Giấy chứng tử</li>
+                                <li><strong>Sinh con:</strong> Giấy chứng sinh</li>
+                            </ul>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Cập nhật gần nhất</label>
-                            <div>{{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Loại đi trễ/về sớm (chỉ hiện khi chế độ đi trễ/về sớm) -->
+                    <div class="col-md-6" id="lateEarlyTypeSection" style="display: none;">
+                        <label for="late_early_type" class="form-label">Loại <span class="required">*</span></label>
+                        <select class="form-select form-select-sm" id="late_early_type" name="late_early_type">
+                            <option value="">-- Chọn loại --</option>
+                            <option value="late" {% if leave_request and leave_request.late_early_type=='late' %}selected{% endif %}>Đi trễ</option>
+                            <option value="early" {% if leave_request and leave_request.late_early_type=='early' %}selected{% endif %}>Về sớm</option>
+                        </select>
+                    </div>
+
+                    <!-- Lý do nghỉ phép -->
+                    <div class="col-md-6">
+                        <label for="leave_reason" class="form-label" id="reasonLabel">Lý do nghỉ phép <span class="required">*</span></label>
+                        <textarea class="form-control form-control-sm" id="leave_reason" name="leave_reason"
+                            rows="4" placeholder="Vui lòng mô tả chi tiết lý do nghỉ phép..."
+                            required>{{ leave_request.leave_reason if leave_request else '' }}</textarea>
+                    </div>
+
+                    <!-- Upload chứng từ -->
+                    <div class="col-md-6" id="attachmentsSection">
+                        <label for="attachments" class="form-label">Upload chứng từ đính kèm</label>
+
+                        <!-- Hiển thị attachments hiện có (chỉ khi edit) -->
+                        {% if is_edit and leave_request.attachments %}
+                        <div class="mb-3">
+                            <h6><i class="fas fa-paperclip me-2"></i>Chứng từ hiện có:</h6>
+                            <div class="list-group">
+                                {% set existing_attachments = existing_attachments_list %}
+                                {% for attachment in existing_attachments %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-file me-2"></i>
+                                        <span>{{ attachment.original_name }}</span>
+                                        <small class="text-muted ms-2">({{ (attachment.size / 1024) | round(1) }} KB)</small>
+                                    </div>
+                                    <a href="{{ url_for('download_leave_attachment', request_id=leave_request.id, filename=attachment.saved_name) }}"
+                                        class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download"></i> Tải về
+                                    </a>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Các file mới sẽ được thêm vào danh sách trên
+                            </small>
+                        </div>
+                        {% endif %}
+
+                        <input type="file" class="form-control form-control-sm" id="attachments" name="attachments"
+                            multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="previewFiles(this)">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Chấp nhận file: PDF, JPG, PNG, DOC, DOCX (tối đa 10MB mỗi file)
+                        </small>
+
+                        <!-- Preview uploaded files -->
+                        <div id="file-preview" class="mt-3" style="display: none;">
+                            <h6><i class="fas fa-file me-2"></i>Files đã chọn:</h6>
+                            <div id="file-list" class="list-group"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hình thức nghỉ phép -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-calendar-check"></i> Hình thức nghỉ phép
+                </h4>
+                <!-- Chọn ca làm việc áp dụng khi xin nghỉ -->
+                <div id="shiftSelectionSection" class="row g-3 mb-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="leave_shift_code" class="form-label">Chọn ca làm việc áp dụng <span class="required">*</span></label>
+                        <select id="leave_shift_code" name="leave_shift_code" class="form-select form-select-sm" required>
+                            <option value="" {% if not leave_request or not leave_request.shift_code %}selected{% endif %}>-- Chọn ca làm việc --</option>
+                            <option value="1" {% if leave_request and leave_request.shift_code=='1' %}selected{% endif %}>Ca 1 (07:30 - 16:30)</option>
+                            <option value="2" {% if leave_request and leave_request.shift_code=='2' %}selected{% endif %}>Ca 2 (09:00 - 18:00)</option>
+                            <option value="3" {% if leave_request and leave_request.shift_code=='3' %}selected{% endif %}>Ca 3 (11:00 - 20:00)</option>
+                            <option value="4" {% if leave_request and leave_request.shift_code=='4' %}selected{% endif %}>Ca 4 (08:00 - 17:00)</option>
+                        </select>
+                        <div class="invalid-feedback">Vui lòng chọn ca làm việc</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Khung giờ ca</label>
+                        <div id="leave_shift_window" class="form-control form-control-sm" style="background:#f8f9fa;" readonly>07:30 - 16:30</div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted"></small>
+                    </div>
+                </div>
+
+                <!-- Thời gian nghỉ phép -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-calendar-alt me-2"></i><span id="fromDateLabel">Từ ngày (Sau 11:59 là CH)</span><span class="required">*</span></h6>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6">
+                                <label for="leave_from_date" class="form-label">Ngày</label>
+                                <input type="date" class="form-control form-control-sm" id="leave_from_date"
+                                    name="leave_from_date" required
+                                    value="{{ ('%04d-%02d-%02d' % (leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day)) if leave_request else '' }}">
+                                <div id="leave_from_date_error" class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-6">
+                                <label for="leave_from_time" class="form-label">Giờ</label>
+                                <input type="time" class="form-control form-control-sm" id="leave_from_time"
+                                    name="leave_from_time" required
+                                    value="{{ ('%02d:%02d' % (leave_request.leave_from_hour, leave_request.leave_from_minute)) if leave_request else '' }}">
+                                <div id="leave_from_time_error" class="invalid-feedback"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-file-alt me-2 text-muted"></i>Đã tạo đơn</span>
-                                <small class="text-muted">{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M')
-                                    }}</small>
-                            </li>
-                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-user-check me-2 text-muted"></i>Phê duyệt</span>
-                                {% if leave_request.status == 'approved' %}
-                                <small class="text-success">Đã phê duyệt {{ (leave_request.updated_at or
-                                    leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% elif leave_request.status == 'rejected' %}
-                                <small class="text-danger">Đã từ chối {{ (leave_request.updated_at or
-                                    leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
-                                {% else %}
-                                <small class="text-muted">Đang chờ...</small>
-                                {% endif %}
-                            </li>
-                            {% if leave_request.notes %}
-                            <li class="list-group-item px-0">
-                                <div class="small text-muted mb-1"><i class="fas fa-sticky-note me-2"></i>Ghi chú</div>
-                                <div>{{ leave_request.notes | filter_leave_notes }}</div>
-                            </li>
-                            {% endif %}
-                        </ul>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-calendar-alt me-2"></i><span id="toDateLabel">Đến ngày (Sau 11:59 là CH)</span> <span class="required">*</span></h6>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6">
+                                <label for="leave_to_date" class="form-label">Ngày</label>
+                                <input type="date" class="form-control form-control-sm" id="leave_to_date"
+                                    name="leave_to_date" required
+                                    value="{{ ('%04d-%02d-%02d' % (leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day)) if leave_request else '' }}">
+                                <div id="leave_to_date_error" class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-6">
+                                <label for="leave_to_time" class="form-label">Giờ</label>
+                                <input type="time" class="form-control form-control-sm" id="leave_to_time"
+                                    name="leave_to_time" required
+                                    value="{{ ('%02d:%02d' % (leave_request.leave_to_hour, leave_request.leave_to_minute)) if leave_request else '' }}">
+                                <div id="leave_to_time_error" class="invalid-feedback"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% endif %}
-                <!-- Thông tin nhân viên -->
-                <div class="form-section">
-                    <h4 class="section-title">
-                        <i class="fas fa-user"></i> Thông tin nhân viên
-                    </h4>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-6 col-md">
-                            <label for="employee_name" class="form-label">Họ và tên <span
-                                    class="required">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="employee_name"
-                                name="employee_name"
-                                value="{{ leave_request.employee_name if leave_request else (user.name if user else '') }}"
-                                required readonly>
-                        </div>
-                        <div class="col-6 col-md">
-                            <label for="team" class="form-label">Nhóm <span class="required">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="team" name="team"
-                                value="{{ leave_request.team if leave_request else (user.department if user else '') }}"
-                                required readonly>
-                        </div>
-                        <div class="col-6 col-md">
-                            <label for="employee_code" class="form-label">Mã nhân viên <span
-                                    class="required">*</span></label>
-                            <input type="text" class="form-control form-control-sm" id="employee_code"
-                                name="employee_code"
-                                value="{{ leave_request.employee_code if leave_request else (user.employee_id if user else '') }}"
-                                required readonly>
-                        </div>
+
+                <!-- Số ngày nghỉ -->
+                <div id="leaveDaysSection">
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn nhập số ngày nghỉ:</h6>
+                        <p class="mb-1"><strong>⚠️ QUAN TRỌNG:</strong> Tổng số ngày xin nghỉ <strong>PHẢI BẰNG CHÍNH XÁC</strong> khoảng thời gian thực tế sử dụng phép (tính theo ca làm việc).</p>
+                        <p class="mb-0">Hệ thống sẽ tự động tính toán khoảng thời gian thực tế dựa trên ca làm việc và giờ bắt đầu/kết thúc. <strong>BẮT BUỘC phải nhập đúng số ngày được tính toán mới có thể gửi đơn!</strong></p>
                     </div>
-                    <!-- Trường động theo nhóm -->
-                    <div class="row g-3 mt-2" id="team-dynamic-row" style="display:none;">
-                        <div class="col-md-4" id="scope-days-wrapper" style="display:none;">
-                            <label for="scope_leave_days" class="form-label">Số ngày nghỉ Scope</label>
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label for="annual_leave_days" class="form-label">Nghỉ phép năm</label>
+                            <input type="number" class="form-control form-control-sm" id="annual_leave_days"
+                                name="annual_leave_days"
+                                value="{{ leave_request.annual_leave_days if leave_request else 0 }}" min="0"
+                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
+                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
+                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="unpaid_leave_days" class="form-label">Nghỉ không lương</label>
+                            <input type="number" class="form-control form-control-sm" id="unpaid_leave_days"
+                                name="unpaid_leave_days"
+                                value="{{ leave_request.unpaid_leave_days if leave_request else 0 }}" min="0"
+                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
+                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
+                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="special_leave_days" class="form-label">Nghỉ đặc biệt</label>
+                            <input type="number" class="form-control form-control-sm" id="special_leave_days"
+                                name="special_leave_days"
+                                value="{{ leave_request.special_leave_days if leave_request else 0 }}" min="0"
+                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
+                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
+                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
+                        </div>
+                        <!-- Scope / York dynamic fields inline -->
+                        <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'scope' in leave_request.team|lower) or (user and user.department and 'scope' in user.department|lower)) %}d-none{% endif %}"
+                            id="scope-days-wrapper">
+                            <label for="scope_leave_days" class="form-label">Nghỉ Scope</label>
                             <input type="number" min="0" step="0.5" class="form-control form-control-sm"
                                 id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1, 1.5...">
                             <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
                         </div>
-                        <div class="col-md-4" id="york-days-wrapper" style="display:none;">
-                            <label for="japan_holiday_days" class="form-label">Số ngày nghỉ lễ Nhật</label>
+                        <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'york' in leave_request.team|lower) or (user and user.department and 'york' in user.department|lower)) %}d-none{% endif %}"
+                            id="york-days-wrapper">
+                            <label for="japan_holiday_days" class="form-label">Nghỉ lễ Nhật</label>
                             <input type="number" min="0" step="0.5" class="form-control form-control-sm"
                                 id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1, 1.5...">
                             <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Lý do nghỉ phép và Chứng từ đính kèm -->
-                <div class="form-section">
-                    <h4 class="section-title" id="reasonSectionTitle">
-                        <i class="fas fa-clipboard-list"></i> Lý do nghỉ phép & Chứng từ đính kèm
-                    </h4>
-
-                    <!-- Mô tả các trường hợp cần chứng từ -->
-                    <div class="alert alert-info mb-3" id="attachmentGuidelinesSection">
-                        <h6><i class="fas fa-info-circle me-2"></i>Các trường hợp cần chứng từ (Có thể bổ sung sau khi
-                            đã phê duyệt):</h6>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <ul class="mb-0">
-                                    <li><strong>Ốm / Con ốm / Người nhà ốm:</strong> Giấy xác nhận bệnh viện</li>
-                                    <li><strong>Đám cưới / Kết hôn:</strong> Thiệp mời đám cưới / Giấy đăng ký kết hôn
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="col-md-6">
-                                <ul class="mb-0">
-                                    <li><strong>Tang lễ:</strong> Giấy chứng tử</li>
-                                    <li><strong>Sinh con:</strong> Giấy chứng sinh</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3">
-                        <!-- Loại đi trễ/về sớm (chỉ hiện khi chế độ đi trễ/về sớm) -->
-                        <div class="col-md-6" id="lateEarlyTypeSection" style="display: none;">
-                            <label for="late_early_type" class="form-label">Loại <span class="required">*</span></label>
-                            <select class="form-select form-select-sm" id="late_early_type" name="late_early_type">
-                                <option value="">-- Chọn loại --</option>
-                                <option value="late" {% if leave_request and leave_request.late_early_type=='late'
-                                    %}selected{% endif %}>Đi trễ</option>
-                                <option value="early" {% if leave_request and leave_request.late_early_type=='early'
-                                    %}selected{% endif %}>Về sớm</option>
-                            </select>
-                        </div>
-
-                        <!-- Lý do nghỉ phép -->
-                        <div class="col-md-6">
-                            <label for="leave_reason" class="form-label" id="reasonLabel">Lý do nghỉ phép <span
-                                    class="required">*</span></label>
-                            <textarea class="form-control form-control-sm" id="leave_reason" name="leave_reason"
-                                rows="4" placeholder="Vui lòng mô tả chi tiết lý do nghỉ phép..."
-                                required>{{ leave_request.leave_reason if leave_request else '' }}</textarea>
-                        </div>
-
-                        <!-- Upload chứng từ -->
-                        <div class="col-md-6" id="attachmentsSection">
-                            <label for="attachments" class="form-label">Upload chứng từ đính kèm</label>
-
-                            <!-- Hiển thị attachments hiện có (chỉ khi edit) -->
-                            {% if is_edit and leave_request.attachments %}
-                            <div class="mb-3">
-                                <h6><i class="fas fa-paperclip me-2"></i>Chứng từ hiện có:</h6>
-                                <div class="list-group">
-                                    {% set existing_attachments = existing_attachments_list %}
-                                    {% for attachment in existing_attachments %}
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <i class="fas fa-file me-2"></i>
-                                            <span>{{ attachment.original_name }}</span>
-                                            <small class="text-muted ms-2">({{ (attachment.size / 1024) | round(1) }}
-                                                KB)</small>
-                                        </div>
-                                        <a href="{{ url_for('download_leave_attachment', request_id=leave_request.id, filename=attachment.saved_name) }}"
-                                            class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-download"></i> Tải về
-                                        </a>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Các file mới sẽ được thêm vào danh sách trên
-                                </small>
-                            </div>
-                            {% endif %}
-
-                            <input type="file" class="form-control form-control-sm" id="attachments" name="attachments"
-                                multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="previewFiles(this)">
-                            <small class="form-text text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Chấp nhận file: PDF, JPG, PNG, DOC, DOCX (tối đa 10MB mỗi file)
-                            </small>
-
-                            <!-- Preview uploaded files -->
-                            <div id="file-preview" class="mt-3" style="display: none;">
-                                <h6><i class="fas fa-file me-2"></i>Files đã chọn:</h6>
-                                <div id="file-list" class="list-group"></div>
+                        <div class="col-md-2 d-flex flex-column">
+                            <label class="form-label"></label>
+                            <div class="form-control form-control-sm d-flex flex-column justify-content-center"
+                                style="background:#f8f9fa; min-height: 64px;" readonly>
+                                <small class="text-muted">Tổng: <span id="total-days-display">0</span> ngày</small>
+                                <small id="days-status" class="text-muted">Chọn khoảng thời gian để xem giới hạn</small>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Hình thức nghỉ phép -->
-                <div class="form-section">
-                    <h4 class="section-title">
-                        <i class="fas fa-calendar-check"></i> Hình thức nghỉ phép
-                    </h4>
-                    <!-- Chọn ca làm việc áp dụng khi xin nghỉ -->
-                    <div id="shiftSelectionSection" class="row g-3 mb-3 align-items-end">
-                        <div class="col-md-3">
-                            <label for="leave_shift_code" class="form-label">Chọn ca làm việc áp dụng <span
-                                    class="required">*</span></label>
-                            <select id="leave_shift_code" name="leave_shift_code" class="form-select form-select-sm"
-                                required>
-                                <option value="" {% if not leave_request or not leave_request.shift_code %}selected{%
-                                    endif %}>-- Chọn ca làm việc --</option>
-                                <option value="1" {% if leave_request and leave_request.shift_code=='1' %}selected{%
-                                    endif %}>Ca 1 (07:30 - 16:30)</option>
-                                <option value="2" {% if leave_request and leave_request.shift_code=='2' %}selected{%
-                                    endif %}>Ca 2 (09:00 - 18:00)</option>
-                                <option value="3" {% if leave_request and leave_request.shift_code=='3' %}selected{%
-                                    endif %}>Ca 3 (11:00 - 20:00)</option>
-                                <option value="4" {% if leave_request and leave_request.shift_code=='4' %}selected{%
-                                    endif %}>Ca 4 (08:00 - 17:00)</option>
-                            </select>
-                            <div class="invalid-feedback">Vui lòng chọn ca làm việc</div>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Khung giờ ca</label>
-                            <div id="leave_shift_window" class="form-control form-control-sm"
-                                style="background:#f8f9fa;" readonly>07:30 - 16:30</div>
-                        </div>
-                        <div class="col-md-3">
-                            <small class="text-muted"></small>
-                        </div>
+            <!-- Người đảm trách công việc thay thế -->
+            <div class="form-section" id="replacementSection">
+                <h4 class="section-title">
+                    <i class="fas fa-user-friends"></i> Người đảm trách công việc thay thế
+                </h4>
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-md">
+                        <label for="substitute_name" class="form-label">Tên người thay thế</label>
+                        <input type="text" class="form-control form-control-sm" id="substitute_name"
+                            name="substitute_name"
+                            value="{{ leave_request.substitute_name if leave_request else '' }}">
                     </div>
-
-                    <!-- Thời gian nghỉ phép -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-calendar-alt me-2"></i><span id="fromDateLabel">Từ ngày (Sau 11:59 là
-                                    CH)</span><span class="required">*</span></h6>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-6">
-                                    <label for="leave_from_date" class="form-label">Ngày</label>
-                                    <input type="date" class="form-control form-control-sm" id="leave_from_date"
-                                        name="leave_from_date" required
-                                        value="{{ ('%04d-%02d-%02d' % (leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day)) if leave_request else '' }}">
-                                    <div id="leave_from_date_error" class="invalid-feedback"></div>
-                                </div>
-                                <div class="col-6">
-                                    <label for="leave_from_time" class="form-label">Giờ</label>
-                                    <input type="time" class="form-control form-control-sm" id="leave_from_time"
-                                        name="leave_from_time" required
-                                        value="{{ ('%02d:%02d' % (leave_request.leave_from_hour, leave_request.leave_from_minute)) if leave_request else '' }}">
-                                    <div id="leave_from_time_error" class="invalid-feedback"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-calendar-alt me-2"></i><span id="toDateLabel">Đến ngày (Sau 11:59 là
-                                    CH)</span> <span class="required">*</span></h6>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-6">
-                                    <label for="leave_to_date" class="form-label">Ngày</label>
-                                    <input type="date" class="form-control form-control-sm" id="leave_to_date"
-                                        name="leave_to_date" required
-                                        value="{{ ('%04d-%02d-%02d' % (leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day)) if leave_request else '' }}">
-                                    <div id="leave_to_date_error" class="invalid-feedback"></div>
-                                </div>
-                                <div class="col-6">
-                                    <label for="leave_to_time" class="form-label">Giờ</label>
-                                    <input type="time" class="form-control form-control-sm" id="leave_to_time"
-                                        name="leave_to_time" required
-                                        value="{{ ('%02d:%02d' % (leave_request.leave_to_hour, leave_request.leave_to_minute)) if leave_request else '' }}">
-                                    <div id="leave_to_time_error" class="invalid-feedback"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Số ngày nghỉ -->
-                    <div id="leaveDaysSection">
-                        <div class="alert alert-info mb-3">
-                            <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn nhập số ngày nghỉ:</h6>
-                            <p class="mb-1"><strong>⚠️ QUAN TRỌNG:</strong> Tổng số ngày xin nghỉ <strong>PHẢI BẰNG
-                                    CHÍNH XÁC</strong> khoảng thời gian thực tế sử dụng phép (tính theo ca làm việc).
-                            </p>
-                            <p class="mb-0">Hệ thống sẽ tự động tính toán khoảng thời gian thực tế dựa trên ca làm việc
-                                và giờ bắt đầu/kết thúc. <strong>BẮT BUỘC phải nhập đúng số ngày được tính toán mới có
-                                    thể gửi đơn!</strong></p>
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-2">
-                                <label for="annual_leave_days" class="form-label">Nghỉ phép năm</label>
-                                <input type="number" class="form-control form-control-sm" id="annual_leave_days"
-                                    name="annual_leave_days"
-                                    value="{{ leave_request.annual_leave_days if leave_request else 0 }}" min="0"
-                                    step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                                <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                                <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="unpaid_leave_days" class="form-label">Nghỉ không lương</label>
-                                <input type="number" class="form-control form-control-sm" id="unpaid_leave_days"
-                                    name="unpaid_leave_days"
-                                    value="{{ leave_request.unpaid_leave_days if leave_request else 0 }}" min="0"
-                                    step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                                <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                                <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                            </div>
-                            <div class="col-md-2">
-                                <label for="special_leave_days" class="form-label">Nghỉ đặc biệt</label>
-                                <input type="number" class="form-control form-control-sm" id="special_leave_days"
-                                    name="special_leave_days"
-                                    value="{{ leave_request.special_leave_days if leave_request else 0 }}" min="0"
-                                    step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                                <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                                <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                            </div>
-                            <!-- Scope / York dynamic fields inline -->
-                            <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'scope' in leave_request.team|lower) or (user and user.department and 'scope' in user.department|lower)) %}d-none{% endif %}"
-                                id="scope-days-wrapper">
-                                <label for="scope_leave_days" class="form-label">Nghỉ Scope</label>
-                                <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                                    id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1, 1.5...">
-                                <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
-                            </div>
-                            <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'york' in leave_request.team|lower) or (user and user.department and 'york' in user.department|lower)) %}d-none{% endif %}"
-                                id="york-days-wrapper">
-                                <label for="japan_holiday_days" class="form-label">Nghỉ lễ Nhật</label>
-                                <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                                    id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1, 1.5...">
-                                <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
-                            </div>
-                            <div class="col-md-2 d-flex flex-column">
-                                <label class="form-label"></label>
-                                <div class="form-control form-control-sm d-flex flex-column justify-content-center"
-                                    style="background:#f8f9fa; min-height: 64px;" readonly>
-                                    <small class="text-muted">Tổng: <span id="total-days-display">0</span> ngày</small>
-                                    <small id="days-status" class="text-muted">Chọn khoảng thời gian để xem giới
-                                        hạn</small>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="col-6 col-md">
+                        <label for="substitute_employee_id" class="form-label">Mã nhân viên thay thế</label>
+                        <input type="text" class="form-control form-control-sm" id="substitute_employee_id"
+                            name="substitute_employee_id"
+                            value="{{ leave_request.substitute_employee_id if leave_request else '' }}">
                     </div>
                 </div>
+            </div>
 
-                <!-- Người đảm trách công việc thay thế -->
-                <div class="form-section" id="replacementSection">
-                    <h4 class="section-title">
-                        <i class="fas fa-user-friends"></i> Người đảm trách công việc thay thế
-                    </h4>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-6 col-md">
-                            <label for="substitute_name" class="form-label">Tên người thay thế</label>
-                            <input type="text" class="form-control form-control-sm" id="substitute_name"
-                                name="substitute_name"
-                                value="{{ leave_request.substitute_name if leave_request else '' }}">
-                        </div>
-                        <div class="col-6 col-md">
-                            <label for="substitute_employee_id" class="form-label">Mã nhân viên thay thế</label>
-                            <input type="text" class="form-control form-control-sm" id="substitute_employee_id"
-                                name="substitute_employee_id"
-                                value="{{ leave_request.substitute_employee_id if leave_request else '' }}">
-                        </div>
+            <!-- Ghi chú -->
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-sticky-note"></i> Ghi chú
+                </h4>
+                <div class="row">
+                    <div class="col-12">
+                        <textarea class="form-control form-control-sm" id="notes" name="notes" rows="3"
+                            placeholder="Ghi chú thêm (nếu có)">{{ (leave_request.notes | filter_leave_notes) if leave_request else '' }}</textarea>
                     </div>
                 </div>
+            </div>
 
-                <!-- Ghi chú -->
-                <div class="form-section">
-                    <h4 class="section-title">
-                        <i class="fas fa-sticky-note"></i> Ghi chú
-                    </h4>
-                    <div class="row">
-                        <div class="col-12">
-                            <textarea class="form-control form-control-sm" id="notes" name="notes" rows="3"
-                                placeholder="Ghi chú thêm (nếu có)">{{ (leave_request.notes | filter_leave_notes) if leave_request else '' }}</textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Buttons -->
-                <div class="d-flex justify-content-end gap-2 mb-4">
-                    <a href="{{ url_for('leave_requests_list') }}" class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Hủy
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> {% if is_edit %}Cập nhật{% else %}Gửi đơn{% endif %}
-                    </button>
-                </div>
-            </form>
-        </div>
+            <!-- Buttons -->
+            <div class="d-flex justify-content-end gap-2 mb-4">
+                <a href="{{ url_for('leave_requests_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Hủy
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if is_edit %}Cập nhật{% else %}Gửi đơn{% endif %}
+                </button>
+            </div>
+        </form>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Global Email Notification -->
-    <script src="{{ url_for('static', filename='js/global-email-notification.js') }}?v=20241201"></script>
-    <script>
-        // Auto-fill current user info if not editing
-        document.addEventListener('DOMContentLoaded', function () {
-            // Force clear validation state on page load
-            const timeInputs = ['leave_from_time', 'leave_to_time', 'leave_from_date', 'leave_to_date'];
-            timeInputs.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.classList.remove('is-invalid');
-                }
-            });
-
-            // Hiển thị toast thông báo khi truy cập trang đăng ký nghỉ phép
-            showToast('Chào mừng bạn đến với hệ thống đăng ký nghỉ phép.', 'success');
-
-            // You can add logic here to auto-fill user info from session
-            // For now, we'll leave it manual
-            const halfStepFields = ['annual_leave_days', 'unpaid_leave_days', 'special_leave_days'];
-            function isHalfStep(val) {
-                const num = parseFloat(val);
-                if (isNaN(num) || num < 0) return false;
-                return Math.abs((num * 2) - Math.round(num * 2)) < 1e-9; // multiples of 0.5
-            }
-            halfStepFields.forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-
-                // Validation function
-                function validateField() {
-                    const v = el.value;
-                    if (v === '') {
-                        el.setCustomValidity('');
-                        el.classList.remove('is-invalid');
-                        return;
-                    }
-                    if (!isHalfStep(v)) {
-                        el.setCustomValidity('Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)');
-                        el.classList.add('is-invalid');
-                    } else {
-                        el.setCustomValidity('');
-                        el.classList.remove('is-invalid');
-                    }
-                }
-
-                // Validate chỉ khi blur để giảm thiểu spam
-                el.addEventListener('blur', validateField);
-            });
-
-            // Hiển thị khung giờ theo ca chọn
-            const shiftSelect = document.getElementById('leave_shift_code');
-            const shiftWindow = document.getElementById('leave_shift_window');
-            const shiftMap = {
-                '1': '07:30 - 16:30',
-                '2': '09:00 - 18:00',
-                '3': '11:00 - 20:00',
-                '4': '08:00 - 17:00'
-            };
-            if (shiftSelect && shiftWindow) {
-                const applyShift = () => {
-                    if (shiftSelect.value) {
-                        shiftWindow.textContent = shiftMap[shiftSelect.value] || '08:00 - 17:00';
-                        // Bỏ lỗi khi đã chọn ca
-                        shiftSelect.classList.remove('is-invalid');
-                    } else {
-                        shiftWindow.textContent = '-- Chọn ca để xem khung giờ --';
-                    }
-                };
-                shiftSelect.addEventListener('change', applyShift);
-                applyShift();
-            }
-
-            // Tính tổng số ngày và hiển thị real-time
-            const totalDaysDisplay = document.getElementById('total-days-display');
-            const daysStatus = document.getElementById('days-status');
-            const leaveFromDate = document.getElementById('leave_from_date');
-            const leaveToDate = document.getElementById('leave_to_date');
-            const leaveDaysInputs = ['annual_leave_days', 'unpaid_leave_days', 'special_leave_days'];
-            const teamEl = document.getElementById('team');
-            const scopeWrap = document.getElementById('scope-days-wrapper');
-            const yorkWrap = document.getElementById('york-days-wrapper');
-            let isDateTimeRangeInvalid = false; // trạng thái phạm vi ngày giờ
-
-            function updateTotalDays() {
-                const parseNum = (v) => parseFloat(v || '0') || 0;
-                const total = leaveDaysInputs.reduce((sum, id) => {
-                    return sum + parseNum(document.getElementById(id).value);
-                }, 0);
-                totalDaysDisplay.textContent = total;
-
-                // Tính khoảng thời gian thực tế sử dụng phép
-                if (leaveFromDate.value && leaveToDate.value &&
-                    document.getElementById('leave_from_time').value &&
-                    document.getElementById('leave_to_time').value) {
-                    if (isDateTimeRangeInvalid) {
-                        daysStatus.innerHTML = 'Chọn đầy đủ thông tin để xem giới hạn';
-                        return;
-                    }
-
-                    const fromDate = new Date(leaveFromDate.value);
-                    const toDate = new Date(leaveToDate.value);
-                    let fromTime = document.getElementById('leave_from_time').value;
-                    let toTime = document.getElementById('leave_to_time').value;
-                    const shiftCode = document.getElementById('leave_shift_code').value;
-
-                    // Normalize thời gian để xử lý đúng định dạng SA/CH/AM/PM
-                    fromTime = normalizeTimeFormat(fromTime);
-                    toTime = normalizeTimeFormat(toTime);
-
-                    const actualLeaveDays = shiftCode ? calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
-
-                    // Cập nhật trạng thái
-                    if (total > actualLeaveDays) {
-                        daysStatus.innerHTML = `<span class="text-danger"><strong>❌ VƯỢT QUÁ!</strong> Cần giảm xuống còn ${actualLeaveDays} ngày để gửi đơn</span>`;
-                    } else if (total === actualLeaveDays) {
-                        daysStatus.innerHTML = `<span class="text-success"><strong>✅ ĐÚNG RỒI!</strong> Đã xin đúng ${actualLeaveDays} ngày - có thể gửi đơn</span>`;
-                    } else if (total > 0) {
-                        daysStatus.innerHTML = `<span class="text-warning"><strong>⚠️ CHƯA ĐỦ!</strong> Cần thêm ${actualLeaveDays - total} ngày nữa để gửi đơn</span>`;
-                    } else {
-                        daysStatus.innerHTML = `<span class="text-info"><strong>ℹ️ HƯỚNG DẪN:</strong> Cần xin đúng ${actualLeaveDays} ngày để gửi đơn</span>`;
-                    }
-
-                    // Thêm thông tin số ngày cần thiết
-                    const requiredDays = document.querySelector('.alert-info p:last-child');
-                    if (requiredDays) {
-                        requiredDays.innerHTML = `Khoảng thời gian thực tế: ${actualLeaveDays} ngày (tính theo ca ${shiftCode})`;
-                    }
-                } else {
-                    daysStatus.innerHTML = 'Chọn đầy đủ thông tin để xem giới hạn';
-                }
-            }
-
-            // Cập nhật khi thay đổi số ngày nghỉ
-            leaveDaysInputs.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.addEventListener('input', updateTotalDays);
-                }
-            });
-
-            // Hàm đảm bảo khoảng ngày hợp lệ: Từ ngày <= Đến ngày
-            function enforceDateRange(strict = false) {
-                if (!leaveFromDate || !leaveToDate) return;
-                // Đồng bộ min/max để hỗ trợ kiểm tra ngay trong UI
-                if (leaveFromDate.value) {
-                    leaveToDate.min = leaveFromDate.value;
-                } else {
-                    leaveToDate.removeAttribute('min');
-                }
-                if (leaveToDate.value) {
-                    leaveFromDate.max = leaveToDate.value;
-                } else {
-                    leaveFromDate.removeAttribute('max');
-                }
-                // Chỉ kiểm tra logic nội bộ; không hiển thị dưới input
-                const from = leaveFromDate.value ? new Date(leaveFromDate.value) : null;
-                const to = leaveToDate.value ? new Date(leaveToDate.value) : null;
-                if (from && to && from > to) {
-                    // không set invalid UI tại đây
-                    // when not strict, don't set errors while typing
-                } else {
-                    // không thao tác UI khi hợp lệ
-                }
-            }
-
-            // Hàm kiểm tra đầy đủ ngày giờ: start < end (bao gồm cả thời gian)
-            function validateDateTimeOnBlur() {
-                const fromDateEl = document.getElementById('leave_from_date');
-                const toDateEl = document.getElementById('leave_to_date');
-                const fromTimeEl = document.getElementById('leave_from_time');
-                const toTimeEl = document.getElementById('leave_to_time');
-                if (!(fromDateEl && toDateEl && fromTimeEl && toTimeEl)) return;
-
-                const fd = fromDateEl.value;
-                const td = toDateEl.value;
-                let ft = fromTimeEl.value || '00:00';
-                let tt = toTimeEl.value || '00:00';
-
-                if (!fd || !td) return; // thiếu giá trị thì bỏ qua
-
-                // Xử lý định dạng thời gian có SA/CH
-                ft = normalizeTimeFormat(ft);
-                tt = normalizeTimeFormat(tt);
-
-                const start = new Date(`${fd}T${ft}:00`);
-                const end = new Date(`${td}T${tt}:00`);
-
-                // Debug: Log thời gian để kiểm tra
-                console.log('Validation Debug:', {
-                    fromDate: fd,
-                    toDate: td,
-                    fromTime: ft,
-                    toTime: tt,
-                    start: start,
-                    end: end,
-                    startTime: start.getTime(),
-                    endTime: end.getTime(),
-                    isValid: start < end
-                });
-
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start >= end) {
-                    // Khoanh đỏ cả 4 input khi sai và chỉ báo qua toast
-                    fromDateEl.classList.add('is-invalid');
-                    toDateEl.classList.add('is-invalid');
-                    fromTimeEl.classList.add('is-invalid');
-                    toTimeEl.classList.add('is-invalid');
-                    isDateTimeRangeInvalid = true;
-                    try { showToast('Thời gian từ ngày giờ phải nhỏ hơn đến ngày giờ', 'error'); } catch (_) { }
-                    updateTotalDays();
-                } else {
-                    // Kiểm tra thêm: Giờ kết thúc không được vượt quá giờ ra khỏi ca
-                    const shiftCode = document.getElementById('leave_shift_code').value;
-                    const shiftRanges = {
-                        '1': { start: '07:30', end: '16:30' },
-                        '2': { start: '09:00', end: '18:00' },
-                        '3': { start: '11:00', end: '20:00' },
-                        '4': { start: '08:00', end: '17:00' }
-                    };
-
-                    let isShiftTimeInvalid = false;
-                    if (shiftCode in shiftRanges) { // Kiểm tra ngay cả khi chưa chọn ngày
-                        const shiftStartTime = shiftRanges[shiftCode].start;
-                        const shiftEndTime = shiftRanges[shiftCode].end;
-                        const shiftStartMinutes = timeToMinutes(shiftStartTime);
-                        const shiftEndMinutes = timeToMinutes(shiftEndTime);
-                        const fromTimeMinutes = timeToMinutes(ft);
-                        const toTimeMinutes = timeToMinutes(tt);
-
-                        // Kiểm tra giờ bắt đầu không được trước giờ vào ca (chỉ khi có giờ bắt đầu)
-                        if (ft && fromTimeMinutes < shiftStartMinutes) {
-                            fromTimeEl.classList.add('is-invalid');
-                            isShiftTimeInvalid = true;
-                            try { showToast(`❌ Giờ bắt đầu: ${ft} → Lỗi "không được trước giờ vào ca (${shiftStartTime})"`, 'error'); } catch (_) { }
-                        }
-
-                        // Kiểm tra giờ kết thúc không được vượt quá giờ ra khỏi ca (chỉ khi có giờ kết thúc)
-                        if (tt && toTimeMinutes > shiftEndMinutes) {
-                            toTimeEl.classList.add('is-invalid');
-                            isShiftTimeInvalid = true;
-                            try { showToast(`❌ Giờ kết thúc: ${tt} → Lỗi "không được vượt quá giờ ra khỏi ca (${shiftEndTime})"`, 'error'); } catch (_) { }
-                        }
-                    }
-
-                    if (!isShiftTimeInvalid) {
-                        // Hợp lệ: bỏ khoanh đỏ và cho phép hiển thị tính toán
-                        fromDateEl.classList.remove('is-invalid');
-                        toDateEl.classList.remove('is-invalid');
-                        fromTimeEl.classList.remove('is-invalid');
-                        toTimeEl.classList.remove('is-invalid');
-                        isDateTimeRangeInvalid = false;
-                        updateTotalDays();
-                    }
-                }
-            }
-
-            // Hàm kiểm tra im lặng để gỡ border đỏ khi đã hợp lệ (không hiện toast)
-            function validateDateTimeSilent() {
-                const fromDateEl = document.getElementById('leave_from_date');
-                const toDateEl = document.getElementById('leave_to_date');
-                const fromTimeEl = document.getElementById('leave_from_time');
-                const toTimeEl = document.getElementById('leave_to_time');
-                if (!(fromDateEl && toDateEl && fromTimeEl && toTimeEl)) return;
-
-                const fd = fromDateEl.value;
-                const td = toDateEl.value;
-                let ft = fromTimeEl.value || '00:00';
-                let tt = toTimeEl.value || '00:00';
-
-                if (!fd || !td) return;
-
-                // Xử lý định dạng thời gian có SA/CH
-                ft = normalizeTimeFormat(ft);
-                tt = normalizeTimeFormat(tt);
-
-                const start = new Date(`${fd}T${ft}:00`);
-                const end = new Date(`${td}T${tt}:00`);
-
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start < end) {
-                    // Kiểm tra thêm: Giờ kết thúc không được vượt quá giờ ra khỏi ca
-                    const shiftCode = document.getElementById('leave_shift_code').value;
-                    const shiftRanges = {
-                        '1': { start: '07:30', end: '16:30' },
-                        '2': { start: '09:00', end: '18:00' },
-                        '3': { start: '11:00', end: '20:00' },
-                        '4': { start: '08:00', end: '17:00' }
-                    };
-
-                    let isShiftTimeInvalid = false;
-                    if (shiftCode in shiftRanges) { // Kiểm tra ngay cả khi chưa chọn ngày
-                        const shiftStartTime = shiftRanges[shiftCode].start;
-                        const shiftEndTime = shiftRanges[shiftCode].end;
-                        const shiftStartMinutes = timeToMinutes(shiftStartTime);
-                        const shiftEndMinutes = timeToMinutes(shiftEndTime);
-                        const fromTimeMinutes = timeToMinutes(ft);
-                        const toTimeMinutes = timeToMinutes(tt);
-
-                        // Kiểm tra giờ bắt đầu không được trước giờ vào ca (chỉ khi có giờ bắt đầu)
-                        if (ft && fromTimeMinutes < shiftStartMinutes) {
-                            fromTimeEl.classList.add('is-invalid');
-                            isShiftTimeInvalid = true;
-                            try { showToast(`❌ Giờ bắt đầu: ${ft} → Lỗi "không được trước giờ vào ca (${shiftStartTime})"`, 'error'); } catch (_) { }
-                        }
-
-                        // Kiểm tra giờ kết thúc không được vượt quá giờ ra khỏi ca (chỉ khi có giờ kết thúc)
-                        if (tt && toTimeMinutes > shiftEndMinutes) {
-                            toTimeEl.classList.add('is-invalid');
-                            isShiftTimeInvalid = true;
-                            try { showToast(`❌ Giờ kết thúc: ${tt} → Lỗi "không được vượt quá giờ ra khỏi ca (${shiftEndTime})"`, 'error'); } catch (_) { }
-                        }
-                    }
-
-                    if (!isShiftTimeInvalid) {
-                        fromDateEl.classList.remove('is-invalid');
-                        toDateEl.classList.remove('is-invalid');
-                        fromTimeEl.classList.remove('is-invalid');
-                        toTimeEl.classList.remove('is-invalid');
-                        isDateTimeRangeInvalid = false;
-                        updateTotalDays();
-                    }
-                }
-            }
-
-            // Hàm helper để xử lý định dạng thời gian
-            function normalizeTimeFormat(timeStr) {
-                if (!timeStr) return '00:00';
-
-                // Xử lý đặc biệt cho các trường hợp 12:00
-                if (timeStr.includes('12:00')) {
-                    // 12:00 SA = 12:00 trưa (PM) - trong tiếng Việt
-                    if (timeStr.includes('SA')) {
-                        return '12:00';
-                    }
-                    // 12:00 CH = 12:00 chiều (PM) - trong tiếng Việt  
-                    if (timeStr.includes('CH')) {
-                        return '12:00';
-                    }
-                    // 12:00 PM = 12:00 trưa (PM) - chuẩn quốc tế
-                    if (timeStr.includes('PM')) {
-                        return '12:00';
-                    }
-                    // 12:00 AM = 00:00 nửa đêm (AM) - chuẩn quốc tế
-                    if (timeStr.includes('AM')) {
-                        return '00:00';
-                    }
-                }
-
-                // Xử lý định dạng thời gian có SA/CH/AM/PM
-                return timeStr.replace(/\s*(SA|CH|AM|PM)\s*/gi, '').trim();
-            }
-
-            // Debug function để kiểm tra thời gian
-            function debugTimeValidation() {
-                const fromTimeEl = document.getElementById('leave_from_time');
-                const toTimeEl = document.getElementById('leave_to_time');
-
-                if (fromTimeEl && toTimeEl) {
-                    console.log('=== DEBUG TIME VALIDATION ===');
-                    console.log('From time raw:', fromTimeEl.value);
-                    console.log('From time normalized:', normalizeTimeFormat(fromTimeEl.value));
-                    console.log('To time raw:', toTimeEl.value);
-                    console.log('To time normalized:', normalizeTimeFormat(toTimeEl.value));
-
-                    const fromTime = normalizeTimeFormat(fromTimeEl.value);
-                    const toTime = normalizeTimeFormat(toTimeEl.value);
-
-                    const start = new Date(`2024-01-01T${fromTime}:00`);
-                    const end = new Date(`2024-01-01T${toTime}:00`);
-
-                    console.log('Start datetime:', start);
-                    console.log('End datetime:', end);
-                    console.log('Is valid (start < end):', start < end);
-                    console.log('================================');
-                }
-            }
-
-            // Cập nhật khi thay đổi ngày
-            if (leaveFromDate) leaveFromDate.addEventListener('change', () => {
-                enforceDateRange(false);
-                validateDateTimeSilent();
-                checkShiftSelectionOnDateChange(); // Kiểm tra ca làm việc khi chọn ngày
-                updateTotalDays();
-            });
-            if (leaveToDate) leaveToDate.addEventListener('change', () => {
-                enforceDateRange(false);
-                validateDateTimeSilent();
-                checkShiftSelectionOnDateChange(); // Kiểm tra ca làm việc khi chọn ngày
-                updateTotalDays();
-            });
-            // Cập nhật realtime khi đang gõ để xóa cảnh báo ngay khi hợp lệ
-            if (leaveFromDate) leaveFromDate.addEventListener('blur', () => { enforceDateRange(false); validateDateTimeSilent(); });
-            if (leaveToDate) leaveToDate.addEventListener('blur', () => { enforceDateRange(false); validateDateTimeSilent(); });
-
-            // Cảnh báo ngay khi rời ô (blur) nếu phạm vi ngày không hợp lệ
-            function warnIfDateInvalid(target) {
-                if (!leaveFromDate || !leaveToDate) return;
-                const from = leaveFromDate.value ? new Date(leaveFromDate.value) : null;
-                const to = leaveToDate.value ? new Date(leaveToDate.value) : null;
-                if (from && to && from > to) {
-                    // Khoanh đỏ 2 ô ngày khi sai
-                    leaveFromDate.classList.add('is-invalid');
-                    leaveToDate.classList.add('is-invalid');
-                    isDateTimeRangeInvalid = true;
-                    try { showToast('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu', 'error'); } catch (_) { }
-                    updateTotalDays();
-                } else {
-                    leaveFromDate.classList.remove('is-invalid');
-                    leaveToDate.classList.remove('is-invalid');
-                }
-            }
-            if (leaveToDate) leaveToDate.addEventListener('blur', () => { enforceDateRange(true); warnIfDateInvalid(leaveToDate); });
-            if (leaveFromDate) leaveFromDate.addEventListener('blur', () => { enforceDateRange(true); warnIfDateInvalid(leaveFromDate); });
-            const fromTimeEl = document.getElementById('leave_from_time');
-            const toTimeEl = document.getElementById('leave_to_time');
-            if (fromTimeEl) {
-                fromTimeEl.addEventListener('change', () => { debugTimeValidation(); validateDateTimeSilent(); updateTotalDays(); });
-                // Chỉ validate khi blur để giảm thiểu spam
-                fromTimeEl.addEventListener('blur', () => { debugTimeValidation(); validateDateTimeSilent(); updateTotalDays(); });
-            }
-            if (toTimeEl) {
-                toTimeEl.addEventListener('change', () => { debugTimeValidation(); validateDateTimeSilent(); updateTotalDays(); });
-                // Chỉ validate khi blur để giảm thiểu spam
-                toTimeEl.addEventListener('blur', () => {
-                    debugTimeValidation();
-                    validateDateTimeOnBlur();
-                    updateImage2WithDateData(); // Cập nhật hình 2 với dữ liệu ngày
-
-                    // Sau khi người dùng rời ô "Đến giờ", tính lại khoảng thời gian thực tế
-                    // và nếu là số ngày lẻ (0.5, 1.5, 2.5, ...) thì hỏi có sử dụng giờ nghỉ trưa không
-                    try {
-                        const requestTypeSelect = document.getElementById('requestTypeSelect');
-                        if (!requestTypeSelect || requestTypeSelect.value !== 'leave') {
-                            return; // Chỉ áp dụng cho đơn nghỉ phép
-                        }
-
-                        const fromDateVal = leaveFromDate ? leaveFromDate.value : '';
-                        const toDateVal = leaveToDate ? leaveToDate.value : '';
-                        const fromTimeVal = fromTimeEl ? fromTimeEl.value : '';
-                        const toTimeVal = toTimeEl.value || '';
-                        const shiftCodeEl = document.getElementById('leave_shift_code');
-                        const shiftCode = shiftCodeEl ? shiftCodeEl.value : '';
-
-                        if (!fromDateVal || !toDateVal || !fromTimeVal || !toTimeVal || !shiftCode) {
-                            return;
-                        }
-
-                        const fromDateObj = new Date(fromDateVal);
-                        const toDateObj = new Date(toDateVal);
-                        const normFromTime = normalizeTimeFormat(fromTimeVal);
-                        const normToTime = normalizeTimeFormat(toTimeVal);
-
-                        const calcFn = window.calculateActualLeaveDays || calculateActualLeaveDays;
-                        if (typeof calcFn !== 'function') return;
-
-                        const actualLeaveDays = calcFn(fromDateObj, toDateObj, normFromTime, normToTime, shiftCode);
-                        if (!actualLeaveDays || isNaN(actualLeaveDays)) return;
-
-                        const fractional = Math.abs(actualLeaveDays - Math.round(actualLeaveDays));
-                        // Nếu là số nguyên (1, 2, 3, ...) thì không cần hỏi
-                        if (fractional < 1e-6) return;
-
-                        // Tạo/ghi hidden input lưu lựa chọn dùng giờ nghỉ trưa
-                        const formEl = document.getElementById('leaveRequestForm');
-                        if (!formEl || typeof Swal === 'undefined') return;
-
-                        let lunchInput = document.getElementById('use_lunch_break');
-                        if (!lunchInput) {
-                            lunchInput = document.createElement('input');
-                            lunchInput.type = 'hidden';
-                            lunchInput.name = 'use_lunch_break';
-                            lunchInput.id = 'use_lunch_break';
-                            formEl.appendChild(lunchInput);
-                        }
-
-                        Swal.fire({
-                            title: 'Bạn có sử dụng giờ nghỉ trưa không vào 0.5 ngày đó không?',
-                            text: `Khoảng thời gian thực tế: ${actualLeaveDays} ngày (tính theo ca ${shiftCode}).`,
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonText: 'Có, dùng giờ nghỉ trưa',
-                            cancelButtonText: 'Không dùng giờ nghỉ trưa',
-                            reverseButtons: true,
-                            allowOutsideClick: false,
-                            allowEscapeKey: false,
-                            allowEnterKey: true
-                        }).then((result) => {
-                            lunchInput.value = result.isConfirmed ? 'true' : 'false';
-                        });
-                    } catch (e) {
-                        console.warn('Error handling lunch break confirmation:', e);
-                    }
-                });
-            }
-            if (document.getElementById('leave_shift_code')) document.getElementById('leave_shift_code').addEventListener('change', updateTotalDays);
-
-            // Hiển thị trường động theo nhóm Scope/York (cùng hàng với các ô ngày phép)
-            if (teamEl) {
-                const applyTeamFields = () => {
-                    const val = (teamEl.value || teamEl.getAttribute('value') || teamEl.textContent || '').toLowerCase().trim();
-                    const includes = (s) => val.indexOf(s) !== -1;
-                    if (val === 'scope' || includes('scope')) {
-                        if (scopeWrap) scopeWrap.style.display = '';
-                        if (yorkWrap) yorkWrap.style.display = 'none';
-                    } else if (val === 'york' || includes('york')) {
-                        if (scopeWrap) scopeWrap.style.display = 'none';
-                        if (yorkWrap) yorkWrap.style.display = '';
-                    } else {
-                        if (scopeWrap) scopeWrap.style.display = 'none';
-                        if (yorkWrap) yorkWrap.style.display = 'none';
-                    }
-                };
-                applyTeamFields();
-                teamEl.addEventListener('change', applyTeamFields);
-            }
-
-            // Hàm validation tổng quát - kiểm tra tất cả lỗi có thể xảy ra
-            window.validateAllFields = function () {
-                let hasErrors = false;
-                let errorMessages = [];
-
-                // 0. Kiểm tra validation đặc biệt cho đi trễ/về sớm
-                const lateEarlyValidation = validateLateEarlyMode();
-                if (lateEarlyValidation.hasErrors) {
-                    hasErrors = true;
-                    errorMessages.push(...lateEarlyValidation.errorMessages);
-                }
-
-                // 0.1. Kiểm tra validation đặc biệt cho nghỉ 30 phút
-                const break30MinValidation = validate30MinBreakMode();
-                if (break30MinValidation.hasErrors) {
-                    hasErrors = true;
-                    errorMessages.push(...break30MinValidation.errorMessages);
-                }
-
-                // 1. Kiểm tra các trường bắt buộc
-                const requestType = document.getElementById('requestTypeSelect').value;
-                const isLateEarly = requestType !== 'leave';
-                const requiredFields = ['employee_name', 'team', 'employee_code', 'leave_from_date', 'leave_from_time', 'leave_to_date', 'leave_to_time'];
-
-                // Thêm leave_shift_code vào required fields CHỈ KHI KHÔNG PHẢI đơn nghỉ 30 phút
-                if (requestType !== '30min_break') {
-                    requiredFields.push('leave_shift_code');
-                }
-
-                // Chỉ yêu cầu lý do cho nghỉ phép và đi trễ/về sớm, không yêu cầu cho nghỉ 30 phút
-                if (requestType !== '30min_break') {
-                    requiredFields.push('leave_reason');
-                }
-
-                // Thêm trường loại đi trễ/về sớm nếu cần
-                if (requestType === 'late_early') {
-                    requiredFields.push('late_early_type');
-                }
-
-                for (let field of requiredFields) {
-                    const element = document.getElementById(field);
-                    if (!element || !element.value || element.value.trim() === '') {
-                        // Kiểm tra xem element có bị ẩn không
-                        if (element && element.closest('.col-md-6') && element.closest('.col-md-6').style.display === 'none') {
-                            continue; // Bỏ qua validation cho trường bị ẩn
-                        }
-
-                        hasErrors = true;
-                        element.classList.add('is-invalid');
-                        errorMessages.push(`Trường ${getFieldDisplayName(field)} là bắt buộc`);
-                    } else {
-                        element.classList.remove('is-invalid');
-                    }
-                }
-
-                // 2. Kiểm tra khoảng thời gian hợp lệ
-                const fromDateEl = document.getElementById('leave_from_date');
-                const toDateEl = document.getElementById('leave_to_date');
-                const fromTimeEl = document.getElementById('leave_from_time');
-                const toTimeEl = document.getElementById('leave_to_time');
-
-                if (fromDateEl.value && toDateEl.value && fromTimeEl.value && toTimeEl.value) {
-                    const fromDate = new Date(fromDateEl.value);
-                    const toDate = new Date(toDateEl.value);
-                    let fromTime = normalizeTimeFormat(fromTimeEl.value);
-                    let toTime = normalizeTimeFormat(toTimeEl.value);
-
-                    const start = new Date(`${fromDateEl.value}T${fromTime}:00`);
-                    const end = new Date(`${toDateEl.value}T${toTime}:00`);
-
-                    if (start >= end) {
-                        hasErrors = true;
-                        fromDateEl.classList.add('is-invalid');
-                        toDateEl.classList.add('is-invalid');
-                        fromTimeEl.classList.add('is-invalid');
-                        toTimeEl.classList.add('is-invalid');
-                        errorMessages.push('Thời gian từ ngày giờ phải nhỏ hơn đến ngày giờ');
-                    }
-                }
-
-                // 2.1. Kiểm tra giờ nghỉ phép có trong khung giờ ca làm việc
-                // BỎ QUA validation này cho đơn nghỉ 30 phút (cho phép chọn giờ tự do)
-                if (requestType !== '30min_break') {
-                    const selectedShiftCode = document.getElementById('leave_shift_code').value;
-                    if (selectedShiftCode && (fromTimeEl.value || toTimeEl.value)) { // Kiểm tra khi có giờ được nhập
-                        const shiftRanges = {
-                            '1': { start: '07:30', end: '16:30' },
-                            '2': { start: '09:00', end: '18:00' },
-                            '3': { start: '11:00', end: '20:00' },
-                            '4': { start: '08:00', end: '17:00' }
-                        };
-
-                        if (selectedShiftCode in shiftRanges) {
-                            const shiftStartTime = shiftRanges[selectedShiftCode].start;
-                            const shiftEndTime = shiftRanges[selectedShiftCode].end;
-                            const shiftStartMinutes = timeToMinutes(shiftStartTime);
-                            const shiftEndMinutes = timeToMinutes(shiftEndTime);
-                            const fromTimeValue = normalizeTimeFormat(fromTimeEl.value);
-                            const toTimeValue = normalizeTimeFormat(toTimeEl.value);
-                            const fromTimeMinutes = timeToMinutes(fromTimeValue);
-                            const toTimeMinutes = timeToMinutes(toTimeValue);
-
-                            // Kiểm tra giờ bắt đầu không được trước giờ vào ca (chỉ khi có giờ bắt đầu)
-                            if (fromTimeEl.value && fromTimeMinutes < shiftStartMinutes) {
-                                hasErrors = true;
-                                fromTimeEl.classList.add('is-invalid');
-                                errorMessages.push(`❌ Giờ bắt đầu: ${fromTimeValue} → Lỗi "không được trước giờ vào ca (${shiftStartTime})"`);
-                            }
-
-                            // Kiểm tra giờ kết thúc không được vượt quá giờ ra khỏi ca (chỉ khi có giờ kết thúc)
-                            if (toTimeEl.value && toTimeMinutes > shiftEndMinutes) {
-                                hasErrors = true;
-                                toTimeEl.classList.add('is-invalid');
-                                errorMessages.push(`❌ Giờ kết thúc: ${toTimeValue} → Lỗi "không được vượt quá giờ ra khỏi ca (${shiftEndTime})"`);
-                            }
-                        }
-                    }
-                }
-
-                // 3. Kiểm tra số ngày nghỉ hợp lệ (chỉ cho nghỉ phép)
-                let totalDays = 0;
-                if (!isLateEarly) {
-                    const annualDays = parseFloat(document.getElementById('annual_leave_days').value || '0');
-                    const unpaidDays = parseFloat(document.getElementById('unpaid_leave_days').value || '0');
-                    const specialDays = parseFloat(document.getElementById('special_leave_days').value || '0');
-                    totalDays = annualDays + unpaidDays + specialDays;
-
-                    if (totalDays <= 0) {
-                        hasErrors = true;
-                        errorMessages.push('Tổng số ngày xin nghỉ phải lớn hơn 0');
-                    }
-
-                    // 4. Kiểm tra số ngày nghỉ phải là bội số của 0.5
-                    const dayFields = ['annual_leave_days', 'unpaid_leave_days', 'special_leave_days'];
-                    for (let field of dayFields) {
-                        const value = document.getElementById(field).value;
-                        if (value && !((parseFloat(value) * 2) % 1 === 0)) {
-                            hasErrors = true;
-                            document.getElementById(field).classList.add('is-invalid');
-                            errorMessages.push('Số ngày nghỉ phải là bội số của 0.5 (ví dụ 0.5, 1, 1.5)');
-                        }
-                    }
-                }
-
-                // 5. Kiểm tra tổng số ngày xin nghỉ phải bằng khoảng thời gian thực tế (chỉ cho nghỉ phép)
-                if (!isLateEarly) {
-                    const shiftCode = document.getElementById('leave_shift_code').value;
-                    if (shiftCode && fromDateEl.value && toDateEl.value && fromTimeEl.value && toTimeEl.value) {
-                        const fromDate = new Date(fromDateEl.value);
-                        const toDate = new Date(toDateEl.value);
-                        const fromTime = normalizeTimeFormat(fromTimeEl.value);
-                        const toTime = normalizeTimeFormat(toTimeEl.value);
-
-                        const actualLeaveDays = calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode);
-
-                        if (totalDays !== actualLeaveDays) {
-                            hasErrors = true;
-                            if (totalDays > actualLeaveDays) {
-                                errorMessages.push(`Bạn đã xin quá nhiều! Cần giảm xuống còn ${actualLeaveDays} ngày để gửi đơn.`);
-                            } else {
-                                errorMessages.push(`Bạn chưa xin đủ! Cần thêm ${actualLeaveDays - totalDays} ngày nữa để gửi đơn.`);
-                            }
-                        }
-                    }
-                }
-
-                return {
-                    hasErrors: hasErrors,
-                    errorMessages: errorMessages
-                };
-            };
-
-            // Hàm helper để lấy tên hiển thị của field
-            function getFieldDisplayName(fieldId) {
-                const fieldNames = {
-                    'employee_name': 'Họ và tên',
-                    'team': 'Nhóm',
-                    'employee_code': 'Mã nhân viên',
-                    'leave_reason': 'Lý do nghỉ phép',
-                    'leave_from_date': 'Từ ngày',
-                    'leave_from_time': 'Từ giờ',
-                    'leave_to_date': 'Đến ngày',
-                    'leave_to_time': 'Đến giờ',
-                    'leave_shift_code': 'Ca làm việc'
-                };
-                return fieldNames[fieldId] || fieldId;
-            }
-
-            // Hàm test validation cho tất cả các ca làm việc
-            function testAllShiftValidations() {
-                console.log('=== TEST VALIDATION CHO TẤT CẢ CÁC CA ===');
-
-                const shiftRanges = {
-                    '1': { start: '07:30', end: '16:30' },
-                    '2': { start: '09:00', end: '18:00' },
-                    '3': { start: '11:00', end: '20:00' },
-                    '4': { start: '08:00', end: '17:00' }
-                };
-
-                // Test cases cho từng ca
-                const testCases = [
-                    // Ca 1 (07:30 - 16:30)
-                    { shift: '1', fromTime: '06:30', toTime: '16:30', expectedFromError: true, expectedToError: false },
-                    { shift: '1', fromTime: '07:30', toTime: '17:30', expectedFromError: false, expectedToError: true },
-                    { shift: '1', fromTime: '08:00', toTime: '15:00', expectedFromError: false, expectedToError: false },
-
-                    // Ca 2 (09:00 - 18:00)
-                    { shift: '2', fromTime: '08:30', toTime: '18:00', expectedFromError: true, expectedToError: false },
-                    { shift: '2', fromTime: '09:00', toTime: '19:00', expectedFromError: false, expectedToError: true },
-                    { shift: '2', fromTime: '10:00', toTime: '17:00', expectedFromError: false, expectedToError: false },
-
-                    // Ca 3 (11:00 - 20:00)
-                    { shift: '3', fromTime: '10:30', toTime: '20:00', expectedFromError: true, expectedToError: false },
-                    { shift: '3', fromTime: '11:00', toTime: '21:00', expectedFromError: false, expectedToError: true },
-                    { shift: '3', fromTime: '12:00', toTime: '19:00', expectedFromError: false, expectedToError: false },
-
-                    // Ca 4 (08:00 - 17:00)
-                    { shift: '4', fromTime: '07:30', toTime: '17:00', expectedFromError: true, expectedToError: false },
-                    { shift: '4', fromTime: '08:00', toTime: '18:00', expectedFromError: false, expectedToError: true },
-                    { shift: '4', fromTime: '09:00', toTime: '16:00', expectedFromError: false, expectedToError: false }
-                ];
-
-                testCases.forEach((testCase, index) => {
-                    const shift = shiftRanges[testCase.shift];
-                    const shiftStartMinutes = timeToMinutes(shift.start);
-                    const shiftEndMinutes = timeToMinutes(shift.end);
-                    const fromTimeMinutes = timeToMinutes(testCase.fromTime);
-                    const toTimeMinutes = timeToMinutes(testCase.toTime);
-
-                    const fromError = fromTimeMinutes < shiftStartMinutes;
-                    const toError = toTimeMinutes > shiftEndMinutes;
-
-                    const fromMatch = fromError === testCase.expectedFromError;
-                    const toMatch = toError === testCase.expectedToError;
-
-                    console.log(`Test ${index + 1} - Ca ${testCase.shift} (${shift.start} - ${shift.end}):`);
-                    console.log(`  Input: ${testCase.fromTime} - ${testCase.toTime}`);
-                    console.log(`  From Error: ${fromError} (expected: ${testCase.expectedFromError}) ${fromMatch ? '✅' : '❌'}`);
-                    console.log(`  To Error: ${toError} (expected: ${testCase.expectedToError}) ${toMatch ? '✅' : '❌'}`);
-                    console.log(`  Result: ${fromMatch && toMatch ? '✅ PASS' : '❌ FAIL'}`);
-                    console.log('---');
-                });
-
-                console.log('=== KẾT THÚC TEST ===');
-            }
-
-            // Gọi hàm test khi trang load (chỉ trong development)
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                setTimeout(testAllShiftValidations, 1000);
-            }
-
-            // ===== LOGIC XỬ LÝ TOGGLE GIỮA NGHỈ PHÉP VÀ ĐI TRỄ/VỀ SỚM =====
-
-            // Hàm cập nhật giao diện theo loại đơn
-            window.updateFormMode = function (requestType) {
-                const reasonLabel = document.getElementById('reasonLabel');
-                const fromDateLabel = document.getElementById('fromDateLabel');
-                const toDateLabel = document.getElementById('toDateLabel');
-                const lateEarlyTypeSection = document.getElementById('lateEarlyTypeSection');
-                const attachmentsSection = document.getElementById('attachmentsSection');
-                const attachmentGuidelinesSection = document.getElementById('attachmentGuidelinesSection');
-                const reasonSectionTitle = document.getElementById('reasonSectionTitle');
-                const leaveDaysSection = document.getElementById('leaveDaysSection');
-                const replacementSection = document.getElementById('replacementSection');
-                const requestTypeInput = document.getElementById('requestType');
-                const leaveReasonTextarea = document.getElementById('leave_reason');
-                const notesSection = document.querySelector('.form-section:has(#notes)');
-                const reasonFieldSection = leaveReasonTextarea.closest('.col-md-6');
-
-                if (requestType === 'late_early') {
-                    // Chế độ đi trễ/về sớm
-                    reasonLabel.innerHTML = 'Lý do đi trễ/về sớm <span class="required">*</span>'; // Có dấu sao
-                    fromDateLabel.textContent = 'Ngày đi trễ/về sớm';
-                    toDateLabel.textContent = 'Thời gian đi trễ/về sớm';
-                    lateEarlyTypeSection.style.display = 'block';
-                    attachmentsSection.style.display = 'none'; // Ẩn phần chứng từ
-                    attachmentGuidelinesSection.style.display = 'none'; // Ẩn phần hướng dẫn chứng từ
-                    reasonSectionTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Lý do nghỉ phép'; // Thay đổi title
-                    leaveDaysSection.style.display = 'none'; // Ẩn phần số ngày nghỉ
-                    replacementSection.style.display = 'none'; // Ẩn phần người thay thế
-                    requestTypeInput.value = 'late_early';
-                    leaveReasonTextarea.placeholder = 'Vui lòng mô tả chi tiết lý do đi trễ/về sớm...';
-                    leaveReasonTextarea.setAttribute('required', 'required'); // Có thuộc tính required
-
-                    // Hiện lại trường lý do cho đi trễ/về sớm
-                    if (reasonFieldSection) {
-                        reasonFieldSection.style.display = 'block';
-                        leaveReasonTextarea.setAttribute('required', 'required'); // Đảm bảo có thuộc tính required
-                    }
-
-                    // Cập nhật title trang
-                    document.title = document.title.replace('nghỉ phép', 'đi trễ/về sớm');
-
-                } else if (requestType === '30min_break') {
-                    // Chế độ nghỉ 30 phút
-                    fromDateLabel.textContent = 'Ngày nghỉ';
-                    toDateLabel.textContent = 'Thời gian nghỉ';
-                    lateEarlyTypeSection.style.display = 'none';
-                    attachmentsSection.style.display = 'none'; // Ẩn phần chứng từ
-                    attachmentGuidelinesSection.style.display = 'none'; // Ẩn phần hướng dẫn chứng từ
-                    reasonSectionTitle.innerHTML = '<i class="fas fa-clock"></i> Nghỉ 30 phút (dành cho nữ)';
-                    leaveDaysSection.style.display = 'none'; // Ẩn phần số ngày nghỉ
-                    replacementSection.style.display = 'none'; // Ẩn phần người thay thế
-                    requestTypeInput.value = '30min_break';
-
-                    // Ẩn hoàn toàn trường lý do cho nghỉ 30 phút và loại bỏ required
-                    if (reasonFieldSection) {
-                        reasonFieldSection.style.display = 'none';
-                        leaveReasonTextarea.removeAttribute('required'); // Loại bỏ thuộc tính required
-                        leaveReasonTextarea.value = 'Nghỉ 30 phút';
-                    }
-
-                    // Ẩn phần ghi chú cho nghỉ 30 phút
-                    if (notesSection) {
-                        notesSection.style.display = 'none';
-                    }
-
-                    // Cập nhật title trang
-                    document.title = document.title.replace('nghỉ phép', 'nghỉ 30 phút');
-
-                } else {
-                    // Chế độ nghỉ phép thông thường
-                    reasonLabel.innerHTML = 'Lý do nghỉ phép <span class="required">*</span>'; // Khôi phục dấu sao
-                    fromDateLabel.textContent = 'Từ ngày (Sau 11:59 là CH)';
-                    toDateLabel.textContent = 'Đến ngày (Sau 11:59 là CH)';
-                    lateEarlyTypeSection.style.display = 'none';
-                    attachmentsSection.style.display = 'block'; // Hiện phần chứng từ
-                    attachmentGuidelinesSection.style.display = 'block'; // Hiện phần hướng dẫn chứng từ
-                    reasonSectionTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Lý do nghỉ phép & Chứng từ đính kèm'; // Khôi phục title
-                    leaveDaysSection.style.display = 'block'; // Hiện phần số ngày nghỉ
-                    replacementSection.style.display = 'block'; // Hiện phần người thay thế
-                    requestTypeInput.value = 'leave';
-                    leaveReasonTextarea.placeholder = 'Vui lòng mô tả chi tiết lý do nghỉ phép...';
-                    leaveReasonTextarea.setAttribute('required', 'required'); // Khôi phục thuộc tính required
-
-                    // Hiện lại trường lý do cho nghỉ phép thông thường
-                    if (reasonFieldSection) {
-                        reasonFieldSection.style.display = 'block';
-                        leaveReasonTextarea.setAttribute('required', 'required'); // Khôi phục thuộc tính required
-                    }
-
-                    // Hiện phần ghi chú cho nghỉ phép thông thường
-                    if (notesSection) {
-                        notesSection.style.display = 'block';
-                    }
-
-                    // Cập nhật title trang
-                    document.title = document.title.replace('đi trễ/về sớm', 'nghỉ phép');
-                    document.title = document.title.replace('nghỉ 30 phút', 'nghỉ phép');
-
-                }
-            }
-
-            // Event listener cho dropdown loại đơn
-            document.getElementById('requestTypeSelect').addEventListener('change', function () {
-                const requestType = this.value;
-                window.updateFormMode(requestType);
-
-                // Hiển thị toast thông báo
-                try {
-                    let modeText = 'Nghỉ phép';
-                    if (requestType === 'late_early') modeText = 'Đi trễ/Về sớm';
-                    else if (requestType === '30min_break') modeText = 'Nghỉ 30 phút (dành cho nữ)';
-                    showToast(`🔄 Đã chuyển sang chế độ: ${modeText}`, 'info');
-                } catch (_) { }
-            });
-
-            // Debounce mechanism để tránh validation quá nhiều
-            let validationTimeout;
-            function debouncedValidation(callback, delay = 500) {
-                clearTimeout(validationTimeout);
-                validationTimeout = setTimeout(callback, delay);
-            }
-
-            // Event listener cho validation real-time của nghỉ 30 phút
-            const timeInputsForValidation = ['leave_from_time', 'leave_to_time', 'leave_from_date', 'leave_to_date'];
-            timeInputsForValidation.forEach(inputId => {
-                const input = document.getElementById(inputId);
-                if (input) {
-                    input.addEventListener('change', function () {
-                        const requestType = document.getElementById('requestTypeSelect').value;
-                        if (requestType === '30min_break') {
-                            // Sử dụng debounce để tránh validation quá nhiều
-                            debouncedValidation(() => {
-                                // Chỉ validate khi đã nhập đủ cả ngày và giờ
-                                const fromDate = document.getElementById('leave_from_date').value;
-                                const toDate = document.getElementById('leave_to_date').value;
-                                const fromTime = document.getElementById('leave_from_time').value;
-                                const toTime = document.getElementById('leave_to_time').value;
-
-                                // Chỉ validate khi có đủ thông tin
-                                if (fromDate && toDate && fromTime && toTime) {
-                                    const validation = validate30MinBreakMode();
-                                    if (validation.hasErrors) {
-                                        // Hiển thị lỗi real-time
-                                        showToast(validation.errorMessages.join('\n• '), 'error');
-                                    }
-                                }
-                            }, 300); // Delay 300ms
-                        }
-                    });
-                }
-            });
-
-            // Khởi tạo chế độ ban đầu
-            const initialMode = document.getElementById('requestTypeSelect').value;
-            window.updateFormMode(initialMode);
-
-            // Hàm validation chứng từ đính kèm
-            // Hàm validation đặc biệt cho nghỉ 30 phút
-            function validate30MinBreakMode() {
-                const requestType = document.getElementById('requestTypeSelect').value;
-                if (requestType !== '30min_break') return { hasErrors: false, errorMessages: [] };
-
-                const fromDate = document.getElementById('leave_from_date').value;
-                const toDate = document.getElementById('leave_to_date').value;
-                const fromTime = document.getElementById('leave_from_time').value;
-                const toTime = document.getElementById('leave_to_time').value;
-
-                let hasErrors = false;
-                let errorMessages = [];
-
-                // Kiểm tra ngày nghỉ phải cùng ngày (kiểm tra trước)
-                if (fromDate && toDate && fromDate !== toDate) {
-                    hasErrors = true;
-                    errorMessages.push('❌ Nghỉ 30 phút phải trong cùng 1 ngày');
-                }
-
-                // Kiểm tra thời gian nghỉ phải là chính xác 30 phút
-                if (fromTime && toTime) {
-                    const fromTimeParts = fromTime.split(':');
-                    const toTimeParts = toTime.split(':');
-
-                    // Kiểm tra format thời gian hợp lệ
-                    if (fromTimeParts.length !== 2 || toTimeParts.length !== 2) {
-                        hasErrors = true;
-                        errorMessages.push('❌ Định dạng thời gian không hợp lệ');
-                        return { hasErrors, errorMessages };
-                    }
-
-                    const fromHour = parseInt(fromTimeParts[0]);
-                    const fromMinute = parseInt(fromTimeParts[1]);
-                    const toHour = parseInt(toTimeParts[0]);
-                    const toMinute = parseInt(toTimeParts[1]);
-
-                    // Kiểm tra giá trị thời gian hợp lệ
-                    if (isNaN(fromHour) || isNaN(fromMinute) || isNaN(toHour) || isNaN(toMinute)) {
-                        hasErrors = true;
-                        errorMessages.push('❌ Thời gian không hợp lệ');
-                        return { hasErrors, errorMessages };
-                    }
-
-                    if (fromHour < 0 || fromHour > 23 || fromMinute < 0 || fromMinute > 59 ||
-                        toHour < 0 || toHour > 23 || toMinute < 0 || toMinute > 59) {
-                        hasErrors = true;
-                        errorMessages.push('❌ Thời gian không hợp lệ (giờ: 0-23, phút: 0-59)');
-                        return { hasErrors, errorMessages };
-                    }
-
-                    const fromMinutes = fromHour * 60 + fromMinute;
-                    const toMinutes = toHour * 60 + toMinute;
-                    const diffMinutes = toMinutes - fromMinutes;
-
-                    // Kiểm tra thời gian nghỉ phải là chính xác 30 phút
-                    if (diffMinutes !== 30) {
-                        hasErrors = true;
-                        errorMessages.push('❌ Nghỉ 30 phút phải có thời gian chính xác là 30 phút');
-                    }
-
-                    // Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu
-                    if (diffMinutes <= 0) {
-                        hasErrors = true;
-                        errorMessages.push('❌ Thời gian kết thúc phải sau thời gian bắt đầu');
-                    }
-                } else {
-                    // Nếu thiếu thời gian - không hiển thị lỗi để tránh spam
-                    // Chỉ validate khi đã có đủ thông tin
-                    return { hasErrors: false, errorMessages: [] };
-                }
-
-                return { hasErrors, errorMessages };
-            }
-
-            // Hàm validation đặc biệt cho đi trễ/về sớm
-            function validateLateEarlyMode() {
-                const requestType = document.getElementById('requestTypeSelect').value;
-                if (requestType !== 'late_early') return true; // Không cần validation đặc biệt cho nghỉ phép và nghỉ 30 phút
-
-                const lateEarlyType = document.getElementById('late_early_type').value;
-                const fromDate = document.getElementById('leave_from_date').value;
-                const toDate = document.getElementById('leave_to_date').value;
-                const fromTime = document.getElementById('leave_from_time').value;
-                const toTime = document.getElementById('leave_to_time').value;
-
-                let hasErrors = false;
-                let errorMessages = [];
-
-                // Kiểm tra loại đi trễ/về sớm
-                if (!lateEarlyType) {
-                    hasErrors = true;
-                    document.getElementById('late_early_type').classList.add('is-invalid');
-                    errorMessages.push('❌ Vui lòng chọn loại: Đi trễ hoặc Về sớm');
-                } else {
-                    document.getElementById('late_early_type').classList.remove('is-invalid');
-                }
-
-                // Kiểm tra ngày (đi trễ/về sớm thường chỉ trong 1 ngày)
-                if (fromDate && toDate && fromDate !== toDate) {
-                    hasErrors = true;
-                    document.getElementById('leave_to_date').classList.add('is-invalid');
-                    errorMessages.push('❌ Đi trễ/về sớm chỉ áp dụng trong cùng 1 ngày');
-                } else {
-                    document.getElementById('leave_to_date').classList.remove('is-invalid');
-                }
-
-                // Kiểm tra logic đi trễ/về sớm
-                if (lateEarlyType === 'late' && fromTime && toTime) {
-                    // Đi trễ: thời gian bắt đầu phải sau thời gian kết thúc (vì là cùng ngày)
-                    const fromMinutes = timeToMinutes(fromTime);
-                    const toMinutes = timeToMinutes(toTime);
-                    if (fromMinutes >= toMinutes) {
-                        hasErrors = true;
-                        document.getElementById('leave_from_time').classList.add('is-invalid');
-                        errorMessages.push('❌ Đi trễ: Thời gian bắt đầu phải trước thời gian kết thúc');
-                    }
-                } else if (lateEarlyType === 'early' && fromTime && toTime) {
-                    // Về sớm: thời gian bắt đầu phải trước thời gian kết thúc
-                    const fromMinutes = timeToMinutes(fromTime);
-                    const toMinutes = timeToMinutes(toTime);
-                    if (fromMinutes >= toMinutes) {
-                        hasErrors = true;
-                        document.getElementById('leave_to_time').classList.add('is-invalid');
-                        errorMessages.push('❌ Về sớm: Thời gian bắt đầu phải trước thời gian kết thúc');
-                    }
-                }
-
-                return {
-                    hasErrors: hasErrors,
-                    errorMessages: errorMessages
-                };
-            }
-
-            // Hàm kiểm tra ca làm việc khi chọn ngày
-            function checkShiftSelectionOnDateChange() {
-                const shiftSelect = document.getElementById('leave_shift_code');
-                const fromDateEl = document.getElementById('leave_from_date');
-                const toDateEl = document.getElementById('leave_to_date');
-
-                if (!shiftSelect || !fromDateEl || !toDateEl) return;
-
-                // Kiểm tra nếu đã chọn ngày mà chưa chọn ca
-                if ((fromDateEl.value || toDateEl.value) && !shiftSelect.value) {
-                    // Hiển thị lỗi trên dropdown ca làm việc
-                    shiftSelect.classList.add('is-invalid');
-
-                    // Hiển thị toast thông báo
-                    try {
-                        showToast('⚠️ Bạn đã chọn ngày nghỉ nhưng quên chọn ca làm việc! Vui lòng chọn ca làm việc trước.', 'warning');
-                    } catch (_) { }
-
-                    // Focus vào dropdown ca làm việc
-                    setTimeout(() => {
-                        shiftSelect.focus();
-                    }, 100);
-                } else if (shiftSelect.value) {
-                    // Nếu đã chọn ca thì bỏ lỗi
-                    shiftSelect.classList.remove('is-invalid');
-                }
-            }
-
-            // Hàm helper để chuyển đổi thời gian thành phút
-            function timeToMinutes(timeStr) {
-                if (!timeStr) return 0;
-
-                // Xử lý định dạng thời gian có thể có SA/CH/AM/PM
-                let cleanTimeStr = timeStr.replace(/\s*(SA|CH|AM|PM)\s*/gi, '').trim();
-
-                const [hours, minutes] = cleanTimeStr.split(':').map(Number);
-
-                // Xử lý đặc biệt cho các trường hợp 12:00
-                if (hours === 12) {
-                    // 12:00 SA = 12:00 trưa (PM) - trong tiếng Việt
-                    if (timeStr.includes('SA')) {
-                        return 12 * 60 + minutes; // 720 phút
-                    }
-                    // 12:00 CH = 12:00 chiều (PM) - trong tiếng Việt
-                    if (timeStr.includes('CH')) {
-                        return 12 * 60 + minutes; // 720 phút
-                    }
-                    // 12:00 PM = 12:00 trưa (PM) - chuẩn quốc tế
-                    if (timeStr.includes('PM')) {
-                        return 12 * 60 + minutes; // 720 phút
-                    }
-                    // 12:00 AM = 00:00 nửa đêm (AM) - chuẩn quốc tế
-                    if (timeStr.includes('AM')) {
-                        return 0; // 0 phút
-                    }
-                }
-
-                // Trả về số phút từ 00:00
-                return hours * 60 + minutes;
-            }
-
-            // Hàm cập nhật hình 2 với dữ liệu ngày
-            function updateImage2WithDateData() {
-                console.log('=== updateImage2WithDateData được gọi ===');
-                const fromDateEl = document.getElementById('leave_from_date');
-                const toDateEl = document.getElementById('leave_to_date');
-                const fromTimeEl = document.getElementById('leave_from_time');
-                const toTimeEl = document.getElementById('leave_to_time');
-                const shiftCodeEl = document.getElementById('leave_shift_code');
-
-                console.log('Elements found:', {
-                    fromDateEl: !!fromDateEl,
-                    toDateEl: !!toDateEl,
-                    fromTimeEl: !!fromTimeEl,
-                    toTimeEl: !!toTimeEl,
-                    shiftCodeEl: !!shiftCodeEl
-                });
-
-                if (!fromDateEl || !toDateEl || !fromTimeEl || !toTimeEl || !shiftCodeEl) {
-                    console.log('Thiếu elements, return');
-                    return;
-                }
-
-                const fromDate = fromDateEl.value;
-                const toDate = toDateEl.value;
-                const fromTime = fromTimeEl.value;
-                const toTime = toTimeEl.value;
-                const shiftCode = shiftCodeEl.value;
-
-                console.log('Values:', { fromDate, toDate, fromTime, toTime, shiftCode });
-
-                if (!fromDate || !toDate || !fromTime || !toTime) {
-                    console.log('Thiếu values, return');
-                    return;
-                }
-
-                // Tính toán khoảng thời gian thực tế
-                const fromDateObj = new Date(fromDate);
-                const toDateObj = new Date(toDate);
-                const actualLeaveDays = shiftCode ? calculateActualLeaveDays(fromDateObj, toDateObj, fromTime, toTime, shiftCode) : 0;
-
-                console.log('Actual leave days calculated:', actualLeaveDays);
-
-                // Cập nhật text trong hình 2 (phần hiển thị khoảng thời gian thực tế)
-                const requiredDaysElement = document.querySelector('.alert-info p:last-child');
-                console.log('Required days element found:', !!requiredDaysElement);
-                if (requiredDaysElement) {
-                    const newText = `Khoảng thời gian thực tế: ${actualLeaveDays} ngày (tính theo ca ${shiftCode})`;
-                    requiredDaysElement.innerHTML = newText;
-                    console.log('Updated text:', newText);
-                }
-
-                // Cập nhật trạng thái ngày
-                updateTotalDays();
-                console.log('=== updateImage2WithDateData hoàn thành ===');
-            }
-
-            // Hàm tính toán khoảng thời gian thực tế sử dụng phép
-            function calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) {
-                // Định nghĩa ca làm việc (bao gồm giờ nghỉ trưa)
-                const shiftMap = {
-                    '1': { start: '07:30', end: '16:30', breakStart: '11:30', breakEnd: '12:30' },
-                    '2': { start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' },
-                    '3': { start: '11:00', end: '20:00', breakStart: '15:00', breakEnd: '16:00' },
-                    '4': { start: '08:00', end: '17:00', breakStart: '12:00', breakEnd: '13:00' }
-                };
-
-                const shift = shiftMap[shiftCode] || shiftMap['1'];
-                const shiftStart = shift.start;
-                const shiftEnd = shift.end;
-                const breakStart = shift.breakStart;
-                const breakEnd = shift.breakEnd;
-
-                // // console.log(`--- Tính toán chi tiết cho Ca ${shiftCode} ---`);
-                // // console.log(`Ca làm việc: ${shiftStart} - ${shiftEnd} (nghỉ trưa: ${breakStart} - ${breakEnd})`);
-                // // console.log(`Thời gian xin nghỉ: ${fromTime} đến ${toTime}`);
-
-
-                const fromTimeMinutes = timeToMinutes(fromTime);
-                const toTimeMinutes = timeToMinutes(toTime);
-                const shiftStartMinutes = timeToMinutes(shiftStart);
-                const shiftEndMinutes = timeToMinutes(shiftEnd);
-                const breakStartMinutes = timeToMinutes(breakStart);
-                const breakEndMinutes = timeToMinutes(breakEnd);
-
-                // Debug: Log thời gian để kiểm tra
-                console.log('=== TIME CONVERSION DEBUG ===');
-                console.log('From time:', fromTime, '→', fromTimeMinutes, 'phút');
-                console.log('To time:', toTime, '→', toTimeMinutes, 'phút');
-                console.log('From time (hours):', Math.floor(fromTimeMinutes / 60), ':', (fromTimeMinutes % 60).toString().padStart(2, '0'));
-                console.log('To time (hours):', Math.floor(toTimeMinutes / 60), ':', (toTimeMinutes % 60).toString().padStart(2, '0'));
-                console.log('Is valid (from < to):', fromTimeMinutes < toTimeMinutes);
-                console.log('================================');
-
-                // Tính số ngày trong khoảng
-                const diffDays = Math.floor((toDate - fromDate) / (24 * 3600 * 1000)) + 1;
-                // // console.log(`Số ngày trong khoảng: ${diffDays}`);
-
-                if (diffDays === 1) {
-                    // Cùng ngày: tính theo giờ ca làm việc (trừ giờ nghỉ trưa)
-                    const workStart = Math.max(fromTimeMinutes, shiftStartMinutes);
-                    const workEnd = Math.min(toTimeMinutes, shiftEndMinutes);
-
-                    // // console.log(`Ngày ${fromDate.toLocaleDateString('vi-VN')}: Cùng ngày`);
-                    // // console.log(`Thời gian làm việc: ${Math.floor(workStart/60)}:${(workStart%60).toString().padStart(2,'0')} - ${Math.floor(workEnd/60)}:${(workEnd%60).toString().padStart(2,'0')}`);
-
-                    if (workStart >= workEnd) {
-                        // // console.log('Không có thời gian làm việc');
-                        return 0; // Không có thời gian làm việc
-                    }
-
-                    let workMinutes = workEnd - workStart;
-                    // // console.log(`Tổng phút làm việc (trước khi trừ nghỉ): ${workMinutes} phút`);
-
-                    // Trừ giờ nghỉ trưa nếu có giao với khoảng thời gian làm việc
-                    if (workStart < breakEndMinutes && workEnd > breakStartMinutes) {
-                        const breakStartInWork = Math.max(workStart, breakStartMinutes);
-                        const breakEndInWork = Math.min(workEnd, breakEndMinutes);
-                        if (breakStartInWork < breakEndInWork) {
-                            const breakMinutes = breakEndInWork - breakStartInWork;
-                            workMinutes -= breakMinutes;
-                            // // console.log(`Trừ giờ nghỉ trưa: ${breakMinutes} phút`);
-                        }
-                    }
-
-                    const workHours = workMinutes / 60;
-                    // Logic tính theo thời gian làm việc thực tế (trừ giờ nghỉ)
-                    // 1 ngày = 8 tiếng làm việc, 0.5 ngày = 4 tiếng làm việc
-                    const days = Math.round((workHours / 8) * 2) / 2; // Làm tròn đến 0.5
-
-                    // // console.log(`Sau khi trừ nghỉ: ${workMinutes} phút = ${workHours.toFixed(2)} giờ`);
-                    // // console.log(`Chuyển đổi thành ngày: ${workHours.toFixed(2)} giờ ÷ 8 = ${days} ngày (1 ngày = 8h làm việc)`);
-
-                    return days;
-                } else {
-                    // Nhiều ngày: tính từng ngày
-                    let totalDays = 0;
-                    // // console.log(`Nhiều ngày: ${diffDays} ngày`);
-
-                    for (let i = 0; i < diffDays; i++) {
-                        const currentDate = new Date(fromDate);
-                        currentDate.setDate(fromDate.getDate() + i);
-
-                        if (i === 0) {
-                            // Ngày đầu: từ fromTime đến cuối ca (17:00)
-                            const workStart = Math.max(fromTimeMinutes, shiftStartMinutes);
-                            const workEnd = shiftEndMinutes; // 17:00 = 1020 phút
-
-                            // console.log(`Ngày ${i+1} (${currentDate.toLocaleDateString('vi-VN')}): Ngày đầu`);
-                            // console.log(`Thời gian làm việc: ${Math.floor(workStart/60)}:${(workStart%60).toString().padStart(2,'0')} - ${Math.floor(workEnd/60)}:${(workEnd%60).toString().padStart(2,'0')}`);
-
-                            if (workStart < workEnd) {
-                                let workMinutes = workEnd - workStart;
-                                // // console.log(`Tổng phút làm việc (trước khi trừ nghỉ): ${workMinutes} phút`);
-
-                                // Trừ giờ nghỉ trưa (12:00-13:00) nếu có giao với khoảng thời gian làm việc
-                                if (workStart < breakEndMinutes && workEnd > breakStartMinutes) {
-                                    const breakStartInWork = Math.max(workStart, breakStartMinutes);
-                                    const breakEndInWork = Math.min(workEnd, breakEndMinutes);
-                                    if (breakStartInWork < breakEndInWork) {
-                                        const breakMinutes = breakEndInWork - breakStartInWork;
-                                        workMinutes -= breakMinutes;
-                                        // // console.log(`Trừ giờ nghỉ trưa: ${breakMinutes} phút`);
-                                    }
-                                }
-
-                                const workHours = workMinutes / 60;
-                                const dayDays = Math.round((workHours / 8) * 2) / 2;
-                                totalDays += dayDays;
-
-                                // console.log(`Sau khi trừ nghỉ: ${workMinutes} phút = ${workHours.toFixed(2)} giờ`);
-                                // console.log(`Chuyển đổi thành ngày: ${workHours.toFixed(2)} giờ ÷ 8 = ${dayDays} ngày`);
-                            } else {
-                                // // console.log('Không có thời gian làm việc');
-                            }
-                        } else if (i === diffDays - 1) {
-                            // Ngày cuối: từ đầu ca (08:00) đến toTime
-                            const workStart = shiftStartMinutes; // 08:00 = 480 phút
-                            let workEnd;
-
-                            // Xử lý trường hợp toTime là 12:00 AM (00:00) - nghĩa là không có thời gian làm việc ngày cuối
-                            if (toTimeMinutes === 0) {
-                                workEnd = 0; // Không có thời gian làm việc
-                            } else {
-                                // 12:00 PM = 720 phút, 17:00 = 1020 phút
-                                workEnd = Math.min(toTimeMinutes, shiftEndMinutes);
-                            }
-
-                            // console.log(`toTimeMinutes: ${toTimeMinutes}, shiftEndMinutes: ${shiftEndMinutes}, workEnd: ${workEnd}`);
-
-                            // console.log(`Ngày ${i+1} (${currentDate.toLocaleDateString('vi-VN')}): Ngày cuối`);
-                            // console.log(`Thời gian làm việc: ${Math.floor(workStart/60)}:${(workStart%60).toString().padStart(2,'0')} - ${Math.floor(workEnd/60)}:${(workEnd%60).toString().padStart(2,'0')}`);
-
-                            if (workStart < workEnd) {
-                                let workMinutes = workEnd - workStart;
-                                // // console.log(`Tổng phút làm việc (trước khi trừ nghỉ): ${workMinutes} phút`);
-
-                                // Trừ giờ nghỉ trưa (12:00-13:00) nếu có giao với khoảng thời gian làm việc
-                                if (workStart < breakEndMinutes && workEnd > breakStartMinutes) {
-                                    const breakStartInWork = Math.max(workStart, breakStartMinutes);
-                                    const breakEndInWork = Math.min(workEnd, breakEndMinutes);
-                                    if (breakStartInWork < breakEndInWork) {
-                                        const breakMinutes = breakEndInWork - breakStartInWork;
-                                        workMinutes -= breakMinutes;
-                                        // // console.log(`Trừ giờ nghỉ trưa: ${breakMinutes} phút`);
-                                    }
-                                }
-
-                                const workHours = workMinutes / 60;
-                                const dayDays = Math.round((workHours / 8) * 2) / 2;
-                                totalDays += dayDays;
-
-                                // console.log(`Sau khi trừ nghỉ: ${workMinutes} phút = ${workHours.toFixed(2)} giờ`);
-                                // console.log(`Chuyển đổi thành ngày: ${workHours.toFixed(2)} giờ ÷ 8 = ${dayDays} ngày`);
-                            } else {
-                                // // console.log('Không có thời gian làm việc');
-                            }
-                        } else {
-                            // Ngày giữa: nguyên ngày (8 giờ làm việc, trừ 1 giờ nghỉ = 7 giờ)
-                            // console.log(`Ngày ${i+1} (${currentDate.toLocaleDateString('vi-VN')}): Ngày giữa (nguyên ngày)`);
-                            // console.log(`Thời gian làm việc: ${shiftStart} - ${shiftEnd} (trừ nghỉ trưa ${breakStart} - ${breakEnd})`);
-                            // console.log(`Tính toán: 8 giờ - 1 giờ nghỉ = 7 giờ = 1.0 ngày`);
-                            totalDays += 1.0; // Nguyên ngày = 1.0 ngày
-                        }
-                    }
-
-                    // console.log(`Tổng cộng: ${totalDays} ngày`);
-                    return totalDays;
-                }
-
-                // Expose hàm ra global để các script khác (submit handler cuối file) cũng dùng được
-                window.calculateActualLeaveDays = calculateActualLeaveDays;
-            }
-
-            // Khởi tạo lần đầu
-            enforceDateRange(false);
-            updateTotalDays();
-
-            // Khởi tạo form mode khi trang load
-            const requestType = document.getElementById('requestTypeSelect').value;
-            window.updateFormMode(requestType);
-
-            // Kiểm tra nếu đây là form sửa và là đi trễ/về sớm
-            const requestTypeInput = document.getElementById('requestType');
-            if (requestTypeInput && requestTypeInput.value === 'late_early') {
-                // Đây là form sửa đi trễ/về sớm, cần ẩn các trường không cần thiết
-                window.updateFormMode('late_early');
-            }
-        });
-
-        // File preview function
-        function previewFiles(input) {
-            const preview = document.getElementById('file-preview');
-            const fileList = document.getElementById('file-list');
-
-            if (input.files.length > 0) {
-                preview.style.display = 'block';
-                fileList.innerHTML = '';
-
-                Array.from(input.files).forEach((file, index) => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-
-                    const fileInfo = document.createElement('div');
-                    fileInfo.innerHTML = `
-                        <i class="fas fa-file me-2"></i>
-                        <strong>${file.name}</strong>
-                        <small class="text-muted ms-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</small>
-                    `;
-
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.className = 'btn btn-sm btn-outline-danger';
-                    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-                    removeBtn.onclick = function () {
-                        removeFile(input, index);
-                    };
-
-                    fileItem.appendChild(fileInfo);
-                    fileItem.appendChild(removeBtn);
-                    fileList.appendChild(fileItem);
-                });
-            } else {
-                preview.style.display = 'none';
-            }
-        }
-
-        // Remove file function
-        function removeFile(input, index) {
-            const dt = new DataTransfer();
-            Array.from(input.files).forEach((file, i) => {
-                if (i !== index) {
-                    dt.items.add(file);
-                }
-            });
-            input.files = dt.files;
-            previewFiles(input);
-        }
-
-
-
-        // Form validation - moved to DOMContentLoaded event listener
-        /*
-        document.getElementById('leaveRequestForm').addEventListener('submit', function(e) {
-            // console.log('[DEBUG] Form submit event triggered');
-            // Ngăn chặn submit mặc định để hiển thị popup xác nhận
-            e.preventDefault();
-            
-            const requiredFields = ['employee_name', 'team', 'employee_code', 'leave_reason', 'leave_from_date', 'leave_from_time', 'leave_to_date', 'leave_to_time', 'leave_shift_code'];
-            
-            for (let field of requiredFields) {
-                if (!document.getElementById(field).value) {
-                    // console.log('[DEBUG] Validation failed for field:', field);
-                    showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
-                    document.getElementById(field).focus();
-                    return;
-                }
-            }
-            // console.log('[DEBUG] Required fields validation passed');
-
-            // Thông tin người thay thế (không bắt buộc): không chặn submit nếu trống
-            
-            // Validate date range
-            const fromDate = new Date(document.getElementById('leave_from_date').value);
-            const toDate = new Date(document.getElementById('leave_to_date').value);
-            
-            if (fromDate > toDate) {
-                // console.log('[DEBUG] Date validation failed: fromDate > toDate');
-                showToast('Ngày bắt đầu không được lớn hơn ngày kết thúc', 'error');
-                document.getElementById('leave_from_date').focus();
-                return;
-            }
-            // console.log('[DEBUG] Date validation passed');
-
-            // Tính toán chính xác khoảng thời gian sử dụng phép (chỉ cho nghỉ phép)
-            const requestType = document.getElementById('requestTypeSelect').value;
-            if (requestType === 'leave') {
-            const parseNum = (v) => parseFloat(v || '0') || 0;
-            const totalRequested = parseNum(document.getElementById('annual_leave_days').value)
-                                  + parseNum(document.getElementById('unpaid_leave_days').value)
-                                  + parseNum(document.getElementById('special_leave_days').value);
-            
-            // Lấy thông tin ca làm việc
-            const shiftCode = document.getElementById('leave_shift_code').value;
-            let fromTime = document.getElementById('leave_from_time').value;
-            let toTime = document.getElementById('leave_to_time').value;
-            
-            // Normalize thời gian để xử lý đúng định dạng SA/CH/AM/PM
-            fromTime = normalizeTimeFormat(fromTime);
-            toTime = normalizeTimeFormat(toTime);
-            
-            // Tính toán khoảng thời gian thực tế sử dụng phép (theo ca làm việc)
-            const actualLeaveDays = shiftCode ? window.calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
-            
-            // Gửi kết quả tính toán lên server
-            let calculatedDaysInput = document.getElementById('calculated_leave_days');
-            if (!calculatedDaysInput) {
-                calculatedDaysInput = document.createElement('input');
-                calculatedDaysInput.type = 'hidden';
-                calculatedDaysInput.name = 'calculated_leave_days';
-                calculatedDaysInput.id = 'calculated_leave_days';
-                document.getElementById('leaveRequestForm').appendChild(calculatedDaysInput);
-            }
-            calculatedDaysInput.value = actualLeaveDays;
-            
-            // Log chi tiết tính toán
-            // console.log('=== TÍNH TOÁN ĐƠN NGHỈ PHÉP ===');
-            // console.log(`Khoảng thời gian: ${fromDate.toLocaleDateString('vi-VN')} ${fromTime} đến ${toDate.toLocaleDateString('vi-VN')} ${toTime}`);
-            // console.log(`Ca làm việc: Ca ${shiftCode} (${document.getElementById('leave_shift_code').selectedOptions[0].text})`);
-            // console.log(`Khoảng thời gian thực tế sử dụng phép: ${actualLeaveDays} ngày`);
-            // console.log(`Tổng số ngày xin nghỉ: ${totalRequested} ngày`);
-            // console.log(`Phân bổ: Phép năm ${parseNum(document.getElementById('annual_leave_days').value)} + Nghỉ không lương ${parseNum(document.getElementById('unpaid_leave_days').value)} + Nghỉ đặc biệt ${parseNum(document.getElementById('special_leave_days').value)}`);
-            // console.log('================================');
-            
-            // Kiểm tra tổng số ngày xin nghỉ phải lớn hơn 0
-            if (totalRequested <= 0) {
-                e.preventDefault();
-                showToast('Tổng số ngày xin nghỉ phải lớn hơn 0', 'error');
-                return;
-            }
-            
-            // Kiểm tra tổng số ngày xin nghỉ phải bằng chính xác khoảng thời gian thực tế
-            if (totalRequested !== actualLeaveDays) {
-                if (totalRequested > actualLeaveDays) {
-                    showToast(`Bạn đã xin quá nhiều! Cần giảm xuống còn ${actualLeaveDays} ngày để gửi đơn.`, 'error');
-                } else {
-                    showToast(`Bạn chưa xin đủ! Cần thêm ${actualLeaveDays - totalRequested} ngày nữa để gửi đơn.`, 'error');
-                }
-                return;
-            }
-            
-            // Kiểm tra số ngày xin nghỉ phải là bội số của 0.5
-            if (totalRequested % 0.5 !== 0) {
-                showToast('Tổng số ngày xin nghỉ phải là bội số của 0.5 (0.5, 1.0, 1.5, 2.0, ...)', 'error');
-                return;
-            }
-            
-            // Kiểm tra ít nhất phải có 1 loại nghỉ phép được chọn
-            if (totalRequested === 0) {
-                showToast('Vui lòng chọn ít nhất một loại nghỉ phép (phép năm, nghỉ không lương, hoặc nghỉ đặc biệt)', 'error');
-                return;
-            }
-            
-            // Validate file size
-            const fileInput = document.getElementById('attachments');
-            if (fileInput.files.length > 0) {
-                for (let file of fileInput.files) {
-                    if (file.size > 10 * 1024 * 1024) { // 10MB
-                        e.preventDefault();
-                        showToast(`File "${file.name}" vượt quá kích thước cho phép (10MB)`, 'error');
-                        return;
-                    }
-                }
-            }
-            
-            // Validate half-day multiples (chỉ cho nghỉ phép)
-            if (!isLateEarly) {
-            const fields = ['annual_leave_days','unpaid_leave_days','special_leave_days'];
-            for (let id of fields) {
-                const v = document.getElementById(id).value;
-                if (v && !((parseFloat(v) * 2) % 1 === 0)) {
-                    showToast('Số ngày nghỉ phải là bội số của 0.5 (ví dụ 0.5, 1, 1.5)', 'error');
-                    document.getElementById(id).focus();
-                    return;
-                    }
-                }
-            }
-            
-            // Đóng ngoặc cho validation nghỉ phép
-            }
-            
-            // Hiển thị popup xác nhận gửi email
-            // console.log('[DEBUG] About to show email confirmation dialog');
-            showEmailConfirmationDialog();
-        });
-        */
-
-        // Hàm hiển thị popup xác nhận gửi email
-        function showEmailConfirmationDialog() {
-            // console.log('[DEBUG] showEmailConfirmationDialog called');
-            // console.log('[DEBUG] Swal available:', typeof Swal);
-            Swal.fire({
-                title: '📧 Xác nhận gửi email thông báo',
-                html: `
-                    <div class="text-center">
-                        <i class="fas fa-envelope text-primary mb-3" style="font-size: 3rem;"></i>
-                        <p class="mb-3">Bạn có muốn gửi email thông báo đơn nghỉ phép này đến phòng nhân sự không?</p>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Lưu ý:</strong> Email sẽ được gửi đến <code>dmihue-nhansu01@acraft.jp</code>
-                        </div>
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="fas fa-paper-plane me-1"></i> Có, gửi email',
-                cancelButtonText: '<i class="fas fa-times me-1"></i> Không gửi email',
-                reverseButtons: true,
-                customClass: {
-                    popup: 'swal2-popup-custom',
-                    confirmButton: 'btn btn-success',
-                    cancelButton: 'btn btn-secondary'
-                },
-                buttonsStyling: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Người dùng đồng ý gửi email
-                    submitFormWithEmail(true);
-                } else {
-                    // Người dùng không muốn gửi email
-                    submitFormWithEmail(false);
-                }
-            });
-        }
-
-        // Hàm submit form với hoặc không có email
-        function submitFormWithEmail(sendEmail) {
-            // console.log('[DEBUG] submitFormWithEmail called with sendEmail:', sendEmail);
-
-            // Xóa input cũ nếu có
-            let oldInput = document.getElementById('email_consent');
-            if (oldInput) {
-                oldInput.remove();
-            }
-
-            // Thêm hidden input để báo cho server biết có gửi email hay không
-            let emailConsentInput = document.createElement('input');
-            emailConsentInput.type = 'hidden';
-            emailConsentInput.name = 'email_consent';
-            emailConsentInput.id = 'email_consent';
-            emailConsentInput.value = sendEmail ? 'yes' : 'no';
-            document.getElementById('leaveRequestForm').appendChild(emailConsentInput);
-
-            // console.log('[DEBUG] Created email_consent input with value:', emailConsentInput.value);
-            // console.log('[DEBUG] Form action:', document.getElementById('leaveRequestForm').action);
-
-            // Hiển thị thông báo
-            if (sendEmail) {
-                showToast('Đang gửi đơn nghỉ phép và email thông báo...', 'info');
-            } else {
-                showToast('Đang gửi đơn nghỉ phép (không gửi email)...', 'info');
-            }
-
-            // Submit form
-            document.getElementById('leaveRequestForm').submit();
-        }
-
-        // Hàm hiển thị Toast (sử dụng SweetAlert2 giống dashboard)
-        function showToast(message, type = 'success') {
-            // console.log('Showing toast:', message, type);  // Debug log
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
-                }
-            });
-
-            let icon = type;
-            if (type === 'success') icon = 'success';
-            else if (type === 'error') icon = 'error';
-            else if (type === 'warning') icon = 'warning';
-            else if (type === 'info') icon = 'info';
-
-            Toast.fire({
-                icon: icon,
-                title: message
-            });
-        }
-
-    </script>
-    <script>
-        // Fallback global normalizeTimeFormat để dùng trong submit handler (khi hàm local không sẵn có trong scope)
-        if (typeof normalizeTimeFormat !== 'function') {
-            function normalizeTimeFormat(timeStr) {
-                if (!timeStr) return '00:00';
-                if (timeStr.includes('12:00')) {
-                    if (/SA/i.test(timeStr)) return '12:00';
-                    if (/CH/i.test(timeStr)) return '12:00';
-                    if (/PM/i.test(timeStr)) return '12:00';
-                    if (/AM/i.test(timeStr)) return '00:00';
-                }
-                return timeStr.replace(/\s*(SA|CH|AM|PM)\s*/gi, '').trim();
-            }
-        }
-
-        // Fallback global calculateActualLeaveDays để dùng trong submit handler nếu chưa có
-        if (typeof window.calculateActualLeaveDays !== 'function') {
-            function _timeToMinutesGlobal(timeStr) {
-                if (!timeStr) return 0;
-                let clean = String(timeStr).replace(/\s*(SA|CH|AM|PM)\s*/gi, '').trim();
-                const [hStr, mStr] = clean.split(':');
-                const h = parseInt(hStr || '0', 10);
-                const m = parseInt(mStr || '0', 10);
-                return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
-            }
-
-            window.calculateActualLeaveDays = function (fromDate, toDate, fromTime, toTime, shiftCode) {
-                const shiftMap = {
-                    '1': { start: '07:30', end: '16:30', breakStart: '11:30', breakEnd: '12:30' },
-                    '2': { start: '09:00', end: '18:00', breakStart: '13:00', breakEnd: '14:00' },
-                    '3': { start: '11:00', end: '20:00', breakStart: '15:00', breakEnd: '16:00' },
-                    '4': { start: '08:00', end: '17:00', breakStart: '12:00', breakEnd: '13:00' }
-                };
-                const shift = shiftMap[shiftCode] || shiftMap['1'];
-                const fromMinutes = _timeToMinutesGlobal(fromTime);
-                const toMinutes = _timeToMinutesGlobal(toTime);
-                const startShift = _timeToMinutesGlobal(shift.start);
-                const endShift = _timeToMinutesGlobal(shift.end);
-                const breakStart = _timeToMinutesGlobal(shift.breakStart);
-                const breakEnd = _timeToMinutesGlobal(shift.breakEnd);
-
-                const diffDays = Math.floor((toDate - fromDate) / (24 * 3600 * 1000)) + 1;
-                if (diffDays <= 0) return 0;
-
-                const calcOneDay = (workStart, workEnd) => {
-                    if (workStart >= workEnd) return 0;
-                    let workMinutes = workEnd - workStart;
-                    if (workStart < breakEnd && workEnd > breakStart) {
-                        const bs = Math.max(workStart, breakStart);
-                        const be = Math.min(workEnd, breakEnd);
-                        if (bs < be) workMinutes -= (be - bs);
-                    }
-                    const hours = workMinutes / 60;
-                    return Math.round((hours / 8) * 2) / 2;
-                };
-
-                if (diffDays === 1) {
-                    const ws = Math.max(fromMinutes, startShift);
-                    const we = Math.min(toMinutes, endShift);
-                    return calcOneDay(ws, we);
-                }
-
-                let total = 0;
-                for (let i = 0; i < diffDays; i++) {
-                    if (i === 0) {
-                        const ws = Math.max(fromMinutes, startShift);
-                        const we = endShift;
-                        total += calcOneDay(ws, we);
-                    } else if (i === diffDays - 1) {
-                        const ws = startShift;
-                        const we = Math.min(toMinutes || endShift, endShift);
-                        total += calcOneDay(ws, we);
-                    } else {
-                        total += 1.0;
-                    }
-                }
-                return total;
-            };
-        }
-
-        // Hiển thị loading khi nộp/sửa đơn, đồng thời reset guard để cho phép hiện toast success mới
-        document.addEventListener('DOMContentLoaded', function () {
-            try {
-                const candidateForms = Array.from(document.querySelectorAll('form'))
-                    .filter(f => (f.getAttribute('action') || '').includes('/leave-request'));
-                candidateForms.forEach(form => {
-                    form.addEventListener('submit', function (e) {
-                        // Ngăn chặn submit mặc định để xử lý qua popup
-                        e.preventDefault();
-
-                        // console.log('[DEBUG] Form submit event triggered (DOMContentLoaded)');
-
-                        // Validation tổng quát - kiểm tra tất cả lỗi có thể xảy ra
-                        const validationResult = validateAllFields();
-
-                        if (validationResult.hasErrors) {
-                            // Hiển thị tất cả lỗi
-                            const errorMessage = validationResult.errorMessages.join('\n• ');
-                            showToast(`❌ Có lỗi trong form:\n• ${errorMessage}`, 'error');
-
-                            // Focus vào field đầu tiên có lỗi
-                            const firstErrorField = document.querySelector('.is-invalid');
-                            if (firstErrorField) {
-                                firstErrorField.focus();
-                            }
-                            return;
-                        }
-
-                        // Nếu không có lỗi, tiếp tục với việc tính toán và gửi form (chỉ cho nghỉ phép)
-                        const requestType = document.getElementById('requestTypeSelect').value;
-                        if (requestType === 'leave') {
-                            const parseNum = (v) => parseFloat(v || '0') || 0;
-                            const totalRequested = parseNum(document.getElementById('annual_leave_days').value)
-                                + parseNum(document.getElementById('unpaid_leave_days').value)
-                                + parseNum(document.getElementById('special_leave_days').value);
-
-                            // Lấy thông tin ca làm việc
-                            // Lấy thông tin ca làm việc
-                            const shiftCode = document.getElementById('leave_shift_code').value;
-                            let fromTime = document.getElementById('leave_from_time').value;
-                            let toTime = document.getElementById('leave_to_time').value;
-
-                            // Normalize thời gian để xử lý đúng định dạng SA/CH/AM/PM
-                            fromTime = normalizeTimeFormat(fromTime);
-                            toTime = normalizeTimeFormat(toTime);
-
-                            // Tính toán khoảng thời gian thực tế sử dụng phép (theo ca làm việc)
-                            const fromDate = new Date(document.getElementById('leave_from_date').value);
-                            const toDate = new Date(document.getElementById('leave_to_date').value);
-                            const actualLeaveDays = shiftCode ? window.calculateActualLeaveDays(fromDate, toDate, fromTime, toTime, shiftCode) : 0;
-
-                            // Gửi kết quả tính toán lên server
-                            let calculatedDaysInput = document.getElementById('calculated_leave_days');
-                            if (!calculatedDaysInput) {
-                                calculatedDaysInput = document.createElement('input');
-                                calculatedDaysInput.type = 'hidden';
-                                calculatedDaysInput.name = 'calculated_leave_days';
-                                calculatedDaysInput.id = 'calculated_leave_days';
-                                document.getElementById('leaveRequestForm').appendChild(calculatedDaysInput);
-                            }
-                            calculatedDaysInput.value = actualLeaveDays;
-
-                            // Cho phép hiển thị lại toast success cho request mới
-                            try { localStorage.removeItem('email_status_shown_request_id'); } catch (e) { }
-
-                            // Gọi popup xác nhận email thay vì submit trực tiếp
-                            showEmailConfirmationDialog();
-                        } else {
-                            // Cho đi trễ/về sớm và nghỉ 30 phút, submit trực tiếp không cần validation số ngày nghỉ
-
-                            // Auto-fill shift_code cho đơn nghỉ 30 phút nếu chưa có
-                            if (requestType === '30min_break') {
-                                const shiftCodeSelect = document.getElementById('leave_shift_code');
-                                if (shiftCodeSelect && !shiftCodeSelect.value) {
-                                    // Auto-fill với ca 2 (mặc định) để backend không lỗi
-                                    shiftCodeSelect.value = '2';
-                                }
-                            }
-
-                            showEmailConfirmationDialog();
-                        }
-                    }, { once: true });
-                });
-            } catch (err) {
-                console.error("Error in DOMContentLoaded:", err);
-            }
-
-            // Khởi tạo logic tự động điền cho nghỉ 30 phút
-            setup30MinBreakAutoFill();
-            // Khởi tạo logic tự động điền cho đi trễ/về sớm
-            setupLateEarlyAutoFill();
-        });
-
-        // Hàm thiết lập logic tự động điền cho loại nghỉ "Nghỉ 30 phút (dành cho nữ)"
-        function setup30MinBreakAutoFill() {
-            const requestTypeSelect = document.getElementById('requestTypeSelect');
-            const fromDateInput = document.getElementById('leave_from_date');
-            const toDateInput = document.getElementById('leave_to_date');
-            const fromTimeInput = document.getElementById('leave_from_time');
-            const toTimeInput = document.getElementById('leave_to_time');
-
-            if (!requestTypeSelect || !fromDateInput || !toDateInput || !fromTimeInput || !toTimeInput) return;
-
-            // Helper function to add minutes to a time string (HH:mm)
-            function addMinutes(timeStr, minutesToAdd) {
-                if (!timeStr) return '';
-
-                // Parse time
-                const [hours, minutes] = timeStr.split(':').map(Number);
-
-                // Create date object to handle overflow
-                const date = new Date();
-                date.setHours(hours);
-                date.setMinutes(minutes);
-
-                // Add minutes
-                date.setMinutes(date.getMinutes() + minutesToAdd);
-
-                // Format back to HH:mm
-                const newHours = String(date.getHours()).padStart(2, '0');
-                const newMinutes = String(date.getMinutes()).padStart(2, '0');
-
-                return `${newHours}:${newMinutes}`;
-            }
-
-            // Helper function to perform the auto-fill
-            function autoFill30Min() {
-                if (requestTypeSelect.value === '30min_break') {
-                    // 1. Sync Date: To Date = From Date
-                    if (fromDateInput.value) {
-                        toDateInput.value = fromDateInput.value;
-                        // Trigger change event to update days calculation if needed
-                        toDateInput.dispatchEvent(new Event('change'));
-                    }
-
-                    // 2. Sync Time: To Time = From Time + 30 mins
-                    if (fromTimeInput.value) {
-                        const newToTime = addMinutes(fromTimeInput.value, 30);
-                        toTimeInput.value = newToTime;
-                        // Trigger change event to update days calculation if needed
-                        toTimeInput.dispatchEvent(new Event('change'));
-                    }
-                }
-            }
-
-            // Event 1: When Request Type changes
-            requestTypeSelect.addEventListener('change', function () {
-                const shiftSection = document.getElementById('shiftSelectionSection');
-                const shiftCodeSelect = document.getElementById('leave_shift_code');
-
-                if (this.value === '30min_break') {
-                    // Ẩn section chọn ca cho đơn nghỉ 30 phút
-                    if (shiftSection) {
-                        shiftSection.style.display = 'none';
-                    }
-                    // Bỏ required attribute
-                    if (shiftCodeSelect) {
-                        shiftCodeSelect.removeAttribute('required');
-                        shiftCodeSelect.classList.remove('is-invalid');
-                    }
-                    // Auto-fill thời gian
-                    autoFill30Min();
-                } else {
-                    // Hiện lại section chọn ca cho các loại đơn khác
-                    if (shiftSection) {
-                        shiftSection.style.display = '';
-                    }
-                    // Thêm lại required attribute
-                    if (shiftCodeSelect) {
-                        shiftCodeSelect.setAttribute('required', 'required');
-                    }
-                }
-            });
-
-            // Event 2: When From Date changes
-            fromDateInput.addEventListener('change', function () {
-                if (requestTypeSelect.value === '30min_break') {
-                    // Sync date immediately
-                    toDateInput.value = this.value;
-                    toDateInput.dispatchEvent(new Event('change'));
-                }
-            });
-
-            // Event 3: When From Time changes (blur/focusout)
-            fromTimeInput.addEventListener('change', function () {
-                if (requestTypeSelect.value === '30min_break') {
-                    autoFill30Min();
-                }
-            });
-
-            // Also listen to blur for better UX
-            fromTimeInput.addEventListener('blur', function () {
-                if (requestTypeSelect.value === '30min_break') {
-                    autoFill30Min();
-                }
-            });
-
-            // Trigger initial state on page load (for edit mode)
-            if (requestTypeSelect.value === '30min_break') {
-                const shiftSection = document.getElementById('shiftSelectionSection');
-                const shiftCodeSelect = document.getElementById('leave_shift_code');
-
-                if (shiftSection) {
-                    shiftSection.style.display = 'none';
-                }
-                if (shiftCodeSelect) {
-                    shiftCodeSelect.removeAttribute('required');
-                }
-            }
-        }
-
-        // Hàm thiết lập logic tự động điền cho loại nghỉ "Đi trễ/Về sớm"
-        function setupLateEarlyAutoFill() {
-            const requestTypeSelect = document.getElementById('requestTypeSelect');
-            const fromDateInput = document.getElementById('leave_from_date');
-            const toDateInput = document.getElementById('leave_to_date');
-
-            if (!requestTypeSelect || !fromDateInput || !toDateInput) return;
-
-            // Event: When From Date changes (blur)
-            fromDateInput.addEventListener('blur', function () {
-                if (requestTypeSelect.value === 'late_early') {
-                    // Sync date: To Date = From Date (vì đi trễ/về sớm luôn trong cùng 1 ngày)
-                    if (this.value) {
-                        toDateInput.value = this.value;
-                        // Trigger change event để update validation nếu cần
-                        toDateInput.dispatchEvent(new Event('change'));
-                    }
-                }
-            });
-
-            // Trigger initial state on page load (for edit mode)
-            if (requestTypeSelect.value === 'late_early') {
-                if (fromDateInput.value && !toDateInput.value) {
-                    toDateInput.value = fromDateInput.value;
-                }
-            }
-        }
-
-
-
-    </script>
-    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
-    <!-- Tạm thời ẩn chatbot AI -->
-    {# {% include 'chatbot_widget.html' %} #}
-</body>
-
-</html>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Global Email Notification -->
+<script src="{{ url_for('static', filename='js/global-email-notification.js') }}?v=20241201"></script>
+<script src="{{ url_for('static', filename='js/leave-request-form.js') }}"></script>
+{% endblock %}

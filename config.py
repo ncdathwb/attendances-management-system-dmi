@@ -89,7 +89,14 @@ class Config:
     MAIL_FROM = os.environ.get('MAIL_FROM') or os.environ.get('SMTP_USER')
     
     # HR Email Configuration
-    HR_EMAIL = os.environ.get('HR_EMAIL') or 'dmihue-nhansu01@acraft.jp'
+    DEFAULT_HR_EMAIL = os.environ.get('DEFAULT_HR_EMAIL')
+    if not DEFAULT_HR_EMAIL:
+        import warnings
+        warnings.warn(
+            "DEFAULT_HR_EMAIL chưa được set trong .env! Email notifications sẽ không hoạt động.",
+            UserWarning
+        )
+        DEFAULT_HR_EMAIL = None  # Không dùng hardcoded fallback
 
     # G3: CORS Configuration
     CORS_ENABLED = os.environ.get('CORS_ENABLED', 'False').lower() == 'true'
@@ -103,6 +110,12 @@ class DevelopmentConfig(Config):
     TESTING = False
     SESSION_COOKIE_SECURE = False
     SECURITY_HEADERS = {}
+    
+    # Fix CSRF/Session for local development
+    WTF_CSRF_SSL_STRICT = False
+    SESSION_COOKIE_DOMAIN = None
+    SESSION_COOKIE_SAMESITE = 'Lax'
+
 
 class ProductionConfig(Config):
     DEBUG = False

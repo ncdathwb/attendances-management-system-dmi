@@ -1,78 +1,77 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Hệ thống chấm công</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .toggle-password {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #666;
-            z-index: 10;
-            font-size: 16px;
-        }
-        .toggle-password:hover {
-            color: #333;
-        }
-        .input-icon-group {
-            position: relative;
-        }
-    </style>
-</head>
-<body class="login-bg">
-    {% block content %}
-    <div class="login-container">
-        <form method="POST" action="{{ url_for('login') }}" class="login-box login-form simple-login">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <h1 class="login-title">Đăng nhập</h1>
+{% extends "base/base.html" %}
 
-            <div class="alert alert-danger" id="login-alert" {% if not messages %}style="visibility:hidden;"{% endif %}>
-                {% if messages %}
-                    {{ messages[0] }}
-                {% else %}
-                    &nbsp;
-                {% endif %}
+{% block title %}Đăng nhập - Hệ thống chấm công{% endblock %}
+
+{% block body_class %}login-bg{% endblock %}
+
+{% block extra_css %}
+<style>
+    .toggle-password {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #666;
+        z-index: 10;
+        font-size: 16px;
+    }
+    .toggle-password:hover {
+        color: #333;
+    }
+    .input-icon-group {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <form method="POST" action="{{ url_for('login') }}" class="login-box login-form simple-login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h1 class="login-title">Đăng nhập</h1>
+
+        <div class="alert alert-danger" id="login-alert" {% if not messages %}style="visibility:hidden;"{% endif %}>
+            {% if messages %}
+                {{ messages[0] }}
+            {% else %}
+                &nbsp;
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="username">Tên đăng nhập</label>
+            <div class="input-icon-group">
+                <span class="input-icon user-icon"></span>
+                <input type="text" id="username" name="username" required autocomplete="off" value="{{ remembered_username or '' }}">
             </div>
+        </div>
 
-            <div class="form-group">
-                <label for="username">Tên đăng nhập</label>
-                <div class="input-icon-group">
-                    <span class="input-icon user-icon"></span>
-                    <input type="text" id="username" name="username" required autocomplete="off" value="{{ remembered_username or '' }}">
-                </div>
+        <div class="form-group">
+            <label for="password">Mật khẩu</label>
+            <div class="input-icon-group">
+                <span class="input-icon lock-icon"></span>
+                <input type="password" id="password" name="password" required autocomplete="off">
+                <span class="toggle-password" title="Hiện/ẩn mật khẩu">
+                    <i class="fa fa-eye"></i>
+                </span>
             </div>
+        </div>
 
-            <div class="form-group">
-                <label for="password">Mật khẩu</label>
-                <div class="input-icon-group">
-                    <span class="input-icon lock-icon"></span>
-                    <input type="password" id="password" name="password" required autocomplete="off">
-                    <span class="toggle-password" title="Hiện/ẩn mật khẩu">
-                        <i class="fa fa-eye"></i>
-                    </span>
-                </div>
-            </div>
+        <div class="form-row remember-row">
+            <input type="checkbox" name="remember" id="remember" {% if remember_checked %}checked{% endif %}>
+            <label for="remember" class="remember-label">Ghi nhớ</label>
+        </div>
 
-            <div class="form-row remember-row">
-                <input type="checkbox" name="remember" id="remember" {% if remember_checked %}checked{% endif %}>
-                <label for="remember" class="remember-label">Ghi nhớ</label>
-            </div>
+        <button type="submit" class="btn btn-green btn-block">Đăng nhập</button>
 
-            <button type="submit" class="btn btn-green btn-block">Đăng nhập</button>
+        <div class="form-row forgot-row">
+            <a href="{{ url_for('forgot_password') }}" class="forgot-link">Quên mật khẩu?</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
 
-            <div class="form-row forgot-row">
-                <a href="{{ url_for('forgot_password') }}" class="forgot-link">Quên mật khẩu?</a>
-            </div>
-        </form>
-    </div>
-    {% endblock %}
-    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
-</body>
-</html> 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

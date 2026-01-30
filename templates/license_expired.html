@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Hết Hạn</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+
+        p {
+            color: #333;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .refresh-info {
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>⚠️ License Hết Hạn</h1>
+        <p>{{ message }}</p>
+        <div class="refresh-info">
+            Hệ thống đang tự động kiểm tra lại license mỗi 60 giây.<br>
+            Vui lòng đợi trong giây lát...
+        </div>
+    </div>
+    <script>
+        // Tự động reload sau 65 giây để kiểm tra lại license
+        setTimeout(function () {
+            location.reload();
+        }, 65000);
+    </script>
+</body>
+
+</html>

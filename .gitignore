@@ -48,6 +48,7 @@ coverage.xml
 
 # Google API credentials and tokens
 credentials.json
+token.json
 token.pickle
 token_backup_*.pickle
 last_token_refresh.txt

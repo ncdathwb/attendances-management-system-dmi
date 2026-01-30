@@ -1,0 +1,142 @@
+/* Sidebar Styles */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 220px;
+    background-color: var(--primary-color, #2c3e50);
+    padding: 15px;
+    color: white;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+    padding: 20px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* User Profile */
+.user-profile {
+    padding: 20px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+}
+
+.user-avatar i {
+    font-size: 24px;
+    color: white;
+}
+
+.user-info h4 {
+    margin: 0 0 5px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.user-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* Navigation Menu */
+.nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0 0 0;
+}
+
+.nav-item {
+    margin: 0;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+    margin: 5px 0;
+    border-radius: 5px;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar .nav-link:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--accent-color, #3498db);
+}
+
+.sidebar .nav-link.active {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-left-color: var(--accent-color, #3498db);
+}
+
+.sidebar .nav-link i {
+    width: 20px;
+    margin-right: 12px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* Role Switcher */
+.role-switcher {
+    margin-top: 10px;
+}
+
+.role-switcher label {
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.role-switcher .form-select {
+    margin-top: 4px;
+    font-size: 0.85rem;
+}
+
+/* Main Content Area */
+.main-content {
+    margin-left: 220px;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    padding: 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+}

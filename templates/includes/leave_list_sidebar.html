@@ -1,0 +1,28 @@
+<!-- Leave List Sidebar Navigation -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h5><i class="fas fa-clock me-2"></i>Chấm công</h5>
+        <div class="user-info">{{ user.name }}</div>
+    </div>
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('dashboard') }}" onclick="return handleNavigation(this)">
+                <i class="fas fa-home"></i> Trang chủ
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('leave_request_form') }}">
+                <i class="fas fa-plus"></i> Tạo đơn mới
+            </a>
+        </li>
+        <li class="nav-item position-relative">
+            <a class="nav-link active" href="{{ url_for('leave_requests_list') }}">
+                <i class="fas fa-list"></i> Danh sách đơn
+                {% set rejected_count = leave_requests|selectattr('status','equalto','rejected')|list|length %}
+                {% if rejected_count > 0 %}
+                <span class="badge bg-danger position-absolute translate-middle" style="top:8px; left: 145px;">{{ rejected_count }}</span>
+                {% endif %}
+            </a>
+        </li>
+    </ul>
+</div>

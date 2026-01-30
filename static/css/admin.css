@@ -1,0 +1,190 @@
+/* Admin Pages Common Styles */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --sidebar-bg: #2c3e50;
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+}
+
+body {
+    background-color: #f8f9fa;
+}
+
+/* Admin Sidebar - 260px width */
+.admin-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    background: var(--sidebar-bg);
+    color: white;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.admin-sidebar .sidebar-header {
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.admin-sidebar .sidebar-header h3 {
+    font-size: 18px;
+    margin: 0;
+}
+
+.admin-sidebar .nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.admin-sidebar .nav-item {
+    margin-bottom: 5px;
+}
+
+.admin-sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.admin-sidebar .nav-link:hover,
+.admin-sidebar .nav-link.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.admin-sidebar .nav-link i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Main Content for Admin Pages */
+.admin-main-content {
+    margin-left: 260px;
+    padding: 30px;
+}
+
+/* Card Styles */
+.admin-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.admin-card .card-header {
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    padding: 20px;
+}
+
+/* Table Styles */
+.admin-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Form Styles */
+.form-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+/* Action Buttons */
+.btn-action {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+/* Badge Styles */
+.badge-holiday {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+}
+
+/* Add Form Styles */
+.add-form .row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 15px;
+    margin: 0;
+}
+
+.add-form .col-md {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.add-form .col-md .form-label {
+    margin-bottom: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.add-form .col-md .form-control,
+.add-form .col-md .form-select {
+    width: 100%;
+    height: 38px;
+    flex-shrink: 0;
+}
+
+.add-form .col-md.d-flex {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.add-form .col-md.d-flex::before {
+    content: '';
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.add-form .col-md.d-flex .btn {
+    width: 100%;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .admin-main-content {
+        margin-left: 0;
+    }
+
+    .add-form .row {
+        flex-wrap: wrap;
+        gap: 0;
+    }
+
+    .add-form .col-md {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 15px;
+    }
+}

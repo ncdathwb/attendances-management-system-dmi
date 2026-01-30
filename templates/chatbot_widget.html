@@ -1,0 +1,677 @@
+<!-- Chatbot AI - Widget đơn giản góc phải dưới màn hình -->
+<!-- Component này hiển thị xuyên suốt trên tất cả các trang và duy trì lịch sử hội thoại -->
+<!-- Load SweetAlert2 nếu chưa có -->
+<script>
+    (function() {
+        if (typeof Swal === 'undefined') {
+            // Load CSS
+            if (!document.querySelector('link[href*="sweetalert2"]')) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
+                document.head.appendChild(link);
+            }
+            // Load JS
+            if (!document.querySelector('script[src*="sweetalert2"]')) {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+                script.async = true;
+                document.head.appendChild(script);
+            }
+        }
+    })();
+</script>
+<div id="chatbot-widget"
+     style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div id="chatbot-toggle"
+         style="background:#2563eb;color:#fff;padding:8px 14px;border-radius:999px;cursor:pointer;
+                box-shadow:0 6px 18px rgba(15,23,42,0.35);font-size:13px;display:flex;align-items:center;gap:6px;">
+        <i class="fa-solid fa-robot"></i>
+        <span>Trợ lý AI</span>
+    </div>
+
+    <div id="chatbot-panel"
+         style="display:none;position:absolute;bottom:52px;right:0;width:320px;max-height:430px;background:#ffffff;
+                border-radius:16px;box-shadow:0 18px 45px rgba(15,23,42,0.45);overflow:hidden;font-size:13px;
+                border:1px solid rgba(148,163,184,0.35);">
+        <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#e5e7eb;padding:10px 12px;
+                    font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-robot"></i>
+                <span>Trợ lý AI - Hướng dẫn</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" id="chatbot-clear"
+                        style="background:transparent;border:none;color:#e5e7eb;cursor:pointer;padding:0 4px;font-size:11px;"
+                        title="Xóa lịch sử">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button type="button" id="chatbot-close"
+                        style="background:transparent;border:none;color:#e5e7eb;cursor:pointer;padding:0 4px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="chatbot-messages"
+             style="padding:12px 14px;height:290px;overflow-y:auto;background:#f8fafc;line-height:1.7;font-size:13px;">
+            <!-- Messages will be loaded from sessionStorage -->
+        </div>
+
+        <div style="border-top:1px solid #e2e8f0;padding:8px 10px;background:#ffffff;display:flex;gap:6px;">
+            <input id="chatbot-input" type="text" placeholder="Nhập câu hỏi (VD: cách xin nghỉ phép)..."
+                   style="flex:1;border:1px solid #cbd5e1;border-radius:999px;padding:6px 10px;font-size:13px;
+                          outline:none;">
+            <button id="chatbot-send"
+                    style="background:#2563eb;color:#fff;border:none;border-radius:999px;padding:6px 12px;
+                           font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;
+                           white-space:nowrap;flex-shrink:0;min-width:130px;justify-content:center;">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Gửi</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const STORAGE_KEY = 'chatbot_conversation_history';
+        const STORAGE_PANEL_STATE = 'chatbot_panel_open';
+        const STORAGE_PENDING_KEY = 'chatbot_pending_message';
+        let conversationHistoryCache = [];
+        
+        const toggle = document.getElementById('chatbot-toggle');
+        const panel = document.getElementById('chatbot-panel');
+        const closeBtn = document.getElementById('chatbot-close');
+        const clearBtn = document.getElementById('chatbot-clear');
+        const input = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send');
+        const messagesEl = document.getElementById('chatbot-messages');
+
+        if (!toggle || !panel || !input || !sendBtn || !messagesEl) return;
+
+        // Hàm format text - CHỈ XUỐNG DÒNG, không format phức tạp
+        function formatMessageText(text) {
+            if (!text) return '';
+            
+            // Escape HTML để tránh XSS
+            let formatted = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            
+            // Chuẩn hóa các dấu xuống dòng
+            formatted = formatted.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            
+            // Format **bold** text - làm nổi bật (giữ lại để dễ đọc)
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#1e40af;font-weight:600;">$1</strong>');
+            
+            // CHỈ XUỐNG DÒNG - không format phức tạp
+            // Xử lý xuống dòng: 2 dòng trống = 2 <br>, 1 dòng = 1 <br>
+            formatted = formatted.replace(/\n\n+/g, '<br><br>');
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            // Loại bỏ <br> thừa ở đầu và cuối
+            formatted = formatted.replace(/^(<br>\s*)+/, '');
+            formatted = formatted.replace(/(<br>\s*)+$/, '');
+            
+            // Loại bỏ <br> liên tiếp quá nhiều (giữ lại tối đa 2 <br>)
+            formatted = formatted.replace(/(<br>\s*){3,}/g, '<br><br>');
+            
+            return formatted.trim();
+        }
+
+        function renderMessage(msg) {
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+            div.style.padding = '8px 10px';
+            div.style.borderRadius = '8px';
+            div.style.wordWrap = 'break-word';
+            div.style.wordBreak = 'break-word';
+            if (msg.role === 'user') {
+                div.style.backgroundColor = '#e0e7ff';
+                div.style.color = '#1e1b4b';
+                div.style.marginLeft = '20px';
+            } else {
+                div.style.backgroundColor = '#ffffff';
+                div.style.color = '#475569';
+                div.style.borderLeft = '3px solid #2563eb';
+                div.style.marginRight = '10px';
+            }
+            const formattedContent = msg.role === 'user'
+                ? msg.content
+                : formatMessageText(msg.content);
+            div.innerHTML = `<strong style="display:block;margin-bottom:6px;font-size:12px;opacity:0.85;font-weight:600;">${msg.role === 'user' ? 'Bạn' : 'AI'}:</strong><div style="line-height:1.7;white-space:pre-wrap;">${formattedContent}</div>`;
+            messagesEl.appendChild(div);
+        }
+
+        // Khôi phục lịch sử hội thoại từ sessionStorage
+        function loadConversationHistory() {
+            try {
+                const saved = sessionStorage.getItem(STORAGE_KEY);
+                conversationHistoryCache = saved ? JSON.parse(saved) : [];
+                messagesEl.innerHTML = '';
+                if (conversationHistoryCache.length > 0) {
+                    conversationHistoryCache.forEach(renderMessage);
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                } else {
+                    const welcomeDiv = document.createElement('div');
+                    welcomeDiv.style.marginBottom = '10px';
+                    welcomeDiv.style.padding = '8px 10px';
+                    welcomeDiv.style.borderRadius = '8px';
+                    welcomeDiv.style.backgroundColor = '#ffffff';
+                    welcomeDiv.style.color = '#475569';
+                    welcomeDiv.style.borderLeft = '3px solid #2563eb';
+                    welcomeDiv.style.wordWrap = 'break-word';
+                    welcomeDiv.style.wordBreak = 'break-word';
+                    welcomeDiv.innerHTML = '<strong style="display:block;margin-bottom:6px;font-size:12px;opacity:0.85;font-weight:600;">AI:</strong><div style="line-height:1.7;white-space:pre-wrap;">Xin chào! Mình là trợ lý AI của hệ thống chấm công & nghỉ phép DMI.<br><br>Bạn có thể hỏi:<br>• "Cách tạo đơn nghỉ phép"<br>• "Cách xem lịch sử chấm công"<br>• "Cách đổi mật khẩu"<br>• Và nhiều câu hỏi khác...</div>';
+                    messagesEl.appendChild(welcomeDiv);
+                }
+            } catch (e) {
+                console.error('Lỗi khi tải lịch sử hội thoại:', e);
+            }
+        }
+
+        // Lưu lịch sử hội thoại vào sessionStorage
+        function saveConversationHistory() {
+            try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(conversationHistoryCache));
+            } catch (e) {
+                console.error('Lỗi khi lưu lịch sử hội thoại:', e);
+            }
+        }
+
+        function addUserMessage(text, options = { save: true }) {
+            const msg = { role: 'user', content: text };
+            renderMessage(msg);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            if (options.save) {
+                conversationHistoryCache.push(msg);
+                saveConversationHistory();
+            }
+        }
+
+        function addAssistantMessage(content, options = { save: true }) {
+            const msg = { role: 'assistant', content: content };
+            renderMessage(msg);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            if (options.save) {
+                conversationHistoryCache.push(msg);
+                saveConversationHistory();
+            }
+        }
+
+        // Khôi phục trạng thái mở/đóng panel
+        function loadPanelState() {
+            try {
+                const saved = sessionStorage.getItem(STORAGE_PANEL_STATE);
+                if (saved === 'true') {
+                    panel.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Lỗi khi tải trạng thái panel:', e);
+            }
+        }
+
+        // Lưu trạng thái mở/đóng panel
+        function savePanelState(isOpen) {
+            try {
+                sessionStorage.setItem(STORAGE_PANEL_STATE, isOpen ? 'true' : 'false');
+            } catch (e) {
+                console.error('Lỗi khi lưu trạng thái panel:', e);
+            }
+        }
+
+        // Xóa lịch sử hội thoại với popup đẹp
+        function clearConversationHistory() {
+            // Hàm thực hiện xóa
+            function performClear() {
+                sessionStorage.removeItem(STORAGE_KEY);
+                sessionStorage.removeItem(STORAGE_PENDING_KEY);
+                conversationHistoryCache = [];
+                messagesEl.innerHTML = '';
+                const welcomeDiv = document.createElement('div');
+                welcomeDiv.style.marginBottom = '10px';
+                welcomeDiv.style.padding = '8px 10px';
+                welcomeDiv.style.borderRadius = '8px';
+                welcomeDiv.style.backgroundColor = '#ffffff';
+                welcomeDiv.style.color = '#475569';
+                welcomeDiv.style.borderLeft = '3px solid #2563eb';
+                welcomeDiv.style.wordWrap = 'break-word';
+                welcomeDiv.style.wordBreak = 'break-word';
+                welcomeDiv.innerHTML = '<strong style="display:block;margin-bottom:6px;font-size:12px;opacity:0.85;font-weight:600;">AI:</strong><div style="line-height:1.7;white-space:pre-wrap;">Xin chào! Mình là trợ lý AI của hệ thống chấm công & nghỉ phép DMI.<br><br>Bạn có thể hỏi:<br>• "Cách tạo đơn nghỉ phép"<br>• "Cách xem lịch sử chấm công"<br>• "Cách đổi mật khẩu"<br>• Và nhiều câu hỏi khác...</div>';
+                messagesEl.appendChild(welcomeDiv);
+            }
+            
+            // Kiểm tra và đợi SweetAlert2 load
+            function showDeleteConfirm() {
+                if (typeof Swal !== 'undefined') {
+                    // Sử dụng SweetAlert2
+                    Swal.fire({
+                        title: 'Xác nhận xóa lịch sử',
+                        html: '<div style="text-align:center;"><i class="fas fa-trash-alt" style="font-size:48px;color:#dc2626;margin-bottom:16px;"></i><p style="font-size:15px;color:#475569;margin:0;">Bạn có chắc muốn xóa toàn bộ lịch sử trò chuyện?</p><p style="font-size:13px;color:#94a3b8;margin-top:8px;">Hành động này không thể hoàn tác.</p></div>',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc2626',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Xóa',
+                        cancelButtonText: '<i class="fas fa-times me-1"></i> Hủy',
+                        reverseButtons: true,
+                        focusCancel: true,
+                        customClass: {
+                            popup: 'swal2-popup-custom',
+                            confirmButton: 'btn btn-danger',
+                            cancelButton: 'btn btn-secondary'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            performClear();
+                            
+                            // Hiển thị thông báo thành công
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Đã xóa',
+                                text: 'Lịch sử trò chuyện đã được xóa thành công.',
+                                timer: 1500,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end'
+                            });
+                        }
+                    });
+                } else {
+                    // Đợi SweetAlert2 load (tối đa 2 giây)
+                    let attempts = 0;
+                    const maxAttempts = 20;
+                    const checkSwal = setInterval(() => {
+                        attempts++;
+                        if (typeof Swal !== 'undefined') {
+                            clearInterval(checkSwal);
+                            showDeleteConfirm();
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(checkSwal);
+                            // Fallback về confirm nếu không load được
+                            if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử hội thoại?')) {
+                                performClear();
+                            }
+                        }
+                    }, 100);
+                }
+            }
+            
+            showDeleteConfirm();
+        }
+
+        // Lưu/xóa trạng thái pending message
+        function savePendingMessage(message, conversationHistory, uiContext) {
+            try {
+                if (message) {
+                    sessionStorage.setItem(STORAGE_PENDING_KEY, JSON.stringify({
+                        message: message,
+                        conversation_history: conversationHistory,
+                        ui_context: uiContext,
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    sessionStorage.removeItem(STORAGE_PENDING_KEY);
+                }
+            } catch (e) {
+                console.error('Lỗi khi lưu pending message:', e);
+            }
+        }
+
+        function getPendingMessage() {
+            try {
+                const saved = sessionStorage.getItem(STORAGE_PENDING_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    // Kiểm tra xem pending message có quá cũ không (quá 5 phút thì bỏ qua)
+                    if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+                        return data;
+                    } else {
+                        sessionStorage.removeItem(STORAGE_PENDING_KEY);
+                    }
+                }
+            } catch (e) {
+                console.error('Lỗi khi lấy pending message:', e);
+            }
+            return null;
+        }
+
+        // Kiểm tra và tiếp tục pending message khi load lại trang
+        async function checkAndResumePending() {
+            const pending = getPendingMessage();
+            if (pending) {
+                // Hiển thị panel nếu đang đóng
+                if (panel.style.display === 'none' || panel.style.display === '') {
+                    togglePanel(true);
+                }
+                
+                // Kiểm tra xem message đã có trong lịch sử chưa
+                const lastMessage = conversationHistoryCache[conversationHistoryCache.length - 1];
+                const needsUserMessage = !lastMessage || lastMessage.role !== 'user' || lastMessage.content !== pending.message;
+                
+                if (needsUserMessage) {
+                    addUserMessage(pending.message);
+                }
+                
+                // Đặt trạng thái loading
+                input.disabled = true;
+                sendBtn.disabled = true;
+                const originalLabel = sendBtn.innerHTML;
+                sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Đang suy nghĩ...</span>';
+                sendBtn.style.padding = '6px 12px';
+                sendBtn.style.fontSize = '12px';
+                sendBtn.style.minWidth = '130px';
+                
+                // Tiếp tục gửi request
+                try {
+                    const res = await fetch('/api/chatbot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: pending.message,
+                            conversation_history: pending.conversation_history,
+                            ui_context: pending.ui_context
+                        })
+                    });
+                    const data = await res.json();
+
+                if (data.answer) {
+                    addAssistantMessage(data.answer);
+                } else {
+                    addAssistantMessage(data.error || 'Xin lỗi, mình chưa trả lời được câu này.');
+                }
+                    savePendingMessage(null);
+                } catch (err) {
+                    const errDiv = document.createElement('div');
+                    errDiv.style.marginBottom = '10px';
+                    errDiv.style.padding = '8px 10px';
+                    errDiv.style.borderRadius = '8px';
+                    errDiv.style.backgroundColor = '#fee2e2';
+                    errDiv.style.color = '#991b1b';
+                    errDiv.style.borderLeft = '3px solid #dc2626';
+                    errDiv.style.wordWrap = 'break-word';
+                    errDiv.style.wordBreak = 'break-word';
+                    errDiv.innerHTML = '<strong style="display:block;margin-bottom:6px;font-size:12px;opacity:0.85;font-weight:600;">Lỗi:</strong><div style="line-height:1.7;white-space:pre-wrap;">Không gọi được API trợ lý AI. Vui lòng thử lại sau.</div>';
+                    messagesEl.appendChild(errDiv);
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                    savePendingMessage(null);
+                } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = originalLabel;
+                sendBtn.style.padding = '6px 12px';
+                sendBtn.style.fontSize = '13px';
+                sendBtn.style.minWidth = '130px';
+                input.focus();
+                }
+            }
+        }
+
+        // Khởi tạo: tải lịch sử và trạng thái panel
+        loadConversationHistory();
+        loadPanelState();
+        
+        // Kiểm tra và tiếp tục pending message nếu có
+        setTimeout(() => {
+            checkAndResumePending();
+        }, 500);
+
+        function togglePanel(forceValue) {
+            const show = typeof forceValue === 'boolean'
+                ? forceValue
+                : panel.style.display === 'none' || panel.style.display === '';
+            panel.style.display = show ? 'block' : 'none';
+            savePanelState(show);
+            if (show) {
+                setTimeout(() => input.focus(), 200);
+            }
+        }
+
+        toggle.addEventListener('click', () => togglePanel());
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => togglePanel(false));
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clearConversationHistory);
+        }
+
+        // Hàm thu thập thông tin UI hiện tại trên trang
+        function captureUIContext() {
+            const context = {
+                pageTitle: document.title,
+                currentURL: window.location.pathname,
+                visibleElements: [],
+                formInputs: [],
+                buttons: [],
+                dropdowns: [],
+                textContent: [],
+                tables: []
+            };
+
+            try {
+                // Lấy tất cả các phần tử input, textarea, select có thể nhìn thấy
+                const inputs = document.querySelectorAll('input:not([type="hidden"]):not([style*="display: none"]), textarea:not([style*="display: none"]), select:not([style*="display: none"])');
+                inputs.forEach(el => {
+                    if (el.offsetParent !== null) { // Kiểm tra phần tử có hiển thị không
+                        const label = el.labels && el.labels.length > 0 ? el.labels[0].textContent.trim() : '';
+                        const placeholder = el.placeholder || '';
+                        const name = el.name || el.id || '';
+                        const type = el.type || el.tagName.toLowerCase();
+                        let value = '';
+                        
+                        if (el.type === 'checkbox' || el.type === 'radio') {
+                            value = el.checked ? (el.value || 'checked') : 'unchecked';
+                        } else if (el.tagName.toLowerCase() === 'select') {
+                            value = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+                        } else {
+                            value = el.value || '';
+                        }
+
+                        context.formInputs.push({
+                            label: label,
+                            placeholder: placeholder,
+                            name: name,
+                            type: type,
+                            value: value,
+                            required: el.required || false
+                        });
+                    }
+                });
+
+                // Lấy tất cả các nút có thể nhìn thấy
+                const buttons = document.querySelectorAll('button:not([style*="display: none"]), input[type="submit"]:not([style*="display: none"]), a.btn:not([style*="display: none"])');
+                buttons.forEach(el => {
+                    if (el.offsetParent !== null) {
+                        const text = el.textContent.trim() || el.value || el.title || '';
+                        const id = el.id || '';
+                        const classes = el.className || '';
+                        const disabled = el.disabled || false;
+                        
+                        if (text || id) {
+                            context.buttons.push({
+                                text: text,
+                                id: id,
+                                classes: classes,
+                                disabled: disabled
+                            });
+                        }
+                    }
+                });
+
+                // Lấy các dropdown/select đã xử lý ở trên, nhưng cũng lấy thêm các dropdown tùy chỉnh
+                const selects = document.querySelectorAll('select:not([style*="display: none"])');
+                selects.forEach(el => {
+                    if (el.offsetParent !== null) {
+                        const label = el.labels && el.labels.length > 0 ? el.labels[0].textContent.trim() : '';
+                        const options = Array.from(el.options).map(opt => ({
+                            text: opt.text.trim(),
+                            value: opt.value,
+                            selected: opt.selected
+                        }));
+                        
+                        context.dropdowns.push({
+                            label: label,
+                            name: el.name || el.id || '',
+                            selectedValue: el.value,
+                            selectedText: el.options[el.selectedIndex] ? el.options[el.selectedIndex].text.trim() : '',
+                            options: options
+                        });
+                    }
+                });
+
+                // Lấy các text quan trọng (headings, labels, descriptions)
+                const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6:not([style*="display: none"])');
+                headings.forEach(el => {
+                    if (el.offsetParent !== null) {
+                        const text = el.textContent.trim();
+                        if (text && text.length < 200) { // Chỉ lấy text ngắn
+                            context.textContent.push({
+                                type: 'heading',
+                                level: el.tagName.toLowerCase(),
+                                text: text
+                            });
+                        }
+                    }
+                });
+
+                // Lấy các label và description
+                const labels = document.querySelectorAll('label:not([style*="display: none"]), .form-label:not([style*="display: none"]), .help-text:not([style*="display: none"])');
+                labels.forEach(el => {
+                    if (el.offsetParent !== null) {
+                        const text = el.textContent.trim();
+                        if (text && text.length < 150) {
+                            context.textContent.push({
+                                type: 'label',
+                                text: text
+                            });
+                        }
+                    }
+                });
+
+                // Lấy thông tin bảng nếu có
+                const tables = document.querySelectorAll('table:not([style*="display: none"])');
+                tables.forEach((table, idx) => {
+                    if (table.offsetParent !== null) {
+                        const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim()).filter(h => h);
+                        const rowCount = table.querySelectorAll('tbody tr, tr').length;
+                        
+                        context.tables.push({
+                            index: idx,
+                            headers: headers,
+                            rowCount: rowCount
+                        });
+                    }
+                });
+
+                // Lấy các phần tử có class hoặc id quan trọng
+                const importantElements = document.querySelectorAll('[id*="form"], [id*="Form"], [class*="form"], [class*="card"], [class*="panel"]:not([style*="display: none"])');
+                importantElements.forEach(el => {
+                    if (el.offsetParent !== null && el.id) {
+                        const text = el.textContent.trim().substring(0, 100);
+                        if (text) {
+                            context.visibleElements.push({
+                                id: el.id,
+                                tag: el.tagName.toLowerCase(),
+                                text: text
+                            });
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error('Lỗi khi thu thập UI context:', e);
+            }
+
+            return context;
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Lấy lịch sử hội thoại hiện tại để gửi kèm
+            const conversationHistory = conversationHistoryCache.slice(-10);
+
+            // Thu thập thông tin UI hiện tại
+            const uiContext = captureUIContext();
+
+            addUserMessage(text);
+
+            input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
+            const originalLabel = sendBtn.innerHTML;
+            sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Đang suy nghĩ...</span>';
+            sendBtn.style.padding = '6px 12px';
+            sendBtn.style.fontSize = '12px';
+            sendBtn.style.minWidth = '130px';
+
+            // Lưu pending message để có thể tiếp tục khi chuyển trang
+            savePendingMessage(text, conversationHistory, uiContext);
+
+            try {
+                const res = await fetch('/api/chatbot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: text,
+                        conversation_history: conversationHistory,
+                        ui_context: uiContext
+                    })
+                });
+                const data = await res.json();
+
+                const aiDiv = document.createElement('div');
+                aiDiv.style.marginBottom = '10px';
+                aiDiv.style.padding = '8px 10px';
+                aiDiv.style.borderRadius = '8px';
+                aiDiv.style.backgroundColor = '#ffffff';
+                aiDiv.style.color = '#475569';
+                aiDiv.style.borderLeft = '3px solid #2563eb';
+                aiDiv.style.marginRight = '10px';
+                aiDiv.style.wordWrap = 'break-word';
+                aiDiv.style.wordBreak = 'break-word';
+
+                if (data.answer) {
+                    addAssistantMessage(data.answer);
+                } else {
+                    addAssistantMessage(data.error || 'Xin lỗi, mình chưa trả lời được câu này.');
+                }
+                savePendingMessage(null);
+            } catch (err) {
+                const errDiv = document.createElement('div');
+                errDiv.style.marginBottom = '10px';
+                errDiv.style.padding = '8px 10px';
+                errDiv.style.borderRadius = '8px';
+                errDiv.style.backgroundColor = '#fee2e2';
+                errDiv.style.color = '#991b1b';
+                errDiv.style.borderLeft = '3px solid #dc2626';
+                errDiv.style.wordWrap = 'break-word';
+                errDiv.style.wordBreak = 'break-word';
+                errDiv.innerHTML = '<strong style="display:block;margin-bottom:6px;font-size:12px;opacity:0.85;font-weight:600;">Lỗi:</strong><div style="line-height:1.7;white-space:pre-wrap;">Không gọi được API trợ lý AI. Vui lòng thử lại sau.</div>';
+                messagesEl.appendChild(errDiv);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+                savePendingMessage(null);
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = originalLabel;
+                sendBtn.style.padding = '6px 12px';
+                sendBtn.style.fontSize = '13px';
+                sendBtn.style.minWidth = '130px';
+                input.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    })();
+</script>
+

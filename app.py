@@ -942,6 +942,363 @@ def _prepare_batch_updates_for_attendance(sheet_name, row_index, attendance_data
     return updates
 
 
+# ============================================================================
+# BATCH UPDATE FOR LEAVE REQUESTS - Tối ưu hóa phê duyệt hàng loạt đơn nghỉ phép
+# ============================================================================
+
+def batch_update_multi_leave_requests_sync(leave_requests_with_data, timeout_seconds=120):
+    """
+    BATCH UPDATE nhiều leave request records trong 1 lần gọi API.
+    Gom các records theo spreadsheet (department + month) để giảm số lần gọi API.
+
+    Args:
+        leave_requests_with_data: List of dicts with keys:
+            - leave_request: LeaveRequest object
+            - employee_team: department name
+            - employee_id: employee ID string
+            - leave_data: dict with date, leave_summary, etc.
+            - original_status: status before approval attempt
+        timeout_seconds: Timeout cho toàn bộ quá trình
+
+    Returns:
+        dict: {
+            'success_ids': list of leave_request IDs được cập nhật thành công,
+            'failed': list of {'id': id, 'error': error_message},
+            'total_api_calls': số lần gọi Google Sheets API
+        }
+    """
+    import sys
+    from datetime import datetime as dt
+
+    def _log(msg):
+        try:
+            print(msg, flush=True, file=sys.stderr)
+        except Exception:
+            pass
+
+    timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    _log(f"\n{'='*80}")
+    _log(f"🚀 [BATCH_LEAVE_SYNC] {timestamp} - Bắt đầu BATCH UPDATE cho {len(leave_requests_with_data)} leave requests")
+    _log(f"{'='*80}")
+
+    result = {
+        'success_ids': [],
+        'failed': [],
+        'total_api_calls': 0
+    }
+
+    if not leave_requests_with_data:
+        _log("⚠️ [BATCH_LEAVE_SYNC] Không có dữ liệu để xử lý")
+        return result
+
+    try:
+        # Khởi tạo Google API một lần
+        google_api = GoogleDriveAPI()
+        if not google_api.ensure_valid_token():
+            _log("❌ [BATCH_LEAVE_SYNC] Token không hợp lệ")
+            for record in leave_requests_with_data:
+                result['failed'].append({'id': record['leave_request'].id, 'error': 'Token không hợp lệ'})
+            return result
+
+        if not google_api.sheets_service:
+            _log("❌ [BATCH_LEAVE_SYNC] Sheets service không khả dụng")
+            for record in leave_requests_with_data:
+                result['failed'].append({'id': record['leave_request'].id, 'error': 'Sheets service không khả dụng'})
+            return result
+
+        # Import process_leave_requests_for_excel để phân bổ ngày nghỉ
+        from utils.excel_leave_processor import process_leave_requests_for_excel
+
+        # STEP 1: Xử lý từng leave request và gom theo (department, month, employee)
+        # Key: (team, month, employee_id) -> list of daily updates
+        spreadsheet_groups = {}  # key: (team, month) -> {employee_id: list of updates}
+
+        for record in leave_requests_with_data:
+            leave_request = record['leave_request']
+            employee_team = record['employee_team']
+            employee_id = record['employee_id']
+
+            if not employee_team or employee_team == "Unknown":
+                result['failed'].append({'id': leave_request.id, 'error': 'Department không hợp lệ'})
+                continue
+
+            if not employee_id:
+                result['failed'].append({'id': leave_request.id, 'error': 'Thiếu employee_id'})
+                continue
+
+            # Phân bổ ngày nghỉ cho leave request này
+            try:
+                daily_leaves = process_leave_requests_for_excel([leave_request])
+            except Exception as e:
+                _log(f"   ⚠️ Lỗi phân bổ ngày nghỉ cho đơn #{leave_request.id}: {e}")
+                result['failed'].append({'id': leave_request.id, 'error': f'Lỗi phân bổ ngày nghỉ: {str(e)}'})
+                continue
+
+            if not daily_leaves:
+                result['failed'].append({'id': leave_request.id, 'error': 'Không thể phân bổ ngày nghỉ'})
+                continue
+
+            # Gom từng ngày vào groups
+            for day_data in daily_leaves:
+                date_obj = day_data['date']
+                date_str = date_obj.strftime('%Y-%m-%d')
+                month_year = date_obj.strftime("%Y%m")
+
+                # Tạo leave_summary cho ngày này
+                leave_type_info = day_data.get('leave_type', {})
+                days_value = day_data.get('fractional_days', 1.0)
+
+                # Format số ngày
+                if days_value <= 0:
+                    day_text = "0"
+                elif abs(days_value - round(days_value)) < 1e-9:
+                    day_text = str(int(round(days_value)))
+                else:
+                    day_text = f"{days_value:.1f}".rstrip('0').rstrip('.')
+
+                type_name = str(leave_type_info.get('name') or '').strip() or "Nghỉ"
+                special_type = leave_type_info.get('special_type')
+                if special_type:
+                    type_name += f" ({special_type})"
+
+                summary_text = f"{type_name}: {day_text} ngày"
+                is_full_day = abs(days_value - 1.0) < 1e-9
+
+                # Detect memo-only leave types
+                type_name_lower = type_name.lower()
+                is_memo_leave = "nghỉ lễ nhật" in type_name_lower or "scope" in type_name_lower
+
+                # Lấy thông tin thời gian
+                leave_start_time_str = None
+                leave_end_time_str = None
+                if day_data.get('start_time'):
+                    leave_start_time_str = day_data.get('start_time').strftime('%H:%M')
+                if day_data.get('end_time'):
+                    leave_end_time_str = day_data.get('end_time').strftime('%H:%M')
+
+                # Lấy shift_code
+                effective_shift_code = leave_request.shift_code
+                if not effective_shift_code:
+                    user = leave_request.user
+                    if user:
+                        effective_shift_code = getattr(user, 'shift_code', None)
+                if not effective_shift_code:
+                    effective_shift_code = '1'
+
+                leave_data = {
+                    'date': date_str,
+                    'leave_summary': summary_text,
+                    'is_leave': True,
+                    'full_leave_day': is_full_day,
+                    'leave_fraction_days': days_value,
+                    'leave_start_time': leave_start_time_str,
+                    'leave_end_time': leave_end_time_str,
+                    'shift_code': effective_shift_code,
+                    'memo_only': is_memo_leave,
+                    'leave_request_id': leave_request.id  # Để track success/fail
+                }
+
+                key = (employee_team, month_year)
+                if key not in spreadsheet_groups:
+                    spreadsheet_groups[key] = {}
+
+                if employee_id not in spreadsheet_groups[key]:
+                    spreadsheet_groups[key][employee_id] = []
+
+                spreadsheet_groups[key][employee_id].append(leave_data)
+
+        _log(f"📊 [BATCH_LEAVE_SYNC] Đã gom thành {len(spreadsheet_groups)} spreadsheet groups")
+        for key, employees in spreadsheet_groups.items():
+            total_updates = sum(len(updates) for updates in employees.values())
+            _log(f"   - {key[0]} ({key[1]}): {len(employees)} employees, {total_updates} updates")
+
+        # Track which leave_request_ids have been processed successfully
+        successful_leave_ids = set()
+        failed_leave_ids = {}  # id -> error_msg
+
+        # STEP 2: Xử lý từng spreadsheet group
+        for (team, month), employee_groups in spreadsheet_groups.items():
+            _log(f"\n📁 [BATCH_LEAVE_SYNC] Xử lý: {team} - {month}")
+
+            # Tìm file spreadsheet
+            try:
+                target_file = google_api.find_team_timesheet(
+                    folder_id=GOOGLE_DRIVE_FOLDER_ID,
+                    team_name=team,
+                    month_year=month
+                )
+            except Exception as e:
+                _log(f"❌ [BATCH_LEAVE_SYNC] Lỗi tìm file: {e}")
+                for emp_id, updates in employee_groups.items():
+                    for upd in updates:
+                        failed_leave_ids[upd['leave_request_id']] = f'Lỗi tìm file: {str(e)}'
+                continue
+
+            if not target_file:
+                _log(f"❌ [BATCH_LEAVE_SYNC] Không tìm thấy file cho {team} - {month}")
+                for emp_id, updates in employee_groups.items():
+                    for upd in updates:
+                        failed_leave_ids[upd['leave_request_id']] = f'Không tìm thấy file cho {team}-{month}'
+                continue
+
+            spreadsheet_id = target_file['id']
+            _log(f"✅ [BATCH_LEAVE_SYNC] Tìm thấy file: {target_file.get('name')} (ID: {spreadsheet_id})")
+
+            # STEP 3: Xử lý từng employee sheet
+            for employee_id, emp_updates in employee_groups.items():
+                _log(f"\n   👤 Employee: {employee_id} ({len(emp_updates)} updates)")
+
+                # Đọc sheet một lần
+                try:
+                    rows = google_api._read_sheet_values(spreadsheet_id, employee_id)
+                    if not rows:
+                        _log(f"   ⚠️ Không đọc được dữ liệu sheet {employee_id}")
+                        for upd in emp_updates:
+                            failed_leave_ids[upd['leave_request_id']] = f'Không đọc được sheet {employee_id}'
+                        continue
+                except Exception as e:
+                    _log(f"   ❌ Lỗi đọc sheet: {e}")
+                    for upd in emp_updates:
+                        failed_leave_ids[upd['leave_request_id']] = f'Lỗi đọc sheet: {str(e)}'
+                    continue
+
+                # Chuẩn bị batch updates
+                all_updates = []
+                updates_mapping = []  # Track which leave_request_id each update belongs to
+
+                for leave_data in emp_updates:
+                    date_str = leave_data.get('date', '')
+
+                    # Tìm row theo ngày
+                    target_row = google_api._find_row_by_date(rows, date_str, 0)
+                    if not target_row:
+                        _log(f"      ⚠️ Không tìm thấy row cho ngày {date_str}")
+                        failed_leave_ids[leave_data['leave_request_id']] = f'Không tìm thấy row cho ngày {date_str}'
+                        continue
+
+                    # Chuẩn bị updates cho leave này
+                    updates = _prepare_batch_updates_for_leave(
+                        employee_id, target_row, leave_data
+                    )
+
+                    if updates:
+                        all_updates.extend(updates)
+                        updates_mapping.append({
+                            'leave_request_id': leave_data['leave_request_id'],
+                            'update_count': len(updates)
+                        })
+                        _log(f"      ✅ Ngày {date_str} -> Row {target_row}: {len(updates)} updates")
+
+                if not all_updates:
+                    _log(f"   ⚠️ Không có updates cho employee {employee_id}")
+                    continue
+
+                # STEP 4: Thực hiện batch update cho employee này
+                _log(f"   🚀 Batch update {len(all_updates)} cells cho {employee_id}...")
+
+                try:
+                    success = google_api.batch_update_values_with_formatting(
+                        spreadsheet_id, employee_id, all_updates
+                    )
+                    result['total_api_calls'] += 1
+
+                    if success:
+                        _log(f"   ✅ Batch update thành công!")
+                        for mapping in updates_mapping:
+                            successful_leave_ids.add(mapping['leave_request_id'])
+                    else:
+                        _log(f"   ❌ Batch update thất bại")
+                        for mapping in updates_mapping:
+                            failed_leave_ids[mapping['leave_request_id']] = 'Batch update thất bại'
+
+                except Exception as e:
+                    _log(f"   ❌ Lỗi batch update: {e}")
+                    for mapping in updates_mapping:
+                        failed_leave_ids[mapping['leave_request_id']] = f'Lỗi batch update: {str(e)}'
+
+        # Build final result
+        for record in leave_requests_with_data:
+            lr_id = record['leave_request'].id
+            if lr_id in successful_leave_ids and lr_id not in failed_leave_ids:
+                result['success_ids'].append(lr_id)
+            elif lr_id in failed_leave_ids:
+                result['failed'].append({'id': lr_id, 'error': failed_leave_ids[lr_id]})
+            else:
+                # Not processed at all (shouldn't happen, but just in case)
+                result['failed'].append({'id': lr_id, 'error': 'Không được xử lý'})
+
+        timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        _log(f"\n{'='*80}")
+        _log(f"📊 [BATCH_LEAVE_SYNC_COMPLETE] {timestamp}")
+        _log(f"   ✅ Thành công: {len(result['success_ids'])} leave requests")
+        _log(f"   ❌ Thất bại: {len(result['failed'])} leave requests")
+        _log(f"   📡 Tổng API calls: {result['total_api_calls']}")
+        _log(f"{'='*80}\n")
+
+        return result
+
+    except Exception as e:
+        _log(f"❌ [BATCH_LEAVE_SYNC] Lỗi tổng quát: {e}")
+        import traceback
+        _log(f"   Traceback: {traceback.format_exc()}")
+        for record in leave_requests_with_data:
+            lr_id = record['leave_request'].id
+            if lr_id not in result['success_ids'] and not any(f['id'] == lr_id for f in result['failed']):
+                result['failed'].append({'id': lr_id, 'error': f'Lỗi tổng quát: {str(e)}'})
+        return result
+
+
+def _prepare_batch_updates_for_leave(sheet_name, row_index, leave_data):
+    """
+    Chuẩn bị danh sách updates cho một leave request record (1 ngày).
+    Trả về list of {'range': 'Sheet!P5', 'values': [['value']]}
+
+    Args:
+        sheet_name: Employee ID (tên sheet)
+        row_index: Số dòng trong sheet (1-based)
+        leave_data: Dict chứa thông tin ngày nghỉ
+
+    Returns:
+        list: Danh sách updates cho Google Sheets batchUpdate
+    """
+    updates = []
+
+    # Column mapping
+    # P = Leave summary/memo
+    # G = Check-in time (nếu nghỉ cả ngày thì clear hoặc set giá trị đặc biệt)
+    # K = Check-out time
+    # M = Regular work hours
+    # E = Break + Comp time total
+
+    leave_summary = leave_data.get('leave_summary', '')
+    is_full_day = leave_data.get('full_leave_day', False)
+    is_memo_only = leave_data.get('memo_only', False)
+
+    # Luôn cập nhật cột P với leave summary
+    if leave_summary:
+        a1 = f"{sheet_name}!P{row_index}"
+        updates.append({'range': a1, 'values': [[leave_summary]]})
+
+    # Nếu là memo_only (nghỉ lễ Nhật, Scope...), chỉ cập nhật cột P
+    if is_memo_only:
+        return updates
+
+    # Nếu nghỉ cả ngày, clear các cột thời gian
+    if is_full_day:
+        # Clear check-in (G)
+        updates.append({'range': f"{sheet_name}!G{row_index}", 'values': [['']]})
+        # Clear check-out (K)
+        updates.append({'range': f"{sheet_name}!K{row_index}", 'values': [['']]})
+        # Clear regular work hours (M)
+        updates.append({'range': f"{sheet_name}!M{row_index}", 'values': [['0:00']]})
+        # Clear overtime before 22h (N)
+        updates.append({'range': f"{sheet_name}!N{row_index}", 'values': [['0:00']]})
+        # Clear overtime after 22h (O)
+        updates.append({'range': f"{sheet_name}!O{row_index}", 'values': [['0:00']]})
+
+    return updates
+
+
 def update_leave_sheet_sync(leave_request, timeout_seconds=60):
     """
     SYNCHRONOUS Google Sheet update function for LEAVE REQUESTS
@@ -1276,7 +1633,7 @@ from config import config
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, text
 import re
-import pickle
+# import pickle  # Security improvement: Removed pickle
 import time as time_module
 
 # Import Google API libraries
@@ -1535,7 +1892,7 @@ from utils.validators import (
 from utils.session import check_session_timeout, update_session_activity, log_audit_action
 from utils.signature_manager import signature_manager
 from utils.logger import logger, security_logger, audit_logger, database_logger, api_logger
-from utils.security_enhanced import security_manager, require_security_check
+from utils.security import security_manager, require_security_check
 from utils.database_utils import safe_db_commit, safe_db_rollback, retry_db_operation
 
 def has_role(user_id, required_role):
@@ -1722,6 +2079,10 @@ def convert_overtime_to_hhmm():
 
 app = Flask(__name__)
 
+# Force template auto-reload (disable Jinja cache)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
+
 # G3: CORS Configuration
 try:
     from flask_cors import CORS
@@ -1903,7 +2264,7 @@ class GoogleDriveAPI:
         self.creds = None
         self.drive_service = None
         self.sheets_service = None
-        self.token_file = 'token.pickle'
+        self.token_file = 'token.json'
         self.last_refresh_file = 'last_token_refresh.txt'
         
         if not GOOGLE_API_AVAILABLE:
@@ -1918,12 +2279,24 @@ class GoogleDriveAPI:
         
         # Chỉ load token từ file nếu không auto-authenticate
         if not auto_authenticate:
-            if os.path.exists('token.pickle'):
+            if os.path.exists('token.json'):
                 try:
+                    with open('token.json', 'r') as token:
+                        token_data = json.load(token)
+                        self.creds = Credentials.from_authorized_user_info(token_data, GOOGLE_SCOPES)
+                except Exception as e:
+                    print(f"Lỗi khi load token.json: {e}")
+            elif os.path.exists('token.pickle'): # Migration from pickle
+                try:
+                    import pickle
                     with open('token.pickle', 'rb') as token:
                         self.creds = pickle.load(token)
+                    # Convert to json
+                    with open('token.json', 'w') as token:
+                        token.write(self.creds.to_json())
+                    print("Đã chuyển đổi token.pickle sang token.json")
                 except Exception as e:
-                    print(f"Lỗi khi load token: {e}")
+                    print(f"Lỗi khi migrate token.pickle: {e}")
             return
         
         # Chỉ authenticate nếu được phép và cần thiết
@@ -1950,9 +2323,18 @@ class GoogleDriveAPI:
             
         try:
             # Kiểm tra token đã lưu
-            if os.path.exists('token.pickle'):
+            if os.path.exists('token.json'):
+                with open('token.json', 'r') as token:
+                    token_data = json.load(token)
+                    self.creds = Credentials.from_authorized_user_info(token_data, GOOGLE_SCOPES)
+            elif os.path.exists('token.pickle'):
+                # Migration
+                import pickle
                 with open('token.pickle', 'rb') as token:
                     self.creds = pickle.load(token)
+                # Save as json
+                with open('token.json', 'w') as token:
+                    token.write(self.creds.to_json())
             
             # Nếu không có credentials hợp lệ
             if not self.creds or not self.creds.valid:
@@ -1961,8 +2343,8 @@ class GoogleDriveAPI:
                     try:
                         self.creds.refresh(GoogleRequest())
                         # Lưu credentials sau khi refresh
-                        with open('token.pickle', 'wb') as token:
-                            pickle.dump(self.creds, token)
+                        with open('token.json', 'w') as token:
+                            token.write(self.creds.to_json())
                     except Exception as refresh_err:
                         # Refresh thất bại
                         if allow_browser_auth:
@@ -1971,8 +2353,8 @@ class GoogleDriveAPI:
                                 'credentials.json', GOOGLE_SCOPES)
                             self.creds = flow.run_local_server(port=0)
                             # Lưu credentials
-                            with open('token.pickle', 'wb') as token:
-                                pickle.dump(self.creds, token)
+                            with open('token.json', 'w') as token:
+                                token.write(self.creds.to_json())
                         else:
                             # Không mở browser, chỉ báo lỗi
                             print(f"⚠️ Token hết hạn và không thể refresh tự động. Cần authenticate thủ công.")
@@ -1983,8 +2365,8 @@ class GoogleDriveAPI:
                         'credentials.json', GOOGLE_SCOPES)
                     self.creds = flow.run_local_server(port=0)
                     # Lưu credentials
-                    with open('token.pickle', 'wb') as token:
-                        pickle.dump(self.creds, token)
+                    with open('token.json', 'w') as token:
+                        token.write(self.creds.to_json())
                 else:
                     # Không có token và không được phép mở browser
                     print("⚠️ Không có token và không được phép mở browser để authenticate.")
@@ -2030,8 +2412,8 @@ class GoogleDriveAPI:
                     try:
                         self.creds.refresh(GoogleRequest())
                         # Lưu token mới
-                        with open(self.token_file, 'wb') as token:
-                            pickle.dump(self.creds, token)
+                        with open(self.token_file, 'w') as token:
+                            token.write(self.creds.to_json())
                         # Cập nhật services
                         self.drive_service = build('drive', 'v3', credentials=self.creds)
                         self.sheets_service = build('sheets', 'v4', credentials=self.creds)
@@ -7315,8 +7697,8 @@ def _token_keepalive_worker(interval_minutes=30):
                         print(f"🔄 [Token Keep-Alive] Đang refresh token tự động...")
                         google_api.creds.refresh(GoogleRequest())
                         # Lưu token mới
-                        with open(google_api.token_file, 'wb') as token:
-                            pickle.dump(google_api.creds, token)
+                        with open(google_api.token_file, 'w') as token:
+                            token.write(google_api.creds.to_json())
                         google_api.save_last_refresh_time()
                         print(f"✅ [Token Keep-Alive] Token đã được refresh thành công!")
                         # Notify admins that token is valid
@@ -8098,7 +8480,8 @@ def check_license_before_request():
     
     # Nếu license không hợp lệ, chặn tất cả request khác
     if not _license_is_valid:
-        from flask import render_template_string
+        # Security: Dùng render_template() thay vì render_template_string() để tránh template injection
+        from flask import render_template
         contact_msg = (
             "License không hợp lệ hoặc đã hết hạn.\n\n"
             "Vui lòng liên hệ ADMIN để gia hạn:\n"
@@ -8106,73 +8489,9 @@ def check_license_before_request():
             "Hệ thống sẽ tự động kiểm tra lại license sau 60 giây."
         )
         
-        # Trả về trang HTML thông báo license hết hạn
-        html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>License Hết Hạn</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                }
-                .container {
-                    background: white;
-                    padding: 40px;
-                    border-radius: 10px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                    max-width: 500px;
-                    text-align: center;
-                }
-                h1 {
-                    color: #e74c3c;
-                    margin-bottom: 20px;
-                }
-                p {
-                    color: #333;
-                    line-height: 1.6;
-                    white-space: pre-line;
-                }
-                .contact {
-                    margin-top: 20px;
-                    padding: 15px;
-                    background: #f8f9fa;
-                    border-radius: 5px;
-                }
-                .refresh-info {
-                    margin-top: 20px;
-                    color: #666;
-                    font-size: 14px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>⚠️ License Hết Hạn</h1>
-                <p>{{ message }}</p>
-                <div class="refresh-info">
-                    Hệ thống đang tự động kiểm tra lại license mỗi 60 giây.<br>
-                    Vui lòng đợi trong giây lát...
-                </div>
-            </div>
-            <script>
-                // Tự động reload sau 65 giây để kiểm tra lại license
-                setTimeout(function() {
-                    location.reload();
-                }, 65000);
-            </script>
-        </body>
-        </html>
-        """
-        return render_template_string(html_template, message=contact_msg), 403
+        # Trả về trang HTML thông báo license hết hạn từ file template
+        # (Đã xóa hardcoded HTML template để tránh template injection risk)
+        return render_template('license_expired.html', message=contact_msg), 403
     
     return None
 
@@ -11960,24 +12279,6 @@ def test_google_api():
         }), 500
 
 
-def format_hours_minutes(hours):
-    try:
-        if hours is None:
-            return "0:00"
-        # Nếu là chuỗi số, chuyển sang float
-        if isinstance(hours, str):
-            hours = float(hours)
-        if hours != hours or hours < 0:  # kiểm tra NaN hoặc âm
-            return "0:00"
-        h = int(hours)
-        m = int(round((hours - h) * 60))
-        if m == 60:
-            h += 1
-            m = 0
-        return f"{h}:{m:02d}"
-    except Exception:
-        return "0:00"
-
 def translate_holiday_type(holiday_type_en):
     """Translates holiday type from English to Vietnamese."""
     if not holiday_type_en:
@@ -15212,18 +15513,24 @@ def settings():
     print("DEBUG: Settings route accessed")
     print("DEBUG: Session user_id:", session.get('user_id'))
     print("DEBUG: Session keys:", list(session.keys()))
-    
+
     if 'user_id' not in session:
         print("DEBUG: No user_id in session, redirecting to login")
         return redirect(url_for('login'))
-    
+
     user = db.session.get(User, session['user_id'])
     if not user:
         print("DEBUG: User not found, redirecting to login")
         session.clear()
         flash('Phiên đăng nhập không hợp lệ!', 'error')
         return redirect(url_for('login'))
-    
+
+    # Kiểm tra role - MANAGER và TEAM_LEADER không được truy cập settings
+    current_role = session.get('current_role', user.roles.split(',')[0] if user.roles else 'EMPLOYEE')
+    if current_role in ['MANAGER', 'TEAM_LEADER']:
+        flash('Bạn không có quyền truy cập trang cài đặt với vai trò hiện tại!', 'error')
+        return redirect(url_for('dashboard'))
+
     # Kiểm tra user có active không
     if not user.is_active:
         session.clear()
@@ -15353,7 +15660,10 @@ def change_password():
             flash('Có lỗi khi đổi mật khẩu', 'error')
             return redirect(url_for('change_password'))
 
-    return render_template('change_password.html', user=user)
+    # Lấy role của user để hiển thị sidebar phù hợp
+    user_role = user.roles.split(',')[0] if user.roles else 'EMPLOYEE'
+
+    return render_template('change_password.html', user=user, role=user_role)
 
 @app.route('/signature-test', methods=['GET', 'POST'])
 def signature_test():
@@ -16421,7 +16731,11 @@ def approve_all_leave_requests():
         rejected_count = 0
         google_sheet_errors = []  # Lưu các lỗi khi cập nhật Google Sheet (chỉ cho ADMIN)
         approved_leave_ids = []  # Lưu ID các đơn đã được ADMIN phê duyệt
-        
+
+        # ===== BATCH UPDATE OPTIMIZATION FOR ADMIN =====
+        # Gom tất cả ADMIN records để batch update thay vì update từng record
+        admin_records_for_batch = []  # List of dicts for batch processing
+
         # Xử lý từng leave request
         for leave_request in leave_requests:
             if action == 'approve':
@@ -16432,62 +16746,108 @@ def approve_all_leave_requests():
                         leave_request.team_leader_signature = user.personal_signature
                         leave_request.team_leader_signer_id = user.id
                         leave_request.team_leader_approved_at = datetime.now()
-                    
+
                     leave_request.status = 'pending_manager'
                     leave_request.step = 'manager'
                     leave_request.current_approver_id = None
                     approved_count += 1
-                    
+
                 elif current_role == 'MANAGER':
                     # Manager approve: pending/pending_manager -> pending_admin
                     # Nếu chưa có chữ ký team leader, thêm chữ ký manager vào vị trí team leader
                     if leave_request.status == 'pending' and user.has_personal_signature():
                         leave_request.team_leader_signature = user.personal_signature
                         leave_request.team_leader_signer_id = user.id
-                    
+
                     # Thêm chữ ký manager
                     if user.has_personal_signature():
                         leave_request.manager_signature = user.personal_signature
                         leave_request.manager_signer_id = user.id
                         leave_request.manager_approved_at = datetime.now()
-                    
+
                     leave_request.status = 'pending_admin'
                     leave_request.step = 'admin'
                     leave_request.current_approver_id = None
                     approved_count += 1
-                    
+
                 elif current_role == 'ADMIN':
-                    # ===== ADMIN BULK APPROVAL =====
-                    # Store original status for rollback if needed
+                    # ===== ADMIN BULK APPROVAL WITH BATCH GOOGLE SHEET UPDATE =====
+                    # Thay vì sync từng record, gom lại để batch update sau
+
+                    # Check Google API token một lần đầu tiên
+                    if len(admin_records_for_batch) == 0:
+                        token_status = check_google_token_status()
+                        if not token_status.get('can_approve', False):
+                            publish_token_status('expired', token_status.get('message', 'Token hết hạn'), needs_reauth=True)
+                            return jsonify({
+                                'error': f"⚠️ Token Google API hết hạn. {token_status.get('message', 'Vui lòng refresh token trước khi phê duyệt.')}",
+                                'error_code': 'token_expired',
+                                'needs_reauth': True
+                            }), 503
+
+                    # Store original status for rollback
                     original_status = leave_request.status
-                    
+
                     # Save signatures first
                     if leave_request.status == 'pending' and user.has_personal_signature():
                         leave_request.team_leader_signature = user.personal_signature
                         leave_request.team_leader_signer_id = user.id
-                    
+
                     if leave_request.status == 'pending_manager' and user.has_personal_signature():
                         leave_request.manager_signature = user.personal_signature
                         leave_request.manager_signer_id = user.id
-                    
+
                     # Add admin signature
                     if user.has_personal_signature():
                         leave_request.admin_signature = user.personal_signature
                         leave_request.admin_signer_id = user.id
                         leave_request.admin_approved_at = datetime.now()
-                    
-                    # Approve leave request
-                    # Approve leave request (tentative)
-                    leave_request.status = 'approved'
-                    leave_request.step = 'done'
-                    leave_request.current_approver_id = None
-                    
-                    # GOOGLE SHEET SYNC: Defer to after commit
-                    # Just mark as approved here
-                    approved_count += 1
-                    approved_leave_ids.append(leave_request.id)
 
-                        
+                    # Lấy thông tin employee
+                    employee = leave_request.user
+                    if not employee:
+                        employee = db.session.get(User, leave_request.user_id)
+
+                    if not employee:
+                        google_sheet_errors.append({
+                            'id': leave_request.id,
+                            'employee_name': leave_request.employee_name,
+                            'error': 'Không tìm thấy thông tin nhân viên'
+                        })
+                        continue
+
+                    employee_team = employee.department
+                    employee_id = employee.employee_id
+
+                    if not employee_id:
+                        google_sheet_errors.append({
+                            'id': leave_request.id,
+                            'employee_name': leave_request.employee_name,
+                            'error': 'Nhân viên chưa có mã nhân viên (employee_id)'
+                        })
+                        continue
+
+                    if not employee_team or employee_team == "Unknown":
+                        google_sheet_errors.append({
+                            'id': leave_request.id,
+                            'employee_name': leave_request.employee_name,
+                            'error': 'Nhân viên chưa cập nhật phòng ban (Department)'
+                        })
+                        continue
+
+                    # ===== GOM RECORD VÀO LIST ĐỂ BATCH UPDATE SAU =====
+                    admin_records_for_batch.append({
+                        'leave_request': leave_request,
+                        'employee_team': employee_team,
+                        'employee_id': employee_id,
+                        'leave_data': {},  # Sẽ được xử lý trong batch_update function
+                        'original_status': original_status
+                    })
+
+                    # Không tăng approved_count ở đây - sẽ xử lý sau khi batch update
+                    continue  # Skip to next record, batch update sẽ xử lý sau
+
+
             elif action == 'reject':
                 # Từ chối đơn nghỉ phép
                 leave_request.status = 'rejected'
@@ -16495,7 +16855,66 @@ def approve_all_leave_requests():
                 leave_request.step = 'done'
                 leave_request.current_approver_id = None
                 rejected_count += 1
-        
+
+        # ===== BATCH UPDATE GOOGLE SHEETS FOR ADMIN RECORDS =====
+        if current_role == 'ADMIN' and action == 'approve' and admin_records_for_batch:
+            timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+            try:
+                print(f"\n{'='*80}", flush=True, file=sys.stderr)
+                print(f"🚀 [BATCH_LEAVE_UPDATE_START] {timestamp} - Bắt đầu BATCH UPDATE cho {len(admin_records_for_batch)} leave requests", flush=True, file=sys.stderr)
+                print(f"{'='*80}", flush=True, file=sys.stderr)
+            except Exception:
+                pass
+
+            # Gọi batch update
+            batch_result = batch_update_multi_leave_requests_sync(admin_records_for_batch)
+
+            # Xử lý kết quả batch update
+            for record in admin_records_for_batch:
+                leave_request = record['leave_request']
+                original_status = record['original_status']
+
+                if leave_request.id in batch_result['success_ids']:
+                    # Google Sheet thành công - mark as approved
+                    leave_request.status = 'approved'
+                    leave_request.step = 'done'
+                    leave_request.current_approver_id = None
+                    leave_request.google_sheet_synced = True
+                    leave_request.google_sheet_sync_at = datetime.now()
+                    leave_request.google_sheet_sync_error = None
+                    approved_leave_ids.append(leave_request.id)
+                    approved_count += 1
+                else:
+                    # Google Sheet thất bại - rollback status
+                    leave_request.status = original_status
+                    leave_request.google_sheet_synced = False
+
+                    # Tìm error message
+                    error_msg = 'Unknown error'
+                    for failed in batch_result['failed']:
+                        if failed['id'] == leave_request.id:
+                            error_msg = failed['error']
+                            break
+
+                    leave_request.google_sheet_sync_error = error_msg
+                    google_sheet_errors.append({
+                        'id': leave_request.id,
+                        'employee_name': leave_request.employee_name,
+                        'error': error_msg,
+                        'original_status': original_status
+                    })
+
+            timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+            try:
+                print(f"\n{'='*80}", flush=True, file=sys.stderr)
+                print(f"📊 [BATCH_LEAVE_UPDATE_COMPLETE] {timestamp}", flush=True, file=sys.stderr)
+                print(f"   ✅ Thành công: {len(batch_result['success_ids'])} leave requests", flush=True, file=sys.stderr)
+                print(f"   ❌ Thất bại: {len(batch_result['failed'])} leave requests", flush=True, file=sys.stderr)
+                print(f"   📡 Tổng API calls: {batch_result['total_api_calls']} (thay vì {len(admin_records_for_batch)} async threads)", flush=True, file=sys.stderr)
+                print(f"{'='*80}", flush=True, file=sys.stderr)
+            except Exception:
+                pass
+
         # ===== COMMIT DATABASE =====
         timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         try:
@@ -16504,7 +16923,7 @@ def approve_all_leave_requests():
             print(f"{'='*80}", flush=True, file=sys.stderr)
         except Exception:
             pass
-        
+
         try:
             db.session.commit()
             timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
@@ -16512,16 +16931,6 @@ def approve_all_leave_requests():
                 print(f"✅ [BULK_LEAVE_COMMIT_SUCCESS] {timestamp} - Database đã được commit", flush=True, file=sys.stderr)
             except Exception:
                 pass
-                
-            # ===== TRIGGER ASYNC GOOGLE SHEET UPDATES =====
-            # Trigger updates AFTER commit to ensure worker sees 'approved' status
-            if approved_leave_ids:
-                print(f"🚀 [BULK_APPROVE] Triggering async sync for {len(approved_leave_ids)} requests...", flush=True, file=sys.stderr)
-                for lid in approved_leave_ids:
-                    try:
-                        trigger_schedule_leave_sheet_updates_async(lid, user.id)
-                    except Exception as e:
-                        print(f"⚠️ [BULK_APPROVE] Error triggering sync for ID {lid}: {e}", flush=True, file=sys.stderr)
         except Exception as commit_error:
             db.session.rollback()
             try:
@@ -16529,10 +16938,9 @@ def approve_all_leave_requests():
             except Exception:
                 pass
             return jsonify({'error': 'Lỗi lưu database'}), 500
-        
+
         # ===== PREPARE RESPONSE WITH DETAILED SUMMARY =====
-        # ===== PREPARE RESPONSE WITH DETAILED SUMMARY =====
-        successful_approvals = approved_count
+        successful_approvals = len(approved_leave_ids) if current_role == 'ADMIN' else approved_count
         failed_approvals = len(google_sheet_errors)
         total_processed = approved_count + rejected_count + failed_approvals # Include failed attempts in processed count? 
         # Logic đếm: total_processed là tổng số record đã DUYỆT QUA. 
@@ -16544,23 +16952,27 @@ def approve_all_leave_requests():
         
         # Build message
         message = f'Đã xử lý {total_processed} đơn nghỉ phép'
-        
+
         if action == 'approve':
             message += f': {approved_count} phê duyệt thành công'
+            if failed_approvals > 0:
+                message += f', {failed_approvals} thất bại (giữ nguyên status để thử lại)'
             if rejected_count > 0:
                 message += f', {rejected_count} từ chối'
         else:
             message += f': {approved_count} phê duyệt, {rejected_count} từ chối'
-        
+
         # Log summary
         timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         try:
             print(f"\n{'='*80}", flush=True, file=sys.stderr)
             print(f"📊 [BULK_LEAVE_SUMMARY] {timestamp}", flush=True, file=sys.stderr)
             print(f"   Tổng số xử lý: {total_processed}", flush=True, file=sys.stderr)
-            print(f"   ✅ Phê duyệt: {approved_count}", flush=True, file=sys.stderr)
+            print(f"   ✅ Phê duyệt thành công: {approved_count}", flush=True, file=sys.stderr)
             if approved_leave_ids:
                 print(f"      IDs: {', '.join(map(str, approved_leave_ids))}", flush=True, file=sys.stderr)
+            if failed_approvals > 0:
+                print(f"   ⚠️ Thất bại (Google Sheet): {failed_approvals}", flush=True, file=sys.stderr)
             print(f"   ❌ Từ chối: {rejected_count}", flush=True, file=sys.stderr)
             print(f"{'='*80}\n", flush=True, file=sys.stderr)
         except Exception:
@@ -17645,10 +18057,25 @@ def check_google_token_status(use_cache=True) -> dict:
     try:
         # Chỉ load token từ file, không tạo instance để tránh auto-authenticate
         creds = None
-        if os.path.exists('token.pickle'):
+        if os.path.exists('token.json'):
             try:
+                with open('token.json', 'r') as token:
+                    token_data = json.load(token)
+                    from google.oauth2.credentials import Credentials
+                    # Scope might differ but usually fine to load what is there
+                    creds = Credentials.from_authorized_user_info(token_data)
+            except Exception as e:
+                # Fall through to pickle check if json fails
+                pass
+                
+        if not creds and os.path.exists('token.pickle'):
+            try:
+                import pickle
                 with open('token.pickle', 'rb') as token:
                     creds = pickle.load(token)
+                # Auto migrate
+                with open('token.json', 'w') as token:
+                    token.write(creds.to_json())
             except Exception as e:
                 result = {
                     'valid': False,
@@ -17679,8 +18106,8 @@ def check_google_token_status(use_cache=True) -> dict:
                     # Thử refresh token
                     creds.refresh(GoogleRequest())
                     # Lưu token mới
-                    with open('token.pickle', 'wb') as token:
-                        pickle.dump(creds, token)
+                    with open('token.json', 'w') as token:
+                        token.write(creds.to_json())
                     result = {
                         'valid': True,
                         'needs_reauth': False,
@@ -18119,8 +18546,8 @@ def api_token_callback():
         creds = flow.credentials
         
         # Lưu credentials vào file
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
         
         # Xóa session data
         session.pop('oauth_state', None)
@@ -20505,7 +20932,7 @@ if __name__ == '__main__':
     # FORCE DISABLE DEBUG MODE to prevent OSError: [Errno 22] Invalid argument
     # caused by Werkzeug debugger trying to print tracebacks to corrupted/closed stdout on Windows
     # Previously: debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    debug_mode = False
+    debug_mode = False  # Debug disabled for production
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
     port = int(os.environ.get('FLASK_PORT', 5000))
 

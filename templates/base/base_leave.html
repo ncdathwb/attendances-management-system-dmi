@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% block meta %}{% endblock %}
+    <title>{% block title %}Nghỉ phép - Hệ thống Chấm công{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Search Filter CSS -->
+    <link href="{{ url_for('static', filename='css/search-filter.css') }}" rel="stylesheet">
+    <!-- Leave CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/leave.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block sidebar %}
+    {% include 'includes/leave_sidebar.html' %}
+    {% endblock %}
+
+    <div class="main-content {% block main_content_class %}{% endblock %}">
+        <!-- Toast Container -->
+        <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="toast align-items-center text-white bg-{{ 'danger' if category == 'error' else 'success' }} border-0"
+                role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }} me-2"></i>
+                        {{ message }}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Toast Auto-show Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toastContainer = document.getElementById('toast-container');
+            const toasts = toastContainer.querySelectorAll('.toast');
+            toasts.forEach(function (toastEl) {
+                const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 3000 });
+                toast.show();
+                toastEl.addEventListener('hidden.bs.toast', function () { toastEl.remove(); });
+            });
+        });
+
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

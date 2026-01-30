@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(iconv:*)",
+      "Bash(flask db upgrade:*)",
+      "Bash(flask db current:*)",
+      "Bash(flask db stamp:*)",
+      "Bash(pip install:*)",
+      "Bash(find:*)",
+      "Bash(for f in templates/dashboard.html templates/leave_request_form.html templates/leave_requests_list.html templates/leave_history.html templates/view_leave_request.html templates/settings.html templates/personal_signature.html templates/activate.html templates/signature_test.html)",
+      "Bash(done)",
+      "Bash(\"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\231020253\\\\attendances-management-system-dmi\\\\venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(taskkill:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(wc:*)",
+      "Bash(del \"C:\\\\Users\\\\ADMIN\\\\Desktop\\\\231020253\\\\attendances-management-system-dmi\\\\utils\\\\security_enhanced.py\")",
+      "Bash(test:*)",
+      "Bash(timeout:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(if exist __pycache__ rmdir /S /Q __pycache__)",
+      "Bash(pkill:*)",
+      "Bash(tail:*)",
+      "Bash(FLASK_DEBUG=1 python:*)"
+    ]
+  }
+}

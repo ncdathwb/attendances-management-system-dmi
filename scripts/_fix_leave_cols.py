@@ -20,6 +20,16 @@ new_cols = {
     "admin_approved_at": "TEXT",
 }
 
+# Security: Whitelist validation để prevent SQL injection
+ALLOWED_COLUMNS = {
+    'step', 'current_approver_id', 'reject_reason',
+    'team_leader_signature', 'team_leader_signer_id', 'team_leader_approved_at',
+    'manager_signature', 'manager_signer_id', 'manager_approved_at',
+    'admin_signature', 'admin_signer_id', 'admin_approved_at'
+}
+
+ALLOWED_TYPES = {'TEXT', 'INTEGER', 'VARCHAR', 'DATETIME', 'BOOLEAN', 'DEFAULT'}
+
 for db in dbs:
     print(f"[DB] {db}")
     if not os.path.exists(db):
@@ -36,6 +46,22 @@ for db in dbs:
     added = []
     for name, ddl in new_cols.items():
         if name not in existing:
+            # Validate column name (whitelist)
+            if name not in ALLOWED_COLUMNS:
+                print(f"  - SKIP unsafe column: {name}")
+                continue
+            
+            # Validate column type (extract first word)
+            col_type_parts = ddl.split()
+            if not col_type_parts:
+                print(f"  - SKIP empty definition: {name}")
+                continue
+                
+            col_type = col_type_parts[0].upper()
+            if col_type not in ALLOWED_TYPES:
+                print(f"  - SKIP unsafe type '{col_type}': {name}")
+                continue
+            
             try:
                 cur.execute(f"ALTER TABLE leave_requests ADD COLUMN {name} {ddl}")
                 added.append(name)

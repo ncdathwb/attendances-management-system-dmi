@@ -1,0 +1,1366 @@
+/**
+ * Dashboard CSS
+ * =============
+ * Tách từ templates/dashboard.html
+ * Ngày tạo: 2026-01-29
+ */
+
+/* =========================================
+   CSS Variables - Dashboard specific
+   ========================================= */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --success-color: #2ecc71;
+    --warning-color: #f1c40f;
+    --danger-color: #e74c3c;
+    --light-bg: #f8f9fa;
+    --dark-text: #2c3e50;
+}
+
+/* =========================================
+   SIDEBAR STYLES
+   ========================================= */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 220px;
+    background-color: var(--primary-color);
+    padding: 15px;
+    color: white;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar-header {
+    padding: 20px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.user-profile {
+    padding: 20px 0;
+    text-align: center;
+}
+
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    margin: 0 auto 15px;
+}
+
+.user-info h4 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.user-info p {
+    margin: 5px 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.nav-item {
+    margin-bottom: 5px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.nav-link i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+/* =========================================
+   MAIN CONTENT STYLES
+   ========================================= */
+.main-content {
+    margin-left: 220px;
+    padding: 15px;
+    max-width: calc(100% - 220px);
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.page-header {
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* =========================================
+   DASHBOARD LAYOUT OVERRIDES
+   ========================================= */
+
+/* Override content-wrapper for dashboard - full width */
+.content-wrapper {
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+/* =========================================
+   TABLE STYLES
+   ========================================= */
+
+/* Ensure consistent table row heights */
+table tr {
+    height: 50px !important;
+}
+
+table td {
+    vertical-align: middle !important;
+    height: 50px !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
+}
+
+/* Cố định chiều cao tối thiểu cho bảng chấm công */
+.attendance-history .table-responsive {
+    min-height: 320px !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+}
+
+/* Đảm bảo tất cả các dòng có height cố định */
+.attendance-history table tr {
+    height: 50px !important;
+}
+
+/* Điều chỉnh bảng chính */
+.attendance-history table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+    min-width: 1200px !important;
+}
+
+/* Đảm bảo cột trạng thái hiển thị đúng */
+.badge.bg-success,
+.badge.bg-warning {
+    display: inline-block;
+    min-width: 125px;
+    padding: 8px 0;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Đảm bảo dòng rỗng hiển thị đúng */
+.attendance-history tr.empty-row td {
+    background-color: #f8fafc !important;
+}
+
+/* Thiết lập box-sizing cho mọi phần tử bảng */
+table tr,
+table td,
+table td * {
+    box-sizing: border-box !important;
+}
+
+/* Chuẩn hóa các nút và placeholder */
+.btn-sm,
+td span {
+    height: 30px !important;
+    line-height: 30px !important;
+    padding: 0 10px !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.attendance-history th,
+.attendance-history td {
+    white-space: nowrap !important;
+    padding: 8px 4px !important;
+    vertical-align: middle !important;
+}
+
+/* =========================================
+   ATTENDANCE HISTORY COLUMN WIDTHS
+   ========================================= */
+
+/* Ngày */
+.attendance-history th:nth-child(1) { width: 80px !important; }
+.attendance-history th:nth-child(2) { width: 60px !important; } /* Giờ vào */
+.attendance-history th:nth-child(3) { width: 60px !important; } /* Giờ ra */
+.attendance-history th:nth-child(4) { width: 40px !important; } /* Nghỉ */
+.attendance-history th:nth-child(5) { width: 50px !important; } /* Đối ứng */
+.attendance-history td:nth-child(5) {
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+}
+.attendance-history th:nth-child(6) { width: 70px !important; } /* Tổng giờ làm */
+.attendance-history th:nth-child(7) { width: 60px !important; } /* Giờ công */
+.attendance-history th:nth-child(8) { width: 60px !important; } /* Tăng ca trước 22h */
+.attendance-history th:nth-child(9) { width: 60px !important; } /* Tăng ca sau 22h */
+.attendance-history th:nth-child(10) { width: 90px !important; } /* Loại ngày */
+.attendance-history th:nth-child(11) { width: 100px !important; } /* Nhân viên */
+.attendance-history th:nth-child(12) { width: 100px !important; } /* Phòng ban */
+.attendance-history th:nth-child(13) { width: 90px !important; } /* Trạng thái */
+.attendance-history th:nth-child(14) { width: 80px !important; } /* Chữ ký */
+.attendance-history th:nth-child(15) { width: 120px !important; } /* Thao tác */
+.attendance-history th:nth-child(16) { width: 120px !important; } /* Ghi chú */
+
+/* =========================================
+   FORM STYLES
+   ========================================= */
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+}
+
+.form-control:focus {
+    border-color: #dee2e6;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.form-control {
+    padding: 0.375rem 0.5rem;
+}
+
+/* =========================================
+   BUTTON STYLES
+   ========================================= */
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    border: none;
+    transition: all 0.3s ease;
+    padding: 10px 20px;
+    border-radius: 5px;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.btn-sm {
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    transition: all 0.2s;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* =========================================
+   ATTENDANCE FORM SECTION
+   ========================================= */
+
+.attendance-form {
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+@media (max-width: 767px) {
+    .form-row {
+        flex-direction: column;
+    }
+
+    .form-row>div {
+        margin-bottom: 10px;
+    }
+
+    .attendance-form .row .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* =========================================
+   ATTENDANCE HISTORY SECTION
+   ========================================= */
+
+.attendance-history {
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    max-width: 100%;
+    margin: 0;
+}
+
+.table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.9rem;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.table th {
+    font-weight: 600;
+    color: #666;
+}
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-weight: 500;
+}
+
+/* =========================================
+   TOAST CONTAINER
+   ========================================= */
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+/* =========================================
+   RESPONSIVE - MOBILE
+   ========================================= */
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 0;
+        padding: 0;
+    }
+
+    .main-content {
+        margin-left: 0;
+        max-width: 100%;
+    }
+}
+
+/* =========================================
+   HOLIDAY SECTION
+   ========================================= */
+
+.holiday-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+#holidayTypeWrapper {
+    display: none;
+    min-width: 200px;
+}
+
+#holidayTypeWrapper.show {
+    display: block;
+}
+
+.form-check {
+    margin-bottom: 0;
+}
+
+/* =========================================
+   NOTE CELL
+   ========================================= */
+
+.note-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    cursor: pointer;
+}
+
+.table td.note-cell {
+    background-color: #f8fafc !important;
+    max-width: 120px;
+    cursor: pointer;
+}
+
+/* =========================================
+   TABLE COLUMN WIDTHS (General)
+   ========================================= */
+
+.table th,
+.table td {
+    vertical-align: middle;
+    word-break: break-word;
+    padding: 6px 4px !important;
+    text-align: center;
+    height: 50px !important;
+}
+
+/* Ghi chú căn trái */
+.table th:last-child,
+.table td:last-child {
+    text-align: left;
+    padding-left: 10px;
+}
+
+/* Ngày */
+.table th:nth-child(1), .table td:nth-child(1) { width: 80px; }
+.table th:nth-child(2), .table td:nth-child(2) { width: 60px; } /* Giờ vào */
+.table th:nth-child(3), .table td:nth-child(3) { width: 60px; } /* Giờ ra */
+.table th:nth-child(4), .table td:nth-child(4) { width: 40px; } /* Nghỉ */
+.table th:nth-child(5), .table td:nth-child(5) { width: 50px; } /* Giờ công */
+.table th:nth-child(6), .table td:nth-child(6) { width: 55px; } /* Tăng ca trước 22h */
+.table th:nth-child(7), .table td:nth-child(7) { width: 55px; } /* Tăng ca sau 22h */
+.table th:nth-child(8), .table td:nth-child(8) { width: 80px; } /* Loại ngày */
+.table th:nth-child(9), .table td:nth-child(9) { width: 90px; } /* Trạng thái */
+.table th:nth-child(10), .table td:nth-child(10) { width: 90px; } /* Thao tác */
+
+/* =========================================
+   PAGINATION
+   ========================================= */
+
+.pagination {
+    margin-top: 20px;
+}
+
+.pagination .page-item {
+    margin: 0 3px;
+}
+
+.pagination .page-link {
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    color: var(--accent-color);
+    border: 1px solid #dee2e6;
+    transition: all 0.2s;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+}
+
+.pagination .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    color: var(--accent-color);
+}
+
+.pagination .page-item.active .page-link:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+/* =========================================
+   RESPONSIVE IMPROVEMENTS
+   ========================================= */
+
+@media (max-width: 1200px) {
+    .attendance-history .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table th,
+    .table td {
+        white-space: nowrap;
+    }
+}
+
+@media (min-width: 1201px) {
+    .attendance-history .table-responsive {
+        overflow-x: hidden;
+    }
+}
+
+@media (max-width: 992px) {
+    .table {
+        font-size: 0.85rem;
+    }
+
+    .badge.bg-success,
+    .badge.bg-warning {
+        font-size: 0.8rem;
+        min-width: 100px;
+    }
+}
+
+/* =========================================
+   SCROLLBAR
+   ========================================= */
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* =========================================
+   PAGE HEADER & SECTIONS
+   ========================================= */
+
+.page-header {
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* =========================================
+   STATUS STYLES
+   ========================================= */
+
+/* Bỏ các style không cần thiết cho badges trong bảng */
+.attendance-history .badge.bg-success,
+.attendance-history .badge.bg-warning {
+    display: none;
+}
+
+/* Thêm style cho trạng thái text */
+.status-approved {
+    color: #198754;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.status-pending {
+    color: #ffc107;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.status-rejected {
+    color: #dc3545;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+/* =========================================
+   TABLE HEADER
+   ========================================= */
+
+.table thead th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    border-top: none;
+    text-align: center;
+    vertical-align: middle;
+    padding: 10px 5px;
+}
+
+.table tbody td {
+    padding: 8px 4px;
+    vertical-align: middle;
+}
+
+/* =========================================
+   EMPTY ROW & NO DATA
+   ========================================= */
+
+.empty-row td {
+    height: 50px;
+    padding: 0;
+}
+
+.attendance-history .empty-row td {
+    background-color: #f8fafc !important;
+}
+
+.no-data-row {
+    font-weight: 600 !important;
+    font-size: 1.05rem !important;
+    color: #888 !important;
+    text-align: center !important;
+    background: #f8fafc !important;
+    height: 50px !important;
+    vertical-align: middle !important;
+}
+
+/* =========================================
+   ACTION BUTTONS
+   ========================================= */
+
+.edit-attendance-btn,
+.delete-attendance-btn {
+    width: auto !important;
+    min-width: 60px !important;
+    height: 32px !important;
+    padding: 4px 8px !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+}
+
+.edit-attendance-btn i,
+.delete-attendance-btn i {
+    font-size: 12px !important;
+}
+
+.approve-attendance-btn,
+.reject-attendance-btn {
+    width: auto !important;
+    min-width: 90px !important;
+    height: 32px !important;
+    padding: 4px 8px !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+}
+
+.approve-attendance-btn i,
+.reject-attendance-btn i {
+    font-size: 12px !important;
+}
+
+/* Action containers */
+.action-container {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 32px !important;
+    gap: 8px !important;
+}
+
+.btn-action-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+    gap: 6px;
+}
+
+/* Specific button overrides */
+.btn.btn-warning.btn-sm.edit-attendance-btn,
+.btn.btn-danger.btn-sm.delete-attendance-btn {
+    width: 38px !important;
+    height: 32px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* =========================================
+   SIGNATURE STYLES
+   ========================================= */
+
+#signature-pad {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: border 0.2s;
+}
+
+.signature-status {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: center;
+}
+
+.signature-status .badge {
+    font-size: 0.65rem;
+    padding: 0 2px;
+    white-space: nowrap;
+    margin: 0 !important;
+    display: block;
+    line-height: 1.2;
+}
+
+.signature-status .badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.signature-status .badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.signature-status .badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Signature circles row */
+.signature-circles-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+}
+
+.signature-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.signature-circle.signed {
+    background-color: #219653;
+    color: white;
+    border-color: #1a7a42;
+}
+
+@media (max-width: 600px) {
+    #signature-pad {
+        width: 100% !important;
+        min-width: 220px;
+        max-width: 100%;
+        height: 90px !important;
+    }
+
+    .signature-status {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+/* =========================================
+   STATS CARDS (nếu cần)
+   ========================================= */
+
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    margin-bottom: 15px;
+}
+
+.stat-card .title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat-card .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* =========================================
+   ENHANCED RESPONSIVE DESIGN
+   ========================================= */
+
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1100;
+    width: 45px;
+    height: 45px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--secondary-color);
+    transform: scale(1.05);
+}
+
+.mobile-menu-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Sidebar Overlay for Mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+}
+
+/* =========================================
+   TABLET RESPONSIVE (768px - 992px)
+   ========================================= */
+@media (min-width: 769px) and (max-width: 992px) {
+    .sidebar {
+        width: 70px;
+        padding: 10px;
+        overflow: hidden;
+    }
+
+    .sidebar-header h3 {
+        font-size: 0;
+    }
+
+    .sidebar-header h3 i {
+        font-size: 1.5rem;
+        margin: 0;
+    }
+
+    .user-profile {
+        padding: 10px 0;
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2em;
+        margin-bottom: 5px;
+    }
+
+    .user-info h4,
+    .user-info p,
+    .role-switcher {
+        display: none;
+    }
+
+    .nav-link {
+        padding: 12px;
+        justify-content: center;
+    }
+
+    .nav-link i {
+        margin-right: 0;
+        font-size: 1.1rem;
+    }
+
+    .nav-link span,
+    .nav-item a:not(.nav-link i) {
+        display: none;
+    }
+
+    /* Hide text in nav links */
+    .nav-menu .nav-link {
+        font-size: 0;
+    }
+
+    .nav-menu .nav-link i {
+        font-size: 1.2rem;
+    }
+
+    .main-content {
+        margin-left: 70px;
+        max-width: calc(100% - 70px);
+    }
+
+    .page-title {
+        font-size: 1.3rem;
+    }
+
+    /* Cards grid for tablet */
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    /* Form adjustments */
+    .attendance-form .row .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+/* =========================================
+   MOBILE RESPONSIVE (< 768px)
+   ========================================= */
+@media (max-width: 768px) {
+    /* Show mobile menu toggle */
+    .mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Sidebar as slide-in overlay */
+    .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1050;
+        padding: 15px;
+        overflow-y: auto;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .sidebar-overlay {
+        display: block;
+        pointer-events: none;
+    }
+
+    .sidebar-overlay.active {
+        pointer-events: auto;
+    }
+
+    /* Close button inside sidebar */
+    .sidebar-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 35px;
+        height: 35px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        font-size: 1.1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+    }
+
+    .sidebar-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Main content full width */
+    .main-content {
+        margin-left: 0;
+        max-width: 100%;
+        padding: 70px 15px 15px 15px;
+    }
+
+    .page-header {
+        padding: 12px 15px;
+        margin-bottom: 15px;
+    }
+
+    .page-title {
+        font-size: 1.2rem;
+    }
+
+    /* User profile in sidebar */
+    .user-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5em;
+    }
+
+    .user-info h4 {
+        font-size: 1rem;
+    }
+
+    /* Cards stack vertically */
+    .stats-cards {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 15px;
+    }
+
+    .stat-card .value {
+        font-size: 1.3rem;
+    }
+
+    /* Form sections */
+    .attendance-form {
+        padding: 12px;
+    }
+
+    .attendance-form h5 {
+        font-size: 1.1rem;
+    }
+
+    .attendance-form .row .col-6,
+    .attendance-form .row .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Time inputs */
+    .attendance-form input[type="time"],
+    .attendance-form input[type="text"],
+    .attendance-form select {
+        font-size: 16px; /* Prevent zoom on iOS */
+        padding: 10px 12px;
+    }
+
+    /* Buttons */
+    .attendance-form .btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    .attendance-form .btn-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* Attendance history table */
+    .attendance-history {
+        padding: 10px;
+        margin: 0 -5px;
+        border-radius: 8px;
+    }
+
+    .attendance-history h5 {
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    .attendance-history .table-responsive {
+        margin: 0 -5px;
+        border-radius: 8px;
+        box-shadow: inset -10px 0 10px -10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Table adjustments */
+    .table {
+        font-size: 0.8rem;
+        min-width: 800px;
+    }
+
+    .table th,
+    .table td {
+        padding: 8px 4px !important;
+        height: auto !important;
+        min-height: 40px;
+    }
+
+    /* Sticky first column */
+    .table th:first-child,
+    .table td:first-child {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 1;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .table thead th:first-child {
+        background: #f8f9fa;
+        z-index: 2;
+    }
+
+    /* Badge adjustments */
+    .badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        min-width: auto;
+    }
+
+    /* Toast container */
+    .toast-container {
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        max-width: calc(100% - 20px);
+    }
+
+    /* Token status banner */
+    #tokenStatusBanner {
+        margin: 10px !important;
+    }
+
+    #tokenStatusBanner .alert {
+        font-size: 0.9rem;
+        padding: 10px;
+    }
+
+    #tokenStatusBanner .btn {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+
+    /* Approval section */
+    .approval-section {
+        padding: 10px;
+    }
+
+    .approval-section .table-responsive {
+        margin: 0 -5px;
+    }
+
+    /* Hide some columns on mobile for better UX */
+    .table .hide-mobile {
+        display: none;
+    }
+}
+
+/* =========================================
+   SMALL MOBILE (< 576px)
+   ========================================= */
+@media (max-width: 576px) {
+    .mobile-menu-toggle {
+        top: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+
+    .main-content {
+        padding: 60px 10px 10px 10px;
+    }
+
+    .page-header {
+        padding: 10px;
+    }
+
+    .page-title {
+        font-size: 1.1rem;
+    }
+
+    .sidebar {
+        width: 85%;
+        max-width: 300px;
+    }
+
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+    }
+
+    /* Even smaller table font */
+    .table {
+        font-size: 0.75rem;
+    }
+
+    .attendance-form {
+        padding: 10px;
+    }
+
+    .stat-card {
+        padding: 12px;
+    }
+
+    .stat-card .icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2em;
+    }
+
+    .stat-card .value {
+        font-size: 1.2rem;
+    }
+
+    /* Role switcher in sidebar */
+    .role-switcher {
+        margin-top: 8px;
+    }
+
+    .role-switcher select {
+        font-size: 0.85rem;
+        padding: 6px 8px;
+    }
+}
+
+/* =========================================
+   LARGE DESKTOP (> 1400px)
+   ========================================= */
+@media (min-width: 1400px) {
+    .sidebar {
+        width: 260px;
+    }
+
+    .main-content {
+        margin-left: 260px;
+        max-width: calc(100% - 260px);
+    }
+
+    .page-title {
+        font-size: 1.8rem;
+    }
+
+    .stats-cards {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* =========================================
+   PRINT STYLES
+   ========================================= */
+@media print {
+    .sidebar,
+    .mobile-menu-toggle,
+    .sidebar-overlay,
+    #tokenStatusBanner,
+    .toast-container {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0;
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .table {
+        font-size: 10pt;
+    }
+}
+
+/* =========================================
+   ACCESSIBILITY IMPROVEMENTS
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-overlay,
+    .mobile-menu-toggle,
+    .nav-link {
+        transition: none;
+    }
+}
+
+/* Focus styles for keyboard navigation */
+.mobile-menu-toggle:focus,
+.sidebar-close:focus,
+.nav-link:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .sidebar {
+        border-right: 2px solid white;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        background-color: white;
+        color: var(--primary-color);
+    }
+}

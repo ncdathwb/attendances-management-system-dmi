@@ -1,0 +1,59 @@
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .test-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .test-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+        }
+        .signature-section {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+        .signature-preview {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .signature-preview img {
+            max-width: 100%;
+            max-height: 100px;
+        }
+        .signature-canvas {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: white;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+        .role-badge {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .role-employee { background-color: #e3f2fd; color: #1976d2; }
+        .role-team-leader { background-color: #fff3e0; color: #f57c00; }
+        .role-manager { background-color: #e8f5e8; color: #388e3c; }

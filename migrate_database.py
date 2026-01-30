@@ -63,24 +63,27 @@ def migrate_database():
         cursor.execute("PRAGMA table_info(leave_requests)")
         leave_columns = [col[1] for col in cursor.fetchall()]
         
-        leave_new_columns = [
-            ('step', 'VARCHAR(20) DEFAULT "leader"'),
-            ('current_approver_id', 'INTEGER'),
-            ('reject_reason', 'TEXT'),
-            ('team_leader_signature', 'TEXT'),
-            ('team_leader_signer_id', 'INTEGER'),
-            ('team_leader_approved_at', 'DATETIME'),
-            ('manager_signature', 'TEXT'),
-            ('manager_signer_id', 'INTEGER'),
-            ('manager_approved_at', 'DATETIME'),
-            ('admin_signature', 'TEXT'),
-            ('admin_signer_id', 'INTEGER'),
-            ('admin_approved_at', 'DATETIME')
-        ]
-        
-        for col_name, col_def in leave_new_columns:
+        # Security: Frozen mapping of column name -> validated SQL definition
+        # Using a whitelist dictionary ensures both column name and definition are trusted
+        LEAVE_COLUMN_DEFINITIONS = {
+            'step': 'VARCHAR(20) DEFAULT "leader"',
+            'current_approver_id': 'INTEGER',
+            'reject_reason': 'TEXT',
+            'team_leader_signature': 'TEXT',
+            'team_leader_signer_id': 'INTEGER',
+            'team_leader_approved_at': 'DATETIME',
+            'manager_signature': 'TEXT',
+            'manager_signer_id': 'INTEGER',
+            'manager_approved_at': 'DATETIME',
+            'admin_signature': 'TEXT',
+            'admin_signer_id': 'INTEGER',
+            'admin_approved_at': 'DATETIME'
+        }
+
+        for col_name, col_def in LEAVE_COLUMN_DEFINITIONS.items():
             if col_name not in leave_columns:
                 try:
+                    # Safe: col_name and col_def are from hardcoded whitelist above
                     cursor.execute(f"ALTER TABLE leave_requests ADD COLUMN {col_name} {col_def}")
                     print(f"✅ Added: leave_requests.{col_name}")
                     changes_made = True

@@ -33,954 +33,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/role-switch-controls.css') }}?v=20250107003">
     <!-- Search Filter CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/search-filter.css') }}">
-    <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --success-color: #2ecc71;
-            --warning-color: #f1c40f;
-            --danger-color: #e74c3c;
-            --light-bg: #f8f9fa;
-            --dark-text: #2c3e50;
-        }
-
-        /* Ensure consistent table row heights */
-        table tr {
-            height: 50px !important;
-        }
-
-        table td {
-            vertical-align: middle !important;
-            height: 50px !important;
-            padding: 8px !important;
-            box-sizing: border-box !important;
-        }
-
-        /* Cố định chiều cao tối thiểu cho bảng chấm công */
-        .attendance-history .table-responsive {
-            min-height: 320px !important;
-            /* Bao gồm thead và tbody */
-        }
-
-        /* Đảm bảo tất cả các dòng có height cố định */
-        .attendance-history table tr {
-            height: 50px !important;
-        }
-
-        /* Điều chỉnh bảng chính */
-        .attendance-history table {
-            border-collapse: collapse;
-            width: 100%;
-            table-layout: fixed;
-        }
-
-        /* Đảm bảo cột trạng thái hiển thị đúng */
-        .badge.bg-success,
-        .badge.bg-warning {
-            display: inline-block;
-            min-width: 125px;
-            padding: 8px 0;
-            text-align: center;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        /* Đảm bảo dòng rỗng hiển thị đúng */
-        .attendance-history tr.empty-row td {
-            background-color: #f8fafc !important;
-        }
-
-        /* Thiết lập box-sizing cho mọi phần tử bảng */
-        table tr,
-        table td,
-        table td * {
-            box-sizing: border-box !important;
-        }
-
-        /* Chuẩn hóa các nút và placeholder */
-        .btn-sm,
-        td span {
-            height: 30px !important;
-            line-height: 30px !important;
-            padding: 0 10px !important;
-            margin: 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        /* Đảm bảo bảng lịch sử chấm công hiển thị đúng */
-        .attendance-history .table-responsive {
-            overflow-x: auto !important;
-            max-width: 100% !important;
-        }
-
-        .attendance-history table {
-            min-width: 1200px !important;
-            width: 100% !important;
-        }
-
-
-        .attendance-history th,
-        .attendance-history td {
-            white-space: nowrap !important;
-            padding: 8px 4px !important;
-            vertical-align: middle !important;
-        }
-
-        /* Custom styles for professional look */
-        .form-control:focus,
-        .form-select:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-        }
-
-        .input-group-text {
-            background-color: #f8f9fa;
-        }
-
-        /* Removed moon toggle styles - no longer needed */
-
-        .form-control:focus {
-            border-color: #dee2e6;
-        }
-
-        .form-check-input:checked {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-            border: none;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-        }
-
-        /* Đảm bảo các cột có kích thước phù hợp */
-        .attendance-history th:nth-child(1) {
-            width: 80px !important;
-        }
-
-        /* Ngày */
-        .attendance-history th:nth-child(2) {
-            width: 60px !important;
-        }
-
-        /* Giờ vào */
-        .attendance-history th:nth-child(3) {
-            width: 60px !important;
-        }
-
-        /* Giờ ra */
-        .attendance-history th:nth-child(4) {
-            width: 40px !important;
-        }
-
-        /* Nghỉ */
-        .attendance-history th:nth-child(5) {
-            width: 50px !important;
-        }
-
-        /* Đối ứng */
-        .attendance-history td:nth-child(5) {
-            width: 50px !important;
-            min-width: 50px !important;
-            max-width: 50px !important;
-            overflow: visible !important;
-            white-space: nowrap !important;
-        }
-
-        /* Đối ứng */
-        .attendance-history th:nth-child(6) {
-            width: 70px !important;
-        }
-
-        /* Tổng giờ làm */
-        .attendance-history th:nth-child(7) {
-            width: 60px !important;
-        }
-
-        /* Giờ công */
-        .attendance-history th:nth-child(8) {
-            width: 60px !important;
-        }
-
-        /* Tăng ca trước 22h */
-        .attendance-history th:nth-child(9) {
-            width: 60px !important;
-        }
-
-        /* Tăng ca sau 22h */
-        .attendance-history th:nth-child(10) {
-            width: 90px !important;
-        }
-
-        /* Loại ngày */
-        .attendance-history th:nth-child(11) {
-            width: 100px !important;
-        }
-
-        /* Nhân viên */
-        .attendance-history th:nth-child(12) {
-            width: 100px !important;
-        }
-
-        /* Phòng ban */
-        .attendance-history th:nth-child(13) {
-            width: 90px !important;
-        }
-
-        /* Trạng thái */
-        .attendance-history th:nth-child(14) {
-            width: 80px !important;
-        }
-
-        /* Chữ ký */
-        .attendance-history th:nth-child(15) {
-            width: 120px !important;
-        }
-
-        /* Thao tác */
-        .attendance-history th:nth-child(16) {
-            width: 120px !important;
-        }
-
-        /* Ghi chú */
-
-        body {
-            background-color: var(--light-bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--dark-text);
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 220px;
-            background-color: var(--primary-color);
-            padding: 15px;
-            color: white;
-            transition: all 0.3s ease;
-            z-index: 1000;
-        }
-
-        .sidebar-header {
-            padding: 20px 0;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar-header h3 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .user-profile {
-            padding: 20px 0;
-            text-align: center;
-        }
-
-        .user-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background-color: var(--accent-color);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            margin: 0 auto 15px;
-        }
-
-        .user-info h4 {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-
-        .user-info p {
-            margin: 5px 0;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0;
-            margin: 20px 0;
-        }
-
-        .nav-item {
-            margin-bottom: 5px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .nav-link i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-
-        /* Main Content Styles */
-        .main-content {
-            margin-left: 220px;
-            padding: 15px;
-            max-width: calc(100% - 220px);
-            overflow-x: hidden;
-            box-sizing: border-box;
-        }
-
-        .page-header {
-            background-color: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
-        }
-
-        .page-title {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .stats-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-card .icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-        }
-
-        .stat-card .title {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .stat-card .value {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0;
-        }
-
-        /* Attendance Form Styles */
-        .attendance-form {
-            background-color: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
-            max-width: 100%;
-            overflow: hidden;
-        }
-
-        @media (max-width: 767px) {
-            .form-row {
-                flex-direction: column;
-            }
-
-            .form-row>div {
-                margin-bottom: 10px;
-            }
-
-            .attendance-form .row .col-6 {
-                flex: 0 0 100%;
-                max-width: 100%;
-            }
-        }
-
-        .form-label {
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-color);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: #2980b9;
-            transform: translateY(-2px);
-        }
-
-        .attendance-history {
-            background-color: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            max-width: 100%;
-            margin: 0;
-        }
-
-        .attendance-history .table-responsive {
-            overflow-x: auto;
-            min-width: 100%;
-            max-width: 100%;
-        }
-
-        .table {
-            width: 100%;
-            table-layout: fixed;
-            font-size: 0.9rem;
-            margin: 0;
-            border-collapse: collapse;
-        }
-
-        .table th {
-            font-weight: 600;
-            color: #666;
-        }
-
-        .badge {
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-weight: 500;
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                padding: 0;
-            }
-
-            .main-content {
-                margin-left: 0;
-                max-width: 100%;
-            }
-        }
-
-        .holiday-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 10px;
-        }
-
-        #holidayTypeWrapper {
-            display: none;
-            min-width: 200px;
-        }
-
-        #holidayTypeWrapper.show {
-            display: block;
-        }
-
-        .form-check {
-            margin-bottom: 0;
-        }
-
-        /* Thêm CSS để giới hạn chiều rộng của cột ghi chú và hiển thị tooltip */
-        .note-cell {
-            max-width: 200px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            position: relative;
-            cursor: pointer;
-        }
-
-        /* Đảm bảo các cột có kích thước phù hợp */
-        .table th,
-        .table td {
-            vertical-align: middle;
-            word-break: break-word;
-            padding: 6px 4px !important;
-        }
-
-        /* Thiết lập độ rộng và căn chỉnh cho từng cột */
-        .table th:nth-child(1),
-        .table td:nth-child(1) {
-            width: 80px;
-        }
-
-        /* Ngày */
-        .table th:nth-child(2),
-        .table td:nth-child(2) {
-            width: 60px;
-        }
-
-        /* Giờ vào */
-        .table th:nth-child(3),
-        .table td:nth-child(3) {
-            width: 60px;
-        }
-
-        /* Giờ ra */
-        .table th:nth-child(4),
-        .table td:nth-child(4) {
-            width: 40px;
-        }
-
-        /* Nghỉ */
-        .table th:nth-child(5),
-        .table td:nth-child(5) {
-            width: 50px;
-        }
-
-        /* Giờ công */
-        .table th:nth-child(6),
-        .table td:nth-child(6) {
-            width: 55px;
-        }
-
-        /* Tăng ca trước 22h */
-        .table th:nth-child(7),
-        .table td:nth-child(7) {
-            width: 55px;
-        }
-
-        /* Tăng ca sau 22h */
-        .table th:nth-child(8),
-        .table td:nth-child(8) {
-            width: 80px;
-        }
-
-        /* Loại ngày */
-        .table th:nth-child(9),
-        .table td:nth-child(9) {
-            width: 90px;
-        }
-
-        /* Trạng thái */
-        .table th:nth-child(10),
-        .table td:nth-child(10) {
-            width: 90px;
-        }
-
-        /* Thao tác */
-        .table th:nth-child(11),
-        .table td:nth-child(11) {
-            width: 90px;
-        }
-
-        /* Ghi chú */
-
-        /* Cải thiện giao diện phân trang */
-        .pagination {
-            margin-top: 20px;
-        }
-
-        .pagination .page-item {
-            margin: 0 3px;
-        }
-
-        .pagination .page-link {
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 500;
-            color: var(--accent-color);
-            border: 1px solid #dee2e6;
-            transition: all 0.2s;
-        }
-
-        .pagination .page-item.active .page-link {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-            color: white;
-            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
-        }
-
-        .pagination .page-link:hover {
-            background-color: #e9ecef;
-            border-color: #dee2e6;
-            color: var(--accent-color);
-        }
-
-        .pagination .page-item.active .page-link:hover {
-            background-color: var(--accent-color);
-            color: white;
-        }
-
-        /* Cải thiện responsive */
-        @media (max-width: 1200px) {
-            .attendance-history .table-responsive {
-                overflow-x: auto;
-            }
-
-            .table th,
-            .table td {
-                white-space: nowrap;
-            }
-        }
-
-        @media (min-width: 1201px) {
-            .attendance-history .table-responsive {
-                overflow-x: hidden;
-            }
-        }
-
-        /* Cải thiện font size trong bảng khi màn hình nhỏ */
-        @media (max-width: 992px) {
-            .table {
-                font-size: 0.85rem;
-            }
-
-            .badge.bg-success,
-            .badge.bg-warning {
-                font-size: 0.8rem;
-                min-width: 100px;
-            }
-        }
-
-        /* Thêm scrollbar tùy chỉnh để tối ưu không gian */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-        html,
-        body {
-            max-width: 100%;
-            overflow-x: hidden;
-        }
-
-        /* Giảm padding cho các phần tử con */
-        .page-header {
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .attendance-form {
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .form-control {
-            padding: 0.375rem 0.5rem;
-        }
-
-        /* Bỏ các style không cần thiết cho badges */
-        .badge.bg-success,
-        .badge.bg-warning {
-            display: none;
-        }
-
-        /* Thêm style cho trạng thái text */
-        .status-approved {
-            color: #198754;
-            /* màu xanh lá */
-            font-weight: 500;
-        }
-
-        .status-pending {
-            color: #ffc107;
-            /* màu vàng */
-            font-weight: 500;
-        }
-
-        .status-rejected {
-            color: #dc3545;
-            /* màu đỏ */
-            font-weight: 500;
-        }
-
-        /* Căn chỉnh cho các cột */
-        .table th,
-        .table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        /* Ghi chú căn trái */
-        .table th:last-child,
-        .table td:last-child {
-            text-align: left;
-        }
-
-        /* Thiết lập style cho header của bảng */
-        .table thead th {
-            font-weight: 600;
-            color: #495057;
-            background-color: #f8f9fa;
-            border-top: none;
-            text-align: center;
-            vertical-align: middle;
-            padding: 10px 5px;
-        }
-
-        /* Thiết lập style cho các hàng trong bảng */
-        .table tbody td {
-            padding: 8px 4px;
-            vertical-align: middle;
-        }
-
-        /* Tiêu đề cuối cùng (ghi chú) được căn trái */
-        .table th:last-child {
-            text-align: left;
-            padding-left: 10px;
-        }
-
-        /* Tiêu đề cột trạng thái */
-        .table th:nth-child(9) {
-            text-align: center;
-        }
-
-        /* Tiêu đề cột thao tác */
-        .table th:nth-child(10) {
-            text-align: center;
-        }
-
-        /* Thêm style cho empty-row */
-        .empty-row td {
-            height: 50px;
-            padding: 0;
-        }
-
-        /* Style cho tất cả các hàng */
-        .table tr {
-            height: 50px;
-        }
-
-        /* Các thẻ th và td đều có height cố định */
-        .table th,
-        .table td {
-            height: 50px !important;
-        }
-
-        /* Điều chỉnh CSS cho cột trạng thái để nhất quán */
-        .status-approved,
-        .status-pending,
-        .status-rejected {
-            display: inline-block;
-            width: 100%;
-            text-align: center;
-        }
-
-        /* Thiết lập style cho nút thao tác */
-        .edit-attendance-btn {
-            width: auto !important;
-            min-width: 60px !important;
-            height: 32px !important;
-            padding: 4px 8px !important;
-            border: 1px solid rgba(0, 0, 0, 0.2) !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-            font-size: 12px !important;
-            white-space: nowrap !important;
-        }
-
-        .delete-attendance-btn {
-            width: auto !important;
-            min-width: 60px !important;
-            height: 32px !important;
-            padding: 4px 8px !important;
-            border: 1px solid rgba(0, 0, 0, 0.2) !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-            font-size: 12px !important;
-            white-space: nowrap !important;
-        }
-
-        .edit-attendance-btn i,
-        .delete-attendance-btn i {
-            font-size: 12px !important;
-        }
-
-        /* Thiết lập style cho nút phê duyệt và từ chối */
-        .approve-attendance-btn,
-        .reject-attendance-btn {
-            width: auto !important;
-            min-width: 90px !important;
-            height: 32px !important;
-            padding: 4px 8px !important;
-            border: 1px solid rgba(0, 0, 0, 0.2) !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-            font-size: 12px !important;
-            white-space: nowrap !important;
-        }
-
-        .approve-attendance-btn i,
-        .reject-attendance-btn i {
-            font-size: 12px !important;
-        }
-
-        /* Tăng khoảng cách trong container */
-        .action-container {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            height: 32px !important;
-            gap: 8px !important;
-        }
-
-        /* Điều chỉnh các nút thao tác */
-        .btn-action-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto;
-            gap: 6px;
-        }
-
-        .btn-sm {
-            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            transition: all 0.2s;
-        }
-
-        .btn-sm:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Đặt CSS !important để ghi đè mọi thiết lập khác */
-        .btn.btn-warning.btn-sm.edit-attendance-btn,
-        .btn.btn-danger.btn-sm.delete-attendance-btn {
-            width: 38px !important;
-            height: 32px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        .table td.note-cell {
-            background-color: #f8fafc !important;
-            max-width: 120px;
-            cursor: pointer;
-        }
-
-        .attendance-history .empty-row td {
-            background-color: #f8fafc !important;
-        }
-
-        /* Thêm vào phần <style> */
-        .no-data-row {
-            font-weight: 600 !important;
-            font-size: 1.05rem !important;
-            color: #888 !important;
-            text-align: center !important;
-            background: #f8fafc !important;
-            height: 50px !important;
-            vertical-align: middle !important;
-        }
-
-        #signature-pad {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            transition: border 0.2s;
-        }
-
-        .signature-status {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            align-items: center;
-        }
-
-        .signature-status .badge {
-            font-size: 0.65rem;
-            padding: 0 2px;
-            white-space: nowrap;
-            margin: 0 !important;
-            display: block;
-            line-height: 1.2;
-        }
-
-        .signature-status .badge.bg-success {
-            background-color: #28a745 !important;
-        }
-
-        .signature-status .badge.bg-warning {
-            background-color: #ffc107 !important;
-            color: #212529 !important;
-        }
-
-        .signature-status .badge.bg-secondary {
-            background-color: #6c757d !important;
-        }
-
-        @media (max-width: 600px) {
-            #signature-pad {
-                width: 100% !important;
-                min-width: 220px;
-                max-width: 100%;
-                height: 90px !important;
-            }
-
-            .signature-status {
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-        }
-    </style>
+    <!-- Dashboard CSS (includes sidebar styles) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
 
 <body>
+    <!-- Mobile Menu Toggle Button -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Mở menu">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
+        <!-- Close button for mobile -->
+        <button class="sidebar-close" id="sidebarClose" aria-label="Đóng menu">
+            <i class="fas fa-times"></i>
+        </button>
         <div class="sidebar-header">
             <h3><i class="fas fa-clock me-2"></i>Chấm công</h3>
         </div>
@@ -1622,6 +693,11 @@
 
     <!-- Embedded data for JS (avoids template braces inside JS code) -->
     <script id="has-signature-data" type="application/json">{{ (has_signature | default(false) | tojson) }}</script>
+    <script id="session-user-data" type="application/json">{{ {
+        "name": session.get("name", "Test User"),
+        "employee_id": session.get("employee_id", "TEST001"),
+        "department": session.get("department", "TEST")
+    } | tojson }}</script>
     <script>
         // Checkout date auto-suggestion functionality
         document.addEventListener('DOMContentLoaded', function () {
@@ -3519,8 +2595,8 @@
             if (employeeLeaveHistoryMenu) employeeLeaveHistoryMenu.style.display = 'none';
             if (managerLeaveMenu) managerLeaveMenu.style.display = 'none';
 
-            // Ẩn menu Cài đặt mặc định cho ADMIN
-            if (settingsMenu && role === 'ADMIN') {
+            // Ẩn menu Cài đặt cho ADMIN, MANAGER, TEAM_LEADER (chỉ EMPLOYEE mới thấy)
+            if (settingsMenu && (role === 'ADMIN' || role === 'MANAGER' || role === 'TEAM_LEADER')) {
                 settingsMenu.style.display = 'none';
             } else if (settingsMenu) {
                 settingsMenu.style.display = 'block';
@@ -3608,11 +2684,11 @@
                 if (role === 'ADMIN' && attendanceHistoryMenuWrapper) {
                     attendanceHistoryMenuWrapper.style.display = 'block';
                 }
-                // Ẩn menu Cài đặt cho ADMIN
-                if (role === 'ADMIN' && settingsMenu) {
+                // Ẩn menu Cài đặt cho ADMIN, MANAGER, TEAM_LEADER (chỉ EMPLOYEE mới thấy)
+                if ((role === 'ADMIN' || role === 'MANAGER' || role === 'TEAM_LEADER') && settingsMenu) {
                     settingsMenu.style.display = 'none';
                 } else if (settingsMenu) {
-                    // Hiển thị menu Cài đặt cho các role khác (TEAM_LEADER, MANAGER)
+                    // Hiển thị menu Cài đặt cho EMPLOYEE
                     settingsMenu.style.display = 'block';
                 }
                 // Hiển thị menu nghỉ phép cần phê duyệt cho trưởng nhóm/quản lý/quản trị viên
@@ -4903,11 +3979,12 @@
                 let teamLeaderSignature = '';
                 let managerSignature = '';
 
-                // Thử lấy chữ ký cá nhân từ user
+                // Thử lấy chữ ký cá nhân từ user - sử dụng data bridge
+                const sessionUserData = JSON.parse(document.getElementById('session-user-data')?.textContent || '{}');
                 const currentUser = {
-                    name: '{{ session.get("name", "Test User") }}',
-                    employee_id: '{{ session.get("employee_id", "TEST001") }}',
-                    department: '{{ session.get("department", "TEST") }}'
+                    name: sessionUserData.name || 'Test User',
+                    employee_id: sessionUserData.employee_id || 'TEST001',
+                    department: sessionUserData.department || 'TEST'
                 };
 
                 // Tạo chữ ký mẫu đơn giản
@@ -5670,6 +4747,73 @@
     <!-- Excel Full Export Button -->
     <script
         src="{{ url_for('static', filename='js/attendance_excel_full.js') }}?v={{ range(1, 99999) | random }}"></script>
+
+    <!-- Mobile Menu Toggle Script -->
+    <script>
+    (function() {
+        // Mobile menu functionality
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarClose = document.getElementById('sidebarClose');
+
+        function openSidebar() {
+            sidebar.classList.add('active');
+            sidebarOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            mobileMenuToggle.innerHTML = '<i class="fas fa-times"></i>';
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+            mobileMenuToggle.innerHTML = '<i class="fas fa-bars"></i>';
+        }
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', function() {
+                if (sidebar.classList.contains('active')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', closeSidebar);
+        }
+
+        // Close sidebar when clicking a nav link on mobile
+        const navLinks = document.querySelectorAll('.sidebar .nav-link');
+        navLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeSidebar();
+            }
+        });
+
+        // Keyboard accessibility - close on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                closeSidebar();
+            }
+        });
+    })();
+    </script>
 </body>
 
 </html>

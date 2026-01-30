@@ -7,1123 +7,738 @@
     <title>Cài đặt - DMI Attendance</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=20260130">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.6/dist/signature_pad.umd.min.js"></script>
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .main-container {
-            height: 100vh;
-            overflow-y: auto;
-            padding: 10px 0;
-        }
-
-        .settings-card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 10px;
-        }
-
-        .settings-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px 8px 0 0;
-        }
-
-        .settings-header h4 {
-            margin: 0;
-            font-size: 1rem;
-        }
-
-        .signature-preview {
-            border: 2px dashed #dee2e6;
-            border-radius: 6px;
-            padding: 8px;
-            background: #f8f9fa;
-            min-height: 120px;
-            min-width: 350px;
-            max-width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .signature-preview img {
-            max-height: 100px;
-            max-width: 100%;
-        }
-
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-        }
-
-        .compact-form .mb-3 {
-            margin-bottom: 0.5rem !important;
-        }
-
-        .compact-form .p-4 {
-            padding: 0.75rem !important;
-        }
-
-        .compact-form .alert {
-            padding: 0.4rem 0.6rem;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-        }
-
-        .compact-form canvas#signature-pad {
-            height: 300px !important;
-            width: 500px !important;
-            max-width: 100%;
-        }
-
-        /* Custom Range Slider Styles */
-        .custom-range {
-            height: 12px;
-            border-radius: 6px;
-            background: #e9ecef;
-            outline: none;
-            -webkit-appearance: none;
-            appearance: none;
-            border: 1px solid #ced4da;
-        }
-
-        .custom-range::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            cursor: pointer;
-            border: 3px solid white;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s ease;
-            margin-top: -6px;
-        }
-
-        .custom-range::-webkit-slider-thumb:hover {
-            transform: scale(1.15);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-        }
-
-        .custom-range::-webkit-slider-thumb:active {
-            transform: scale(1.1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .custom-range::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            cursor: pointer;
-            border: 3px solid white;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s ease;
-        }
-
-        .custom-range::-moz-range-thumb:hover {
-            transform: scale(1.15);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-        }
-
-        .custom-range::-webkit-slider-track {
-            height: 12px;
-            border-radius: 6px;
-            background: linear-gradient(to right, #667eea 0%, #764ba2 50%, #e9ecef 50%, #e9ecef 100%);
-            border: 1px solid #ced4da;
-        }
-
-        .custom-range::-moz-range-track {
-            height: 12px;
-            border-radius: 6px;
-            background: linear-gradient(to right, #667eea 0%, #764ba2 50%, #e9ecef 50%, #e9ecef 100%);
-            border: 1px solid #ced4da;
-        }
-
-        /* Dynamic filled track for each slider */
-        .custom-range.brightness::-webkit-slider-track {
-            background: linear-gradient(to right, #007bff 0%, #007bff var(--value-percent), #e9ecef var(--value-percent), #e9ecef 100%);
-        }
-
-        .custom-range.contrast::-webkit-slider-track {
-            background: linear-gradient(to right, #28a745 0%, #28a745 var(--value-percent), #e9ecef var(--value-percent), #e9ecef 100%);
-        }
-
-        .custom-range.intensity::-webkit-slider-track {
-            background: linear-gradient(to right, #ffc107 0%, #ffc107 var(--value-percent), #e9ecef var(--value-percent), #e9ecef 100%);
-        }
-
-
-        .compact-form .text-muted {
-            margin-bottom: 0.5rem !important;
-            font-size: 0.875rem;
-        }
-
-        .compact-form .mt-3 {
-            margin-top: 0.5rem !important;
-        }
-
-        .compact-form .mt-4 {
-            margin-top: 0.75rem !important;
-        }
-
-        .compact-form .mb-4 {
-            margin-bottom: 0.75rem !important;
-        }
-
-        .readonly-field {
-            background-color: #f8f9fa;
-            color: #6c757d;
-        }
-
-        /* Toast Notification Styles */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-        }
-
-        .toast-notification {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            padding: 12px 16px;
-            margin-bottom: 10px;
-            min-width: 300px;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            animation: slideInRight 0.3s ease-out;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .toast-notification::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: #28a745;
-        }
-
-        .toast-notification.error {
-            background: #f8d7da;
-            border-color: #f5c6cb;
-        }
-
-        .toast-notification.error::before {
-            background: #dc3545;
-        }
-
-        .toast-notification.warning {
-            background: #fff3cd;
-            border-color: #ffeaa7;
-        }
-
-        .toast-notification.warning::before {
-            background: #ffc107;
-        }
-
-        .toast-notification.info {
-            background: #d1ecf1;
-            border-color: #bee5eb;
-        }
-
-        .toast-notification.info::before {
-            background: #17a2b8;
-        }
-
-        .toast-content {
-            display: flex;
-            align-items: center;
-            flex: 1;
-        }
-
-        .toast-icon {
-            margin-right: 10px;
-            font-size: 16px;
-        }
-
-        .toast-message {
-            color: #155724;
-            font-size: 14px;
-            font-weight: 500;
-            margin: 0;
-        }
-
-        .toast-notification.error .toast-message {
-            color: #721c24;
-        }
-
-        .toast-notification.warning .toast-message {
-            color: #856404;
-        }
-
-        .toast-notification.info .toast-message {
-            color: #0c5460;
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: #6c757d;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-
-        .toast-close:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-            color: #495057;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
-
-        .toast-notification.hiding {
-            animation: slideOutRight 0.3s ease-in forwards;
-        }
-    </style>
 </head>
 
 <body>
-    <div class="main-container">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8">
-                    <!-- Header -->
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h2 class="h4 mb-0"><i class="fas fa-cog me-2"></i>Cài đặt cá nhân</h2>
-                        <div class="d-flex gap-2">
-                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-arrow-left me-2"></i>Quay lại Dashboard
-                            </a>
-                            <a href="{{ url_for('change_password') }}" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-key me-2"></i>Đổi mật khẩu
-                            </a>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-cog me-2"></i>Cài đặt</h3>
+        </div>
+        <div class="user-profile">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-info">
+                <h4>{{ user.name }}</h4>
+                <p>{{ user.employee_id }}</p>
+            </div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#profile-section" class="nav-link active" data-section="profile">
+                    <i class="fas fa-user-circle"></i>
+                    Thông tin cá nhân
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#signature-section" class="nav-link" data-section="signature">
+                    <i class="fas fa-signature"></i>
+                    Chữ ký cá nhân
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('change_password') }}" class="nav-link">
+                    <i class="fas fa-key"></i>
+                    Đổi mật khẩu
+                </a>
+            </li>
+            <li class="nav-item mt-auto">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">
+                    <i class="fas fa-arrow-left"></i>
+                    Quay lại Dashboard
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Toast Container -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- Flash Messages JSON -->
+        <script id="flash-data" type="application/json">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
+
+        <form method="POST" id="settings-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Profile Section -->
+            <section id="profile-section" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-circle me-2"></i>Thông tin cá nhân</h2>
+                    <p class="text-muted mb-0">Xem thông tin tài khoản của bạn</p>
+                </div>
+
+                <div class="cards-grid">
+                    <!-- Card: Thông tin cơ bản -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-id-card"></i>
+                            <span>Thông tin cơ bản</span>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <label>Mã nhân viên</label>
+                                <span class="info-value">{{ user.employee_id }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Họ và tên</label>
+                                <span class="info-value">{{ user.name }}</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Toast Container -->
-                    <div class="toast-container" id="toast-container"></div>
-
-                    <!-- Flash Messages JSON (safer than data-attribute) -->
-                    <script id="flash-data"
-                        type="application/json">{{ get_flashed_messages(with_categories=true) | tojson }}</script>
-
-                    <form method="POST" class="compact-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <!-- Thông tin cá nhân -->
-                        <div class="settings-card">
-                            <div class="settings-header">
-                                <h4><i class="fas fa-user me-2"></i>Thông tin cá nhân</h4>
+                    <!-- Card: Phòng ban & Vai trò -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-building"></i>
+                            <span>Phòng ban & Vai trò</span>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <label>Phòng ban</label>
+                                <span class="info-value">{{ user.department }}</span>
                             </div>
-                            <div class="card-body p-4">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="employee_id" class="form-label small">Mã nhân viên</label>
-                                        <input type="text" class="form-control form-control-sm readonly-field"
-                                            id="employee_id" value="{{ user.employee_id }}" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="name" class="form-label small">Họ và tên</label>
-                                        <input type="text" class="form-control form-control-sm readonly-field" id="name"
-                                            value="{{ user.name }}" readonly>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="department" class="form-label small">Phòng ban</label>
-                                        <input type="text" class="form-control form-control-sm readonly-field"
-                                            id="department" value="{{ user.department }}" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="roles" class="form-label small">Vai trò</label>
-                                        <input type="text" class="form-control form-control-sm readonly-field"
-                                            id="roles"
-                                            value="{% for role in user.roles.split(',') %}{% if role == 'EMPLOYEE' %}Nhân viên{% elif role == 'TEAM_LEADER' %}Trưởng nhóm{% elif role == 'MANAGER' %}Quản lý{% elif role == 'ADMIN' %}Quản trị viên{% else %}{{ role }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}"
-                                            readonly>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="email" class="form-label small">Email</label>
-                                        <input type="email" class="form-control form-control-sm readonly-field"
-                                            id="email" value="{{ user.email or 'Chưa cập nhật' }}" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="phone" class="form-label small">Số điện thoại</label>
-                                        <input type="tel" class="form-control form-control-sm readonly-field" id="phone"
-                                            value="{{ user.phone or 'Chưa cập nhật' }}" readonly>
-                                    </div>
+                            <div class="info-item">
+                                <label>Vai trò</label>
+                                <div class="role-badges">
+                                    {% for role in user.roles.split(',') %}
+                                    <span class="role-badge {% if role == 'ADMIN' %}admin{% elif role == 'MANAGER' %}manager{% elif role == 'TEAM_LEADER' %}leader{% else %}employee{% endif %}">
+                                        {% if role == 'EMPLOYEE' %}Nhân viên{% elif role == 'TEAM_LEADER' %}Trưởng nhóm{% elif role == 'MANAGER' %}Quản lý{% elif role == 'ADMIN' %}Quản trị viên{% else %}{{ role }}{% endif %}
+                                    </span>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Chữ ký cá nhân -->
-                        <div class="settings-card">
-                            <div class="settings-header">
-                                <h4><i class="fas fa-signature me-2"></i>Chữ ký cá nhân</h4>
+                    <!-- Card: Liên hệ -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-address-book"></i>
+                            <span>Thông tin liên hệ</span>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="info-item">
+                                <label>Email</label>
+                                <span class="info-value {% if not user.email %}text-muted{% endif %}">
+                                    {{ user.email or 'Chưa cập nhật' }}
+                                </span>
                             </div>
-                            <div class="card-body p-4">
-                                <p class="text-muted mb-3 small">
-                                    Chữ ký cá nhân sẽ được sử dụng tự động khi bạn đăng ký chấm công hoặc phê duyệt các
-                                    bản ghi chấm công.
-                                    Chỉ cần tạo một lần và sẽ được sử dụng cho tất cả các lần phê duyệt sau đó.
-                                </p>
+                            <div class="info-item">
+                                <label>Số điện thoại</label>
+                                <span class="info-value {% if not user.phone %}text-muted{% endif %}">
+                                    {{ user.phone or 'Chưa cập nhật' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                                <!-- Chữ ký hiện tại -->
-                                {% if user.personal_signature %}
-                                <div class="mb-3">
-                                    <label class="form-label small">Chữ ký hiện tại:</label>
-                                    <div class="signature-preview">
-                                        <img src="{{ user.personal_signature }}" alt="Chữ ký cá nhân">
+            <!-- Signature Section -->
+            <section id="signature-section" class="content-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-signature me-2"></i>Chữ ký cá nhân</h2>
+                    <p class="text-muted mb-0">Tạo và quản lý chữ ký điện tử của bạn</p>
+                </div>
+
+                <div class="signature-container">
+                    <!-- Current Signature -->
+                    {% if user.personal_signature %}
+                    <div class="current-signature-card">
+                        <div class="card-label">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            Chữ ký hiện tại
+                        </div>
+                        <div class="signature-display">
+                            <img src="{{ user.personal_signature }}" alt="Chữ ký cá nhân">
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Signature Methods -->
+                    <div class="signature-methods">
+                        <div class="method-tabs">
+                            <button type="button" class="method-tab active" data-tab="draw">
+                                <i class="fas fa-pen"></i>
+                                <span>Vẽ chữ ký</span>
+                            </button>
+                            <button type="button" class="method-tab" data-tab="upload">
+                                <i class="fas fa-upload"></i>
+                                <span>Upload ảnh</span>
+                            </button>
+                        </div>
+
+                        <!-- Draw Tab -->
+                        <div class="method-content active" id="draw-content">
+                            <div class="canvas-wrapper">
+                                <canvas id="signature-pad" width="600" height="200"></canvas>
+                                <div class="canvas-actions">
+                                    <button type="button" class="btn-icon" onclick="clearSignature()" title="Xóa">
+                                        <i class="fas fa-eraser"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="helper-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Sử dụng chuột hoặc bút stylus để vẽ chữ ký của bạn
+                            </p>
+                        </div>
+
+                        <!-- Upload Tab -->
+                        <div class="method-content" id="upload-content">
+                            <div class="upload-zone" id="upload-zone">
+                                <input type="file" id="signature-image-input" accept="image/*" hidden>
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Kéo thả ảnh vào đây hoặc <span class="upload-link">chọn file</span></p>
+                                <small>Hỗ trợ: JPG, PNG, GIF (tối đa 5MB)</small>
+                            </div>
+
+                            <!-- Image Preview -->
+                            <div id="image-preview-container" class="image-preview" style="display: none;">
+                                <img id="original-image-preview" alt="Ảnh gốc">
+                            </div>
+
+                            <!-- Processed Signature -->
+                            <div id="processed-signature-container" class="processed-preview" style="display: none;">
+                                <div class="preview-header">
+                                    <span><i class="fas fa-magic me-2"></i>Chữ ký đã xử lý</span>
+                                    <div id="processing-indicator" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <span>Đang xử lý...</span>
                                     </div>
                                 </div>
-                                {% endif %}
+                                <div class="preview-body">
+                                    <img id="processed-signature-preview" alt="Chữ ký đã xử lý">
+                                </div>
 
-                                <!-- Tabs cho các phương thức tạo chữ ký -->
-                                <ul class="nav nav-tabs mb-3" id="signatureTabs" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active" id="draw-tab" data-bs-toggle="tab"
-                                            data-bs-target="#draw" type="button" role="tab">
-                                            <i class="fas fa-pen me-1"></i>Vẽ chữ ký
-                                        </button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="upload-tab" data-bs-toggle="tab"
-                                            data-bs-target="#upload" type="button" role="tab">
-                                            <i class="fas fa-upload me-1"></i>Upload ảnh
-                                        </button>
-                                    </li>
-                                </ul>
-                                <div class="tab-content" id="signatureTabContent">
-                                    <!-- Tab vẽ chữ ký -->
-                                    <div class="tab-pane fade show active" id="draw" role="tabpanel">
-                                        <div class="mb-3">
-                                            <label class="form-label small">{% if user.personal_signature %}Cập nhật chữ
-                                                ký:{% else %}Tạo chữ ký mới:{% endif %}</label>
-                                            <div class="border rounded p-2">
-                                                <canvas id="signature-pad" width="500" height="300"
-                                                    style="border: 1px solid #ccc; border-radius: 8px; width: 100%; max-width: 100%; height: 300px;"></canvas>
-                                            </div>
-                                            <div class="mt-2">
-                                                <button type="button" class="btn btn-secondary btn-sm"
-                                                    onclick="clearSignature()">
-                                                    <i class="fas fa-eraser me-1"></i>Xóa chữ ký
-                                                </button>
-                                            </div>
-                                        </div>
+                                <!-- Adjustment Sliders -->
+                                <div class="adjustment-panel">
+                                    <div class="adjustment-title">
+                                        <i class="fas fa-sliders-h me-2"></i>Điều chỉnh
                                     </div>
-                                    <!-- Tab upload ảnh -->
-                                    <div class="tab-pane fade" id="upload" role="tabpanel">
-                                        <div class="mb-3">
-                                            <label class="form-label small">Upload ảnh chữ ký:</label>
-                                            <div class="border rounded p-3" style="background-color: #f8f9fa;">
-                                                <div class="text-center">
-                                                    <input type="file" id="signature-image-input" accept="image/*"
-                                                        class="form-control form-control-sm mb-2"
-                                                        style="display: none;">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm"
-                                                        onclick="document.getElementById('signature-image-input').click()">
-                                                        <i class="fas fa-image me-1"></i>Chọn ảnh chữ ký
-                                                    </button>
-                                                    <p class="text-muted small mt-2 mb-0">
-                                                        Hỗ trợ: JPG, PNG, GIF, JFIF. Ảnh sẽ được tự động xử lý để tách
-                                                        chữ ký và điều chỉnh kích thước.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <!-- Preview ảnh đã upload -->
-                                            <div id="image-preview-container" class="mt-3" style="display: none;">
-                                                <label class="form-label small">Ảnh gốc:</label>
-                                                <div class="border rounded p-2">
-                                                    <img id="original-image-preview" class="img-fluid"
-                                                        style="max-height: 150px;">
-                                                </div>
-                                            </div>
-                                            <!-- Preview chữ ký đã xử lý -->
-                                            <div id="processed-signature-container" class="mt-3" style="display: none;">
-                                                <label class="form-label small">Chữ ký đã xử lý:</label>
-                                                <div class="border rounded p-2 position-relative"
-                                                    style="text-align: center; background-color: white;">
-                                                    <div id="processing-indicator" class="position-absolute top-50 start-50 translate-middle" 
-                                                        style="display: none; z-index: 10; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px;">
-                                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                                            <span class="visually-hidden">Đang xử lý...</span>
-                                                        </div>
-                                                        <small class="ms-2 text-muted">Đang xử lý...</small>
-                                                    </div>
-                                                    <img id="processed-signature-preview" class="img-fluid"
-                                                        style="max-height: 300px; max-width: 100%;">
-                                                </div>
-
-                                                <!-- Tùy chọn điều chỉnh xử lý -->
-                                                <div class="mt-2 p-3"
-                                                    style="background-color: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-                                                    <label class="form-label small mb-2 fw-bold">Điều chỉnh xử
-                                                        lý:</label>
-                                                    <div class="row g-3">
-                                                        <div class="col-4">
-                                                            <label
-                                                                class="form-label small fw-semibold text-primary">Ngưỡng
-                                                                độ sáng:</label>
-                                                            <input type="range" id="brightness-threshold" min="100"
-                                                                max="200" value="140"
-                                                                class="form-range custom-range brightness">
-                                                            <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">100</small>
-                                                                <small class="text-primary fw-bold"
-                                                                    id="brightness-value">140</small>
-                                                                <small class="text-muted">200</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <label
-                                                                class="form-label small fw-semibold text-success">Ngưỡng
-                                                                tương phản:</label>
-                                                            <input type="range" id="contrast-threshold" min="5"
-                                                                max="30" value="15"
-                                                                class="form-range custom-range contrast">
-                                                            <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">5</small>
-                                                                <small class="text-success fw-bold"
-                                                                    id="contrast-value">15</small>
-                                                                <small class="text-muted">30</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <label class="form-label small fw-semibold text-warning">Độ
-                                                                đậm chữ ký:</label>
-                                                            <input type="range" id="intensity-threshold" min="10"
-                                                                max="50" value="20"
-                                                                class="form-range custom-range intensity">
-                                                            <div class="d-flex justify-content-between">
-                                                                <small class="text-muted">10</small>
-                                                                <small class="text-warning fw-bold"
-                                                                    id="intensity-value">20</small>
-                                                                <small class="text-muted">50</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="mt-3 text-center">
-                                                        <small class="text-muted">
-                                                            <i class="fas fa-info-circle me-1"></i>
-                                                            Kéo thanh trượt để tự động xử lý lại ảnh
-                                                        </small>
-                                                    </div>
-                                                </div>
-
-                                                <div class="mt-2">
-                                                    <button type="button" class="btn btn-success btn-sm"
-                                                        onclick="applyProcessedSignature()">
-                                                        <i class="fas fa-check me-1"></i>Áp dụng chữ ký này
-                                                    </button>
-                                                    <button type="button" class="btn btn-secondary btn-sm"
-                                                        onclick="clearImageSignature()">
-                                                        <i class="fas fa-times me-1"></i>Hủy
-                                                    </button>
-                                                </div>
-                                            </div>
+                                    <div class="sliders-grid">
+                                        <div class="slider-item">
+                                            <label>Độ sáng</label>
+                                            <input type="range" id="brightness-threshold" min="100" max="200" value="140">
+                                            <span id="brightness-value">140</span>
+                                        </div>
+                                        <div class="slider-item">
+                                            <label>Tương phản</label>
+                                            <input type="range" id="contrast-threshold" min="5" max="30" value="15">
+                                            <span id="contrast-value">15</span>
+                                        </div>
+                                        <div class="slider-item">
+                                            <label>Độ đậm</label>
+                                            <input type="range" id="intensity-threshold" min="10" max="50" value="20">
+                                            <span id="intensity-value">20</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <input type="hidden" name="signature" id="signature-input"
-                                    value="{{ user.personal_signature or '' }}">
-
-                                <div class="alert alert-info small">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Lưu ý:</strong> Chữ ký sẽ được lưu tự động khi bạn nhấn "Cập nhật thông tin"
-                                    bên dưới.
-                                </div>
-
-                                <!-- Nút Test chữ ký -->
-                                <div class="mt-2 text-end">
-                                    <button type="button" class="btn btn-success btn-sm" onclick="testSignaturePDF()">
-                                        <i class="fas fa-file-pdf me-2"></i>Kiểm tra chữ ký trên phiếu tăng ca
+                                <div class="preview-actions">
+                                    <button type="button" class="btn btn-success" onclick="applyProcessedSignature()">
+                                        <i class="fas fa-check me-2"></i>Áp dụng
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="clearImageSignature()">
+                                        <i class="fas fa-times me-2"></i>Hủy
                                     </button>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Nút lưu -->
-                        <div class="text-center mt-2">
-                            <button type="submit" class="btn btn-primary btn-sm" onclick="return saveSignature()">
-                                <i class="fas fa-save me-2"></i>Lưu chữ ký
-                            </button>
-                        </div>
-                    </form>
+                    <input type="hidden" name="signature" id="signature-input" value="{{ user.personal_signature or '' }}">
 
-                    <!-- Đổi mật khẩu: di chuyển sang trang riêng. Giữ liên kết ở header. -->
+                    <!-- Actions -->
+                    <div class="signature-actions">
+                        <button type="submit" class="btn btn-primary btn-lg" onclick="return saveSignature()">
+                            <i class="fas fa-save me-2"></i>Lưu chữ ký
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="testSignaturePDF()">
+                            <i class="fas fa-file-pdf me-2"></i>Xem trước PDF
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </form>
     </div>
 
     <script>
+        // Tab switching for sidebar
+        document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const section = this.dataset.section;
+
+                // Update active link
+                document.querySelectorAll('.nav-link[data-section]').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+
+                // Scroll to section
+                document.getElementById(section + '-section').scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        // Method tabs
+        document.querySelectorAll('.method-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+
+                document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.method-content').forEach(c => c.classList.remove('active'));
+
+                this.classList.add('active');
+                document.getElementById(tabName + '-content').classList.add('active');
+            });
+        });
+
+        // ========== SIGNATURE PAD - PROFESSIONAL IMPLEMENTATION ==========
         var canvas = document.getElementById('signature-pad');
         var signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255, 255, 255)',
             penColor: 'rgb(0, 0, 0)',
-            minWidth: 1,
-            maxWidth: 2.5
+            minWidth: 0.5,
+            maxWidth: 2.5,
+            velocityFilterWeight: 0.7
+        });
+
+        // Store signature data before resize
+        var savedSignatureData = null;
+
+        // Resize canvas while preserving signature
+        function resizeCanvas() {
+            // Save current signature before resize
+            if (!signaturePad.isEmpty()) {
+                savedSignatureData = signaturePad.toDataURL();
+            }
+
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const wrapper = canvas.parentElement;
+            const newWidth = wrapper.offsetWidth;
+            const newHeight = 200;
+
+            canvas.width = newWidth * ratio;
+            canvas.height = newHeight * ratio;
+            canvas.style.width = newWidth + 'px';
+            canvas.style.height = newHeight + 'px';
+            canvas.getContext("2d").scale(ratio, ratio);
+
+            // Restore signature after resize
+            if (savedSignatureData) {
+                const img = new Image();
+                img.onload = function() {
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    // Draw centered and scaled
+                    const scale = Math.min(newWidth / img.width, newHeight / img.height) * 0.9;
+                    const x = (newWidth - img.width * scale) / 2;
+                    const y = (newHeight - img.height * scale) / 2;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                };
+                img.src = savedSignatureData;
+            } else {
+                signaturePad.clear();
+            }
+        }
+
+        // Debounced resize
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 150);
+        });
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', function() {
+            resizeCanvas();
+
+            // Load existing signature after canvas is ready
+            var currentSignature = "{{ user.personal_signature|default('')|safe }}";
+            if (currentSignature && currentSignature.startsWith('data:image')) {
+                savedSignatureData = currentSignature;
+                const img = new Image();
+                img.onload = function() {
+                    const ctx = canvas.getContext('2d');
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const displayWidth = canvas.width / ratio;
+                    const displayHeight = canvas.height / ratio;
+
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Calculate scale to fit with padding
+                    const scale = Math.min(displayWidth / img.width, displayHeight / img.height) * 0.85;
+                    const x = (displayWidth - img.width * scale) / 2;
+                    const y = (displayHeight - img.height * scale) / 2;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                };
+                img.src = currentSignature;
+            }
         });
 
         function clearSignature() {
             signaturePad.clear();
+            savedSignatureData = null;
             document.getElementById('signature-input').value = '';
+            showToast('Đã xóa chữ ký', 'info');
+        }
+
+        // ========== AUTO-CROP SIGNATURE ==========
+        function autoCropSignature(canvas) {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+            let hasContent = false;
+
+            // Find bounding box of non-white pixels
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const idx = (y * canvas.width + x) * 4;
+                    // Check if pixel is not white (threshold for anti-aliasing)
+                    if (data[idx] < 250 || data[idx + 1] < 250 || data[idx + 2] < 250) {
+                        hasContent = true;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (!hasContent) return null;
+
+            // Add padding (10% of the smaller dimension)
+            const padding = Math.min(maxX - minX, maxY - minY) * 0.1;
+            minX = Math.max(0, minX - padding);
+            minY = Math.max(0, minY - padding);
+            maxX = Math.min(canvas.width, maxX + padding);
+            maxY = Math.min(canvas.height, maxY + padding);
+
+            const croppedWidth = maxX - minX;
+            const croppedHeight = maxY - minY;
+
+            // Create cropped canvas
+            const croppedCanvas = document.createElement('canvas');
+            croppedCanvas.width = croppedWidth;
+            croppedCanvas.height = croppedHeight;
+            const croppedCtx = croppedCanvas.getContext('2d');
+
+            // Fill with white background
+            croppedCtx.fillStyle = 'white';
+            croppedCtx.fillRect(0, 0, croppedWidth, croppedHeight);
+
+            // Draw cropped region
+            croppedCtx.drawImage(canvas, minX, minY, croppedWidth, croppedHeight, 0, 0, croppedWidth, croppedHeight);
+
+            return croppedCanvas.toDataURL('image/png');
         }
 
         function saveSignature() {
             if (!signaturePad.isEmpty()) {
-                var signature = signaturePad.toDataURL();
-                document.getElementById('signature-input').value = signature;
+                // Create a temporary canvas with the signature
+                const tempCanvas = document.createElement('canvas');
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(canvas, 0, 0);
+
+                // Auto-crop the signature
+                const croppedSignature = autoCropSignature(tempCanvas);
+                if (croppedSignature) {
+                    document.getElementById('signature-input').value = croppedSignature;
+                } else {
+                    document.getElementById('signature-input').value = signaturePad.toDataURL();
+                }
             }
             return true;
         }
 
-        // Thêm hàm testSignaturePDF
+        // ========== TEST SIGNATURE PDF ==========
         function testSignaturePDF() {
             var signature = document.getElementById('signature-input').value;
             if (!signature) {
-                alert('Bạn cần tạo hoặc cập nhật chữ ký trước khi test hiển thị trên phiếu tăng ca!');
+                // Try to save current drawing first
+                if (!signaturePad.isEmpty()) {
+                    saveSignature();
+                    signature = document.getElementById('signature-input').value;
+                }
+            }
+
+            if (!signature) {
+                showToast('Bạn cần tạo chữ ký trước!', 'warning');
                 return;
             }
+
             var formData = new FormData();
             formData.append('signature', signature);
             formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+            showToast('Đang tạo PDF...', 'info');
+
             fetch('/settings/test-signature-pdf', {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    return response.text().then(text => {
-                        throw new Error('Server error: ' + text);
-                    });
-                })
-                .then(blob => {
-                    var url = window.URL.createObjectURL(blob);
-                    var a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'Kiemtrachuky_' + new Date().toISOString().split('T')[0] + '.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi khi tải PDF: ' + error.message);
-                });
+            .then(response => {
+                if (!response.ok) throw new Error('Server error');
+                return response.blob();
+            })
+            .then(blob => {
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'Kiemtrachuky_' + new Date().toISOString().split('T')[0] + '.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showToast('PDF đã được tải xuống!', 'success');
+            })
+            .catch(error => showToast('Có lỗi khi tải PDF: ' + error.message, 'error'));
         }
 
-        // Toast Notification Functions
+        // ========== TOAST NOTIFICATION ==========
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast-notification ${type}`;
-
-            const icon = getToastIcon(type);
-
+            const icons = { success: 'check-circle', error: 'times-circle', warning: 'exclamation-triangle', info: 'info-circle' };
             toast.innerHTML = `
-                <div class="toast-content">
-                    <i class="toast-icon ${icon}"></i>
-                    <p class="toast-message">${message}</p>
-                </div>
-                <button class="toast-close" onclick="closeToast(this)">×</button>
+                <i class="fas fa-${icons[type] || icons.success}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">×</button>
             `;
-
             container.appendChild(toast);
-
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                closeToast(toast.querySelector('.toast-close'));
-            }, 5000);
+            setTimeout(() => toast.remove(), 5000);
         }
 
-        function getToastIcon(type) {
-            switch (type) {
-                case 'error':
-                    return 'fas fa-exclamation-circle';
-                case 'warning':
-                    return 'fas fa-exclamation-triangle';
-                case 'info':
-                    return 'fas fa-info-circle';
-                default:
-                    return 'fas fa-check-circle';
-            }
-        }
-
-        function closeToast(button) {
-            const toast = button.closest('.toast-notification');
-            toast.classList.add('hiding');
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }
-
-        // Hiển thị flash messages
-        document.addEventListener('DOMContentLoaded', function () {
+        // Flash messages
+        document.addEventListener('DOMContentLoaded', function() {
             try {
-                var flashScript = document.getElementById('flash-data');
-                var raw = flashScript ? (flashScript.textContent || '[]') : '[]';
-                var messages = [];
-                try { messages = JSON.parse(raw || '[]'); } catch (_) { messages = []; }
-                (messages || []).forEach(function (msg) {
-                    if (Array.isArray(msg) && msg.length >= 2) {
-                        showToast(msg[1], msg[0]);
-                    }
+                var messages = JSON.parse(document.getElementById('flash-data').textContent || '[]');
+                messages.forEach(msg => {
+                    if (Array.isArray(msg) && msg.length >= 2) showToast(msg[1], msg[0]);
                 });
-            } catch (e) {
-                // silent
+            } catch (e) {}
+        });
+
+        // ========== UPLOAD SIGNATURE IMAGE ==========
+        const uploadZone = document.getElementById('upload-zone');
+        const imageInput = document.getElementById('signature-image-input');
+
+        uploadZone.addEventListener('click', () => imageInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                imageInput.files = e.dataTransfer.files;
+                imageInput.dispatchEvent(new Event('change'));
             }
         });
 
-        // Kiểm tra mật khẩu hiện tại ngay khi blur
-        document.addEventListener('DOMContentLoaded', function () {
-            const currentInput = document.getElementById('current_password');
-            const newInput = document.getElementById('new_password');
-            const confirmInput = document.getElementById('confirm_password');
-            const submitBtn = document.getElementById('submitChangePwd');
-            const hint = document.getElementById('currentPwdHint');
-            if (!currentInput) return;
-            async function verifyCurrentPassword() {
-                const val = currentInput.value || '';
-                if (!val) { return; }
-                try {
-                    const res = await fetch('/settings/check-password', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                        },
-                        body: JSON.stringify({ current_password: val })
-                    });
-                    const data = await res.json();
-                    if (data && data.ok) {
-                        hint.classList.remove('text-danger');
-                        hint.classList.add('text-success');
-                        hint.textContent = 'Mật khẩu hiện tại đúng ✓';
-                        newInput.disabled = false;
-                        confirmInput.disabled = false;
-                        submitBtn.disabled = false;
-                    } else {
-                        hint.classList.remove('text-success');
-                        hint.classList.add('text-danger');
-                        hint.textContent = 'Mật khẩu hiện tại không đúng';
-                        newInput.disabled = true;
-                        confirmInput.disabled = true;
-                        submitBtn.disabled = true;
-                    }
-                } catch (e) {
-                    // giữ im lặng
-                }
-            }
-            currentInput.addEventListener('blur', verifyCurrentPassword);
-        });
+        // Supported image types (including JFIF)
+        const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/jfif', 'image/webp'];
 
-        // Hiển thị chữ ký hiện tại trên canvas nếu có
-        var currentSignature = "{{ user.personal_signature|default('')|safe }}";
-        if (currentSignature) {
-            window.onload = function () {
-                var img = new Image();
-                img.onload = function () {
-                    var ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Check file type (also check extension for JFIF)
+            const isValidType = validImageTypes.includes(file.type) ||
+                               file.name.toLowerCase().endsWith('.jfif');
+
+            if (!isValidType) {
+                showToast('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF, JFIF, WebP)', 'error');
+                return;
+            }
+
+            // Check file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('File ảnh quá lớn (tối đa 5MB)', 'error');
+                return;
+            }
+
+            showToast('Đang xử lý ảnh...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('original-image-preview').src = e.target.result;
+                    document.getElementById('image-preview-container').style.display = 'block';
+                    window.originalImageData = img;
+                    processSignatureImage(img);
                 };
-                img.src = currentSignature;
+                img.onerror = function() {
+                    showToast('Không thể đọc file ảnh này', 'error');
+                };
+                img.src = e.target.result;
             };
+            reader.onerror = function() {
+                showToast('Lỗi khi đọc file', 'error');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ========== ADVANCED SIGNATURE EXTRACTION ==========
+        function processSignatureImage(img, brightnessThreshold = 140, contrastThreshold = 15, intensityThreshold = 20) {
+            const processingIndicator = document.getElementById('processing-indicator');
+            if (processingIndicator) processingIndicator.style.display = 'flex';
+
+            // Use setTimeout to allow UI to update
+            setTimeout(() => {
+                try {
+                    const result = extractSignature(img, brightnessThreshold, contrastThreshold, intensityThreshold);
+                    document.getElementById('processed-signature-preview').src = result;
+                    document.getElementById('processed-signature-container').style.display = 'block';
+                    window.processedSignatureData = result;
+                    showToast('Xử lý ảnh hoàn tất!', 'success');
+                } catch (error) {
+                    showToast('Lỗi xử lý ảnh: ' + error.message, 'error');
+                } finally {
+                    if (processingIndicator) processingIndicator.style.display = 'none';
+                }
+            }, 50);
         }
 
-        // Xử lý upload ảnh chữ ký
-        document.addEventListener('DOMContentLoaded', function () {
-            const imageInput = document.getElementById('signature-image-input');
-            const imagePreviewContainer = document.getElementById('image-preview-container');
-            const originalImagePreview = document.getElementById('original-image-preview');
-            const processedSignatureContainer = document.getElementById('processed-signature-container');
-            const processedSignaturePreview = document.getElementById('processed-signature-preview');
+        function extractSignature(img, brightnessThreshold, contrastThreshold, intensityThreshold) {
+            // Calculate optimal canvas size while preserving aspect ratio
+            const maxWidth = 1200, maxHeight = 600;
+            let targetWidth = img.width;
+            let targetHeight = img.height;
 
-            imageInput.addEventListener('change', function (e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                // Kiểm tra loại file
-                const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/jfif'];
-                if (!validImageTypes.includes(file.type)) {
-                    showToast('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF, JFIF)', 'error');
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const img = new Image();
-                    img.onload = function () {
-                        // Hiển thị ảnh gốc
-                        originalImagePreview.src = e.target.result;
-                        imagePreviewContainer.style.display = 'block';
-
-                        // Lưu ảnh gốc để xử lý lại
-                        window.originalImageData = img;
-
-                        // Xử lý ảnh để tách chữ ký
-                        processSignatureImage(img);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        });
-
-        // Hàm xử lý ảnh chữ ký - THUẬT TOÁN MỚI: Adaptive Threshold + Morphological Operations
-        // Sử dụng adaptive threshold và dilation để giữ nét tốt hơn, không bị mất chữ ký mảnh
-        // Tối ưu: Giảm độ phân giải khi preview để xử lý nhanh hơn
-        function processSignatureImage(img, brightnessThreshold = 140, contrastThreshold = 15, intensityThreshold = 20) {
-            // Hiển thị loading indicator
-            const processingIndicator = document.getElementById('processing-indicator');
-            if (processingIndicator) {
-                processingIndicator.style.display = 'block';
+            if (targetWidth > maxWidth) {
+                targetHeight = (maxWidth / targetWidth) * targetHeight;
+                targetWidth = maxWidth;
             }
+            if (targetHeight > maxHeight) {
+                targetWidth = (maxHeight / targetHeight) * targetWidth;
+                targetHeight = maxHeight;
+            }
+
+            targetWidth = Math.round(targetWidth);
+            targetHeight = Math.round(targetHeight);
+
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-
-            // Kích thước cố định cho chữ ký
-            const targetWidth = 1500;
-            const targetHeight = 900;
-
             canvas.width = targetWidth;
             canvas.height = targetHeight;
 
-            // Vẽ ảnh với kích thước mới
+            // Draw with white background first
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-            // Lấy dữ liệu pixel gốc
             const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
             const data = imageData.data;
-            
-            // Bước 1: Chuyển sang grayscale và tính toán adaptive threshold
-            const grayData = new Uint8ClampedArray(targetWidth * targetHeight);
             const brightnessMap = new Float32Array(targetWidth * targetHeight);
-            
-            // Tính toán độ sáng cho từng pixel và tạo bản đồ độ sáng
+
+            // Calculate brightness for each pixel
             for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const brightness = (r * 0.299 + g * 0.587 + b * 0.114); // Weighted grayscale
-                const idx = i / 4;
-                grayData[idx] = brightness;
-                brightnessMap[idx] = brightness;
+                brightnessMap[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
             }
-            
-            // Tính adaptive threshold cho từng vùng (local threshold)
-            // Giảm block size để tăng tốc độ xử lý (31 -> 21)
-            const blockSize = 21; // Kích thước block để tính local threshold (giảm từ 31 để tăng tốc)
-            const C = 10; // Hằng số trừ đi từ mean để điều chỉnh độ nhạy
-            
-            // Bước 2: Áp dụng adaptive threshold để tách chữ ký
-            const binaryData = new Uint8ClampedArray(data.length);
-            
+
+            const blockSize = 21;
+            const C = 10;
+
+            // Adaptive thresholding with local contrast analysis
             for (let y = 0; y < targetHeight; y++) {
                 for (let x = 0; x < targetWidth; x++) {
                     const idx = y * targetWidth + x;
                     const pixelIdx = idx * 4;
-                    
-                    // Tính local mean trong vùng blockSize x blockSize
-                    let sum = 0;
-                    let count = 0;
                     const halfBlock = Math.floor(blockSize / 2);
-                    
+
+                    // Calculate local mean
+                    let sum = 0, count = 0;
                     for (let dy = -halfBlock; dy <= halfBlock; dy++) {
                         for (let dx = -halfBlock; dx <= halfBlock; dx++) {
-                            const ny = y + dy;
-                            const nx = x + dx;
+                            const ny = y + dy, nx = x + dx;
                             if (ny >= 0 && ny < targetHeight && nx >= 0 && nx < targetWidth) {
-                                const nIdx = ny * targetWidth + nx;
-                                sum += brightnessMap[nIdx];
+                                sum += brightnessMap[ny * targetWidth + nx];
                                 count++;
                             }
                         }
                     }
-                    
+
                     const localMean = sum / count;
                     const adaptiveThreshold = localMean - C;
-                    
-                    // So sánh với adaptive threshold và global threshold
                     const pixelBrightness = brightnessMap[idx];
-                    const globalThreshold = brightnessThreshold;
-                    
-                    // Kết hợp adaptive và global threshold
-                    const finalThreshold = Math.min(adaptiveThreshold, globalThreshold);
-                    
-                    // Tính độ tương phản local
+                    const finalThreshold = Math.min(adaptiveThreshold, brightnessThreshold);
+
+                    // Calculate local contrast
                     let maxLocal = 0, minLocal = 255;
                     for (let dy = -2; dy <= 2; dy++) {
                         for (let dx = -2; dx <= 2; dx++) {
-                            const ny = y + dy;
-                            const nx = x + dx;
+                            const ny = y + dy, nx = x + dx;
                             if (ny >= 0 && ny < targetHeight && nx >= 0 && nx < targetWidth) {
-                                const nIdx = ny * targetWidth + nx;
-                                const val = brightnessMap[nIdx];
+                                const val = brightnessMap[ny * targetWidth + nx];
                                 if (val > maxLocal) maxLocal = val;
                                 if (val < minLocal) minLocal = val;
                             }
                         }
                     }
                     const localContrast = maxLocal - minLocal;
-                    
-                    // Quyết định pixel là chữ ký hay nền
-                    // Điều kiện: pixel tối hơn threshold HOẶC có độ tương phản cao
-                    const isSignature = pixelBrightness < finalThreshold || 
+                    const isSignature = pixelBrightness < finalThreshold ||
                                        (localContrast > contrastThreshold && pixelBrightness < brightnessThreshold + 20);
-                    
-                    if (isSignature) {
-                        // Chữ ký - chuyển sang đen, nhưng giữ độ đậm nhạt để làm mượt sau
-                        const intensity = 255 - pixelBrightness;
-                        // Giữ lại cả pixel nhạt để làm dày sau
-                        if (intensity > intensityThreshold) {
-                            binaryData[pixelIdx] = 0;     // R
-                            binaryData[pixelIdx + 1] = 0; // G
-                            binaryData[pixelIdx + 2] = 0; // B
-                            binaryData[pixelIdx + 3] = 255; // A
-                        } else {
-                            // Pixel nhạt nhưng vẫn là chữ ký - giữ lại với màu xám nhạt để dilation
-                            const grayValue = Math.max(0, 255 - intensity * 2);
-                            binaryData[pixelIdx] = grayValue;
-                            binaryData[pixelIdx + 1] = grayValue;
-                            binaryData[pixelIdx + 2] = grayValue;
-                            binaryData[pixelIdx + 3] = 255;
-                        }
+
+                    if (isSignature && (255 - pixelBrightness) > intensityThreshold) {
+                        data[pixelIdx] = data[pixelIdx + 1] = data[pixelIdx + 2] = 0;
                     } else {
-                        // Nền - trắng hoàn toàn
-                        binaryData[pixelIdx] = 255;
-                        binaryData[pixelIdx + 1] = 255;
-                        binaryData[pixelIdx + 2] = 255;
-                        binaryData[pixelIdx + 3] = 255;
+                        data[pixelIdx] = data[pixelIdx + 1] = data[pixelIdx + 2] = 255;
                     }
+                    data[pixelIdx + 3] = 255;
                 }
-            }
-            
-            // Bước 3: Morphological Dilation - làm dày nét chữ ký để nối các đoạn đứt
-            const dilatedData = new Uint8ClampedArray(binaryData);
-            const dilationRadius = 1; // Bán kính dilation (1 = 3x3 kernel)
-            
-            for (let y = dilationRadius; y < targetHeight - dilationRadius; y++) {
-                for (let x = dilationRadius; x < targetWidth - dilationRadius; x++) {
-                    const idx = (y * targetWidth + x) * 4;
-                    
-                    // Nếu pixel hiện tại là nền (trắng), kiểm tra xem có pixel đen gần đó không
-                    if (binaryData[idx] === 255 && binaryData[idx + 1] === 255 && binaryData[idx + 2] === 255) {
-                        let hasBlackNeighbor = false;
-                        let minNeighborValue = 255;
-                        
-                        for (let dy = -dilationRadius; dy <= dilationRadius; dy++) {
-                            for (let dx = -dilationRadius; dx <= dilationRadius; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
-                                if (neighborIdx >= 0 && neighborIdx < binaryData.length) {
-                                    const neighborValue = binaryData[neighborIdx];
-                                    if (neighborValue < 200) { // Có pixel đen hoặc xám
-                                        hasBlackNeighbor = true;
-                                        if (neighborValue < minNeighborValue) {
-                                            minNeighborValue = neighborValue;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Nếu có pixel đen gần đó, dilation: làm pixel này thành đen
-                        if (hasBlackNeighbor) {
-                            dilatedData[idx] = Math.min(minNeighborValue, 50); // Đen hoặc xám đậm
-                            dilatedData[idx + 1] = dilatedData[idx];
-                            dilatedData[idx + 2] = dilatedData[idx];
-                            dilatedData[idx + 3] = 255;
-                        }
-                    }
-                }
-            }
-            
-            // Bước 4: Chuyển tất cả về đen trắng thuần túy và loại bỏ nhiễu nhỏ
-            const finalData = new Uint8ClampedArray(dilatedData);
-            
-            // Chuyển đổi sang binary (đen/trắng)
-            for (let i = 0; i < finalData.length; i += 4) {
-                const gray = dilatedData[i];
-                if (gray < 128) { // Đen hoặc xám đậm
-                    finalData[i] = 0;
-                    finalData[i + 1] = 0;
-                    finalData[i + 2] = 0;
-                    finalData[i + 3] = 255;
-                } else { // Trắng
-                    finalData[i] = 255;
-                    finalData[i + 1] = 255;
-                    finalData[i + 2] = 255;
-                    finalData[i + 3] = 255;
-                }
-            }
-            
-            // Loại bỏ nhiễu nhỏ (các pixel đen đơn lẻ)
-            for (let y = 1; y < targetHeight - 1; y++) {
-                for (let x = 1; x < targetWidth - 1; x++) {
-                    const idx = (y * targetWidth + x) * 4;
-                    
-                    if (finalData[idx] === 0) { // Pixel đen
-                        let blackNeighbors = 0;
-                        
-                        // Đếm pixel đen trong vùng 3x3
-                        for (let dy = -1; dy <= 1; dy++) {
-                            for (let dx = -1; dx <= 1; dx++) {
-                                if (dx === 0 && dy === 0) continue;
-                                const neighborIdx = ((y + dy) * targetWidth + (x + dx)) * 4;
-                                if (neighborIdx >= 0 && neighborIdx < finalData.length) {
-                                    if (finalData[neighborIdx] === 0) {
-                                        blackNeighbors++;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Nếu có ít hơn 1 pixel đen lân cận, coi là nhiễu và loại bỏ
-                        if (blackNeighbors < 1) {
-                            finalData[idx] = 255;
-                            finalData[idx + 1] = 255;
-                            finalData[idx + 2] = 255;
-                            finalData[idx + 3] = 255;
-                        }
-                    }
-                }
-            }
-            
-            // Cập nhật dữ liệu với kết quả cuối cùng
-            for (let i = 0; i < data.length; i++) {
-                data[i] = finalData[i];
             }
 
-            // Cập nhật canvas với dữ liệu đã xử lý
             ctx.putImageData(imageData, 0, 0);
 
-            // Hiển thị ảnh đã xử lý
-            const processedImageData = canvas.toDataURL('image/png');
-            
-            // Sử dụng requestAnimationFrame để cập nhật UI mượt mà
-            requestAnimationFrame(() => {
-                document.getElementById('processed-signature-preview').src = processedImageData;
-                document.getElementById('processed-signature-container').style.display = 'block';
-                
-                // Ẩn loading indicator
-                if (processingIndicator) {
-                    processingIndicator.style.display = 'none';
-                }
-            });
-
-            // Lưu ảnh đã xử lý vào biến toàn cục để sử dụng sau
-            window.processedSignatureData = processedImageData;
+            // Auto-crop the result
+            const croppedResult = autoCropSignature(canvas);
+            return croppedResult || canvas.toDataURL('image/png');
         }
 
-        // Hàm áp dụng chữ ký đã xử lý
         function applyProcessedSignature() {
             if (window.processedSignatureData) {
                 document.getElementById('signature-input').value = window.processedSignatureData;
-                showToast('Chữ ký đã được áp dụng thành công!', 'success');
+                savedSignatureData = window.processedSignatureData;
+                showToast('Chữ ký đã được áp dụng!', 'success');
 
-                // Chuyển về tab vẽ để xem kết quả
-                const drawTab = new bootstrap.Tab(document.getElementById('draw-tab'));
-                drawTab.show();
-
-                // Hiển thị chữ ký trên canvas với kích thước phù hợp
+                // Switch to draw tab and show on canvas
+                document.querySelector('.method-tab[data-tab="draw"]').click();
                 const img = new Image();
-                img.onload = function () {
-                    const canvas = document.getElementById('signature-pad');
+                img.onload = function() {
                     const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, 500, 300);
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const displayWidth = canvas.width / ratio;
+                    const displayHeight = canvas.height / ratio;
 
-                    // Tính toán kích thước để vừa với canvas
-                    const canvasWidth = 500;
-                    const canvasHeight = 300;
-                    const imgWidth = img.width;
-                    const imgHeight = img.height;
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                    // Tính tỷ lệ để vừa với canvas
-                    const scaleX = canvasWidth / imgWidth;
-                    const scaleY = canvasHeight / imgHeight;
-                    const scale = Math.min(scaleX, scaleY);
-
-                    // Tính vị trí để căn giữa
-                    const scaledWidth = imgWidth * scale;
-                    const scaledHeight = imgHeight * scale;
-                    const x = (canvasWidth - scaledWidth) / 2;
-                    const y = (canvasHeight - scaledHeight) / 2;
-
-                    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                    const scale = Math.min(displayWidth / img.width, displayHeight / img.height) * 0.85;
+                    const x = (displayWidth - img.width * scale) / 2;
+                    const y = (displayHeight - img.height * scale) / 2;
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
                 };
                 img.src = window.processedSignatureData;
             }
         }
 
-        // Hàm xóa chữ ký từ ảnh
         function clearImageSignature() {
             document.getElementById('signature-image-input').value = '';
             document.getElementById('image-preview-container').style.display = 'none';
@@ -1132,117 +747,29 @@
             window.originalImageData = null;
         }
 
-        // Hàm xử lý lại ảnh với ngưỡng mới
-        function reprocessImage() {
-            if (window.originalImageData) {
-                const brightnessThreshold = parseInt(document.getElementById('brightness-threshold').value);
-                const contrastThreshold = parseInt(document.getElementById('contrast-threshold').value);
-                const intensityThreshold = parseInt(document.getElementById('intensity-threshold').value);
-                processSignatureImage(window.originalImageData, brightnessThreshold, contrastThreshold, intensityThreshold);
-            }
-        }
-
-        // Biến để debounce việc xử lý lại ảnh
+        // Slider auto-reprocess with debounce
         let reprocessTimeout = null;
-
-        // Cập nhật giá trị hiển thị và tự động xử lý khi thay đổi slider
-        document.addEventListener('DOMContentLoaded', function () {
-            const brightnessSlider = document.getElementById('brightness-threshold');
-            const contrastSlider = document.getElementById('contrast-threshold');
-            const intensitySlider = document.getElementById('intensity-threshold');
-            const brightnessValue = document.getElementById('brightness-value');
-            const contrastValue = document.getElementById('contrast-value');
-            const intensityValue = document.getElementById('intensity-value');
-
-            // Hàm cập nhật thanh slider filled
-            function updateSliderFill(slider, valueElement) {
-                const value = parseInt(slider.value);
-                const min = parseInt(slider.min);
-                const max = parseInt(slider.max);
-                const percent = ((value - min) / (max - min)) * 100;
-
-                slider.style.setProperty('--value-percent', percent + '%');
-            }
-
-            // Biến để theo dõi trạng thái xử lý
-            let isProcessing = false;
-            
-            // Hàm tự động xử lý lại với debounce và requestAnimationFrame để mượt mà hơn
-            function autoReprocess() {
-                if (reprocessTimeout) {
-                    clearTimeout(reprocessTimeout);
-                }
-                
-                // Hiển thị loading indicator ngay lập tức
-                const processingIndicator = document.getElementById('processing-indicator');
-                if (processingIndicator && !isProcessing) {
-                    processingIndicator.style.display = 'block';
-                }
-                
-                reprocessTimeout = setTimeout(() => {
-                    if (window.originalImageData && !isProcessing) {
-                        isProcessing = true;
-                        
-                        // Sử dụng requestAnimationFrame để không block UI thread
-                        requestAnimationFrame(() => {
-                            try {
-                                const brightnessThreshold = parseInt(brightnessSlider.value);
-                                const contrastThreshold = parseInt(contrastSlider.value);
-                                const intensityThreshold = parseInt(intensitySlider.value);
-                                processSignatureImage(window.originalImageData, brightnessThreshold, contrastThreshold, intensityThreshold);
-                            } finally {
-                                isProcessing = false;
-                                // Ẩn loading indicator sau khi xử lý xong
-                                if (processingIndicator) {
-                                    processingIndicator.style.display = 'none';
-                                }
-                            }
-                        });
-                    } else if (processingIndicator) {
-                        processingIndicator.style.display = 'none';
-                    }
-                }, 500); // Tăng delay lên 500ms để giảm số lần xử lý
-            }
-
-            if (brightnessSlider && brightnessValue) {
-                // Cập nhật ban đầu
-                updateSliderFill(brightnessSlider, brightnessValue);
-
-                brightnessSlider.addEventListener('input', function () {
-                    brightnessValue.textContent = this.value;
-                    updateSliderFill(this, brightnessValue);
-                    autoReprocess();
+        ['brightness', 'contrast', 'intensity'].forEach(name => {
+            const slider = document.getElementById(name + '-threshold');
+            const value = document.getElementById(name + '-value');
+            if (slider && value) {
+                slider.addEventListener('input', function() {
+                    value.textContent = this.value;
+                    if (reprocessTimeout) clearTimeout(reprocessTimeout);
+                    reprocessTimeout = setTimeout(() => {
+                        if (window.originalImageData) {
+                            processSignatureImage(
+                                window.originalImageData,
+                                parseInt(document.getElementById('brightness-threshold').value),
+                                parseInt(document.getElementById('contrast-threshold').value),
+                                parseInt(document.getElementById('intensity-threshold').value)
+                            );
+                        }
+                    }, 300);
                 });
             }
-
-            if (contrastSlider && contrastValue) {
-                // Cập nhật ban đầu
-                updateSliderFill(contrastSlider, contrastValue);
-
-                contrastSlider.addEventListener('input', function () {
-                    contrastValue.textContent = this.value;
-                    updateSliderFill(this, contrastValue);
-                    autoReprocess();
-                });
-            }
-
-            if (intensitySlider && intensityValue) {
-                // Cập nhật ban đầu
-                updateSliderFill(intensitySlider, intensityValue);
-
-                intensitySlider.addEventListener('input', function () {
-                    intensityValue.textContent = this.value;
-                    updateSliderFill(this, intensityValue);
-                    autoReprocess();
-                });
-            }
-
-
         });
     </script>
-    <!-- Chatbot AI - Widget hiển thị xuyên suốt trên tất cả các trang -->
-    <!-- Tạm thời ẩn chatbot AI -->
-    {# {% include 'chatbot_widget.html' %} #}
 </body>
 
 </html>
