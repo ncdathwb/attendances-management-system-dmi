@@ -1,6 +1,6 @@
 {% extends "base/base_leave.html" %}
 
-{% block title %}{% if is_edit %}Sửa đơn{% else %}Đăng ký{% endif %} {% if leave_request and leave_request.request_type == 'late_early' %}đi trễ/về sớm{% else %}nghỉ phép{% endif %} - Hệ thống quản lý chấm công{% endblock %}
+{% block title %}{% if is_edit %}Sửa đơn{% else %}Đăng ký{% endif %} {% if leave_request and leave_request.request_type == 'late_early' %}đi trễ/về sớm{% elif leave_request and leave_request.request_type == '30min_break' %}nghỉ 30 phút{% else %}nghỉ phép{% endif %} - Hệ thống quản lý chấm công{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/leave-request-form.css') }}">
@@ -11,419 +11,362 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container-fluid p-0">
-        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h4 class="mb-4"><i class="fas fa-calendar-plus me-2"></i>{% if is_edit %}Sửa đơn nghỉ phép{% else %}Đăng ký nghỉ phép{% endif %}</h4>
-            <div class="btn-toolbar mb-2 mb-md-0">
-                <a href="{{ url_for('leave_requests_list') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Quay lại
-                </a>
+<div class="container-fluid py-3">
+    <!-- Page Header -->
+    <div class="page-header-card d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h4><i class="fas fa-calendar-plus"></i>{% if is_edit %}Sửa đơn nghỉ phép{% else %}Đăng ký nghỉ phép{% endif %}</h4>
+        <a href="{{ url_for('leave_requests_list') }}" class="btn btn-cancel">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Request Type Selector -->
+    <div class="request-type-card">
+        <div class="d-flex align-items-center flex-wrap gap-3">
+            <div class="card-icon">
+                <i class="fas fa-list-alt"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="card-title">Loại đơn</div>
+                <div class="card-subtitle">Chọn loại đơn bạn muốn tạo</div>
+            </div>
+            <div style="min-width: 250px;">
+                <select class="form-select" id="requestTypeSelect">
+                    <option value="leave" {% if not leave_request or leave_request.request_type=='leave' %}selected{% endif %}>📅 Nghỉ phép</option>
+                    <option value="late_early" {% if leave_request and leave_request.request_type=='late_early' %}selected{% endif %}>⏰ Đi trễ / Về sớm</option>
+                    <option value="30min_break" {% if leave_request and leave_request.request_type=='30min_break' %}selected{% endif %}>☕ Nghỉ 30 phút (dành cho nữ)</option>
+                </select>
             </div>
         </div>
+    </div>
 
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
+    <form method="POST" id="leaveRequestForm" enctype="multipart/form-data"
+        action="{% if is_edit %}{{ url_for('edit_leave_request', request_id=leave_request.id) }}{% else %}{{ url_for('submit_leave_request') }}{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="request_type" id="requestType"
+            value="{% if leave_request %}{{ leave_request.request_type }}{% else %}leave{% endif %}">
 
-        <!-- Toggle chế độ form -->
-        <div class="form-section mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Loại đơn</h5>
-                        </div>
-                        <div class="col-md-6">
-                            <select class="form-select" id="requestTypeSelect">
-                                <option value="leave" {% if not leave_request or leave_request.request_type=='leave' %}selected{% endif %}>Nghỉ phép</option>
-                                <option value="late_early" {% if leave_request and leave_request.request_type=='late_early' %}selected{% endif %}>Đi trễ/Về sớm</option>
-                                <option value="30min_break" {% if leave_request and leave_request.request_type=='30min_break' %}selected{% endif %}>Nghỉ 30 phút (dành cho nữ)</option>
-                            </select>
-                        </div>
-                    </div>
+        {% if leave_request %}
+        <!-- Status Section -->
+        <div class="form-section status-section">
+            <h4 class="section-title">
+                <i class="fas fa-clipboard-check"></i> Tình trạng đơn
+            </h4>
+            <div class="d-flex flex-wrap gap-4 align-items-center">
+                <div>
+                    <small class="text-muted d-block mb-1">Trạng thái</small>
+                    {% if leave_request.status == 'pending' %}
+                    <span class="status-badge pending"><i class="fas fa-clock"></i> Chờ phê duyệt</span>
+                    {% elif leave_request.status == 'approved' %}
+                    <span class="status-badge approved"><i class="fas fa-check"></i> Đã phê duyệt</span>
+                    {% elif leave_request.status == 'rejected' %}
+                    <span class="status-badge rejected"><i class="fas fa-times"></i> Từ chối</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ leave_request.status }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <small class="text-muted d-block mb-1">Ngày tạo</small>
+                    <strong>{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</strong>
+                </div>
+                <div>
+                    <small class="text-muted d-block mb-1">Cập nhật gần nhất</small>
+                    <strong>{{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</strong>
                 </div>
             </div>
-        </div>
-
-        <form method="POST" id="leaveRequestForm" enctype="multipart/form-data"
-            action="{% if is_edit %}{{ url_for('edit_leave_request', request_id=leave_request.id) }}{% else %}{{ url_for('submit_leave_request') }}{% endif %}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="request_type" id="requestType"
-                value="{% if leave_request and leave_request.request_type == 'late_early' %}late_early{% else %}leave{% endif %}">
-
-            {% if leave_request %}
-            <!-- Tình trạng đơn -->
-            <div class="form-section">
-                <h4 class="section-title">
-                    <i class="fas fa-clipboard-check"></i> Tình trạng đơn xin nghỉ phép
-                </h4>
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-4">
-                        <label class="form-label">Trạng thái hiện tại</label>
-                        {% if leave_request.status == 'pending' %}
-                        <span class="badge bg-warning text-dark">Chờ phê duyệt</span>
-                        {% elif leave_request.status == 'approved' %}
-                        <span class="badge bg-success">Đã phê duyệt</span>
-                        {% elif leave_request.status == 'rejected' %}
-                        <span class="badge bg-danger">Từ chối</span>
-                        {% else %}
-                        <span class="badge bg-secondary">{{ leave_request.status }}</span>
-                        {% endif %}
+            {% if leave_request.notes %}
+            <div class="status-timeline">
+                <div class="timeline-item">
+                    <div class="timeline-icon"><i class="fas fa-sticky-note"></i></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Ghi chú</div>
+                        <div class="text-muted">{{ leave_request.notes | filter_leave_notes }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Ngày tạo</label>
-                        <div>{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Cập nhật gần nhất</label>
-                        <div>{{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</div>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-file-alt me-2 text-muted"></i>Đã tạo đơn</span>
-                            <small class="text-muted">{{ leave_request.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                        </li>
-                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-user-check me-2 text-muted"></i>Phê duyệt</span>
-                            {% if leave_request.status == 'approved' %}
-                            <small class="text-success">Đã phê duyệt {{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
-                            {% elif leave_request.status == 'rejected' %}
-                            <small class="text-danger">Đã từ chối {{ (leave_request.updated_at or leave_request.created_at).strftime('%d/%m/%Y %H:%M') }}</small>
-                            {% else %}
-                            <small class="text-muted">Đang chờ...</small>
-                            {% endif %}
-                        </li>
-                        {% if leave_request.notes %}
-                        <li class="list-group-item px-0">
-                            <div class="small text-muted mb-1"><i class="fas fa-sticky-note me-2"></i>Ghi chú</div>
-                            <div>{{ leave_request.notes | filter_leave_notes }}</div>
-                        </li>
-                        {% endif %}
-                    </ul>
                 </div>
             </div>
             {% endif %}
+        </div>
+        {% endif %}
 
-            <!-- Thông tin nhân viên -->
-            <div class="form-section">
-                <h4 class="section-title">
-                    <i class="fas fa-user"></i> Thông tin nhân viên
-                </h4>
-                <div class="row g-3 align-items-end">
-                    <div class="col-6 col-md">
-                        <label for="employee_name" class="form-label">Họ và tên <span class="required">*</span></label>
-                        <input type="text" class="form-control form-control-sm" id="employee_name" name="employee_name"
-                            value="{{ leave_request.employee_name if leave_request else (user.name if user else '') }}"
-                            required readonly>
+        <!-- Employee Info -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-user"></i> Thông tin nhân viên
+            </h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="employee_name" class="form-label">Họ và tên <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="employee_name" name="employee_name"
+                        value="{{ leave_request.employee_name if leave_request else (user.name if user else '') }}"
+                        required readonly>
+                </div>
+                <div class="col-md-4">
+                    <label for="team" class="form-label">Nhóm <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="team" name="team"
+                        value="{{ leave_request.team if leave_request else (user.department if user else '') }}"
+                        required readonly>
+                </div>
+                <div class="col-md-4">
+                    <label for="employee_code" class="form-label">Mã nhân viên <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="employee_code" name="employee_code"
+                        value="{{ leave_request.employee_code if leave_request else (user.employee_id if user else '') }}"
+                        required readonly>
+                </div>
+            </div>
+            <!-- Dynamic team fields -->
+            <div class="row g-3 mt-2" id="team-dynamic-row" style="display:none;">
+                <div class="col-md-4" id="scope-days-wrapper" style="display:none;">
+                    <label for="scope_leave_days" class="form-label">Số ngày nghỉ Scope</label>
+                    <input type="number" min="0" step="0.5" class="form-control" id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1...">
+                </div>
+                <div class="col-md-4" id="york-days-wrapper" style="display:none;">
+                    <label for="japan_holiday_days" class="form-label">Số ngày nghỉ lễ Nhật</label>
+                    <input type="number" min="0" step="0.5" class="form-control" id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Reason & Attachments -->
+        <div class="form-section">
+            <h4 class="section-title" id="reasonSectionTitle">
+                <i class="fas fa-clipboard-list"></i> Lý do & Chứng từ
+            </h4>
+
+            <!-- Attachment Guidelines -->
+            <div class="attachment-guidelines" id="attachmentGuidelinesSection">
+                <h6><i class="fas fa-info-circle"></i> Các trường hợp cần chứng từ</h6>
+                <ul>
+                    <li><strong>Ốm / Con ốm / Người nhà ốm:</strong> Giấy xác nhận bệnh viện</li>
+                    <li><strong>Đám cưới / Kết hôn:</strong> Thiệp mời hoặc giấy đăng ký</li>
+                    <li><strong>Tang lễ:</strong> Giấy chứng tử</li>
+                    <li><strong>Sinh con:</strong> Giấy chứng sinh</li>
+                </ul>
+            </div>
+
+            <div class="row g-3">
+                <!-- Late/Early Type (hidden by default) -->
+                <div class="col-md-6" id="lateEarlyTypeSection" style="display: none;">
+                    <label for="late_early_type" class="form-label">Loại <span class="required">*</span></label>
+                    <select class="form-select" id="late_early_type" name="late_early_type">
+                        <option value="">-- Chọn loại --</option>
+                        <option value="late" {% if leave_request and leave_request.late_early_type=='late' %}selected{% endif %}>⏰ Đi trễ</option>
+                        <option value="early" {% if leave_request and leave_request.late_early_type=='early' %}selected{% endif %}>🏃 Về sớm</option>
+                    </select>
+                </div>
+
+                <!-- Reason -->
+                <div class="col-md-6">
+                    <label for="leave_reason" class="form-label" id="reasonLabel">Lý do <span class="required">*</span></label>
+                    <textarea class="form-control" id="leave_reason" name="leave_reason" rows="4"
+                        placeholder="Mô tả chi tiết lý do..." required>{{ leave_request.leave_reason if leave_request else '' }}</textarea>
+                </div>
+
+                <!-- File Upload -->
+                <div class="col-md-6" id="attachmentsSection">
+                    <label class="form-label">Chứng từ đính kèm</label>
+
+                    {% if is_edit and leave_request.attachments %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-2"><i class="fas fa-paperclip me-1"></i>Chứng từ hiện có:</small>
+                        <div class="list-group list-group-flush">
+                            {% set existing_attachments = existing_attachments_list %}
+                            {% for attachment in existing_attachments %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span><i class="fas fa-file me-2 text-muted"></i>{{ attachment.original_name }}</span>
+                                <a href="{{ url_for('download_leave_attachment', request_id=leave_request.id, filename=attachment.saved_name) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="col-6 col-md">
-                        <label for="team" class="form-label">Nhóm <span class="required">*</span></label>
-                        <input type="text" class="form-control form-control-sm" id="team" name="team"
-                            value="{{ leave_request.team if leave_request else (user.department if user else '') }}"
-                            required readonly>
+                    {% endif %}
+
+                    <div class="file-upload-area" onclick="document.getElementById('attachments').click()">
+                        <i class="fas fa-cloud-upload-alt d-block"></i>
+                        <p class="mb-1">Nhấp để chọn file hoặc kéo thả vào đây</p>
+                        <small>PDF, JPG, PNG, DOC, DOCX (tối đa 10MB)</small>
                     </div>
-                    <div class="col-6 col-md">
-                        <label for="employee_code" class="form-label">Mã nhân viên <span class="required">*</span></label>
-                        <input type="text" class="form-control form-control-sm" id="employee_code" name="employee_code"
-                            value="{{ leave_request.employee_code if leave_request else (user.employee_id if user else '') }}"
-                            required readonly>
+                    <input type="file" class="d-none" id="attachments" name="attachments" multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="previewFiles(this)">
+
+                    <div id="file-preview" class="mt-3" style="display: none;">
+                        <h6><i class="fas fa-file me-2"></i>Files đã chọn:</h6>
+                        <div id="file-list" class="list-group"></div>
                     </div>
                 </div>
-                <!-- Trường động theo nhóm -->
-                <div class="row g-3 mt-2" id="team-dynamic-row" style="display:none;">
-                    <div class="col-md-4" id="scope-days-wrapper" style="display:none;">
-                        <label for="scope_leave_days" class="form-label">Số ngày nghỉ Scope</label>
-                        <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                            id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1, 1.5...">
-                        <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
+            </div>
+        </div>
+
+        <!-- Time Selection -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-calendar-check"></i> Thời gian
+            </h4>
+
+            <!-- Shift Selection -->
+            <div class="row g-3 mb-4" id="shiftSelectionSection">
+                <div class="col-md-4">
+                    <label for="leave_shift_code" class="form-label">Ca làm việc <span class="required">*</span></label>
+                    <select id="leave_shift_code" name="leave_shift_code" class="form-select" required>
+                        <option value="" {% if not leave_request or not leave_request.shift_code %}selected{% endif %}>-- Chọn ca --</option>
+                        <option value="1" {% if leave_request and leave_request.shift_code=='1' %}selected{% endif %}>Ca 1 (07:30 - 16:30)</option>
+                        <option value="2" {% if leave_request and leave_request.shift_code=='2' %}selected{% endif %}>Ca 2 (09:00 - 18:00)</option>
+                        <option value="3" {% if leave_request and leave_request.shift_code=='3' %}selected{% endif %}>Ca 3 (11:00 - 20:00)</option>
+                        <option value="4" {% if leave_request and leave_request.shift_code=='4' %}selected{% endif %}>Ca 4 (08:00 - 17:00)</option>
+                    </select>
+                    <div class="invalid-feedback">Vui lòng chọn ca làm việc</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Khung giờ ca</label>
+                    <div class="shift-time-display" id="leave_shift_window">-- Chọn ca để xem --</div>
+                </div>
+            </div>
+
+            <!-- Date Time Grid -->
+            <div class="datetime-grid">
+                <div class="datetime-card from-date">
+                    <h6><i class="fas fa-play-circle"></i> <span id="fromDateLabel">Từ ngày</span> <span class="required">*</span></h6>
+                    <div class="datetime-inputs">
+                        <div>
+                            <label for="leave_from_date" class="form-label small">Ngày</label>
+                            <input type="date" class="form-control" id="leave_from_date" name="leave_from_date" required
+                                value="{{ ('%04d-%02d-%02d' % (leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day)) if leave_request else '' }}">
+                        </div>
+                        <div>
+                            <label for="leave_from_time" class="form-label small">Giờ</label>
+                            <input type="time" class="form-control" id="leave_from_time" name="leave_from_time" required
+                                value="{{ ('%02d:%02d' % (leave_request.leave_from_hour, leave_request.leave_from_minute)) if leave_request else '' }}">
+                        </div>
                     </div>
-                    <div class="col-md-4" id="york-days-wrapper" style="display:none;">
-                        <label for="japan_holiday_days" class="form-label">Số ngày nghỉ lễ Nhật</label>
-                        <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                            id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1, 1.5...">
-                        <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
+                </div>
+                <div class="datetime-card to-date">
+                    <h6><i class="fas fa-stop-circle"></i> <span id="toDateLabel">Đến ngày</span> <span class="required">*</span></h6>
+                    <div class="datetime-inputs">
+                        <div>
+                            <label for="leave_to_date" class="form-label small">Ngày</label>
+                            <input type="date" class="form-control" id="leave_to_date" name="leave_to_date" required
+                                value="{{ ('%04d-%02d-%02d' % (leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day)) if leave_request else '' }}">
+                        </div>
+                        <div>
+                            <label for="leave_to_time" class="form-label small">Giờ</label>
+                            <input type="time" class="form-control" id="leave_to_time" name="leave_to_time" required
+                                value="{{ ('%02d:%02d' % (leave_request.leave_to_hour, leave_request.leave_to_minute)) if leave_request else '' }}">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Lý do nghỉ phép và Chứng từ đính kèm -->
-            <div class="form-section">
-                <h4 class="section-title" id="reasonSectionTitle">
-                    <i class="fas fa-clipboard-list"></i> Lý do nghỉ phép & Chứng từ đính kèm
-                </h4>
-
-                <!-- Mô tả các trường hợp cần chứng từ -->
-                <div class="alert alert-info mb-3" id="attachmentGuidelinesSection">
-                    <h6><i class="fas fa-info-circle me-2"></i>Các trường hợp cần chứng từ (Có thể bổ sung sau khi đã phê duyệt):</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <ul class="mb-0">
-                                <li><strong>Ốm / Con ốm / Người nhà ốm:</strong> Giấy xác nhận bệnh viện</li>
-                                <li><strong>Đám cưới / Kết hôn:</strong> Thiệp mời đám cưới / Giấy đăng ký kết hôn</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <ul class="mb-0">
-                                <li><strong>Tang lễ:</strong> Giấy chứng tử</li>
-                                <li><strong>Sinh con:</strong> Giấy chứng sinh</li>
-                            </ul>
-                        </div>
-                    </div>
+            <!-- Leave Days Section -->
+            <div id="leaveDaysSection" class="mt-4">
+                <div class="info-alert">
+                    <h6><i class="fas fa-lightbulb"></i> Hướng dẫn nhập số ngày nghỉ</h6>
+                    <p class="mb-1"><strong>Lưu ý:</strong> Tổng số ngày phải <strong>bằng chính xác</strong> khoảng thời gian thực tế (tính theo ca làm việc).</p>
+                    <p class="mb-0">Hệ thống sẽ tự động tính toán. Chỉ chấp nhận bội số của 0.5 (ví dụ: 0.5, 1, 1.5, 2...)</p>
                 </div>
 
                 <div class="row g-3">
-                    <!-- Loại đi trễ/về sớm (chỉ hiện khi chế độ đi trễ/về sớm) -->
-                    <div class="col-md-6" id="lateEarlyTypeSection" style="display: none;">
-                        <label for="late_early_type" class="form-label">Loại <span class="required">*</span></label>
-                        <select class="form-select form-select-sm" id="late_early_type" name="late_early_type">
-                            <option value="">-- Chọn loại --</option>
-                            <option value="late" {% if leave_request and leave_request.late_early_type=='late' %}selected{% endif %}>Đi trễ</option>
-                            <option value="early" {% if leave_request and leave_request.late_early_type=='early' %}selected{% endif %}>Về sớm</option>
-                        </select>
-                    </div>
-
-                    <!-- Lý do nghỉ phép -->
-                    <div class="col-md-6">
-                        <label for="leave_reason" class="form-label" id="reasonLabel">Lý do nghỉ phép <span class="required">*</span></label>
-                        <textarea class="form-control form-control-sm" id="leave_reason" name="leave_reason"
-                            rows="4" placeholder="Vui lòng mô tả chi tiết lý do nghỉ phép..."
-                            required>{{ leave_request.leave_reason if leave_request else '' }}</textarea>
-                    </div>
-
-                    <!-- Upload chứng từ -->
-                    <div class="col-md-6" id="attachmentsSection">
-                        <label for="attachments" class="form-label">Upload chứng từ đính kèm</label>
-
-                        <!-- Hiển thị attachments hiện có (chỉ khi edit) -->
-                        {% if is_edit and leave_request.attachments %}
-                        <div class="mb-3">
-                            <h6><i class="fas fa-paperclip me-2"></i>Chứng từ hiện có:</h6>
-                            <div class="list-group">
-                                {% set existing_attachments = existing_attachments_list %}
-                                {% for attachment in existing_attachments %}
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fas fa-file me-2"></i>
-                                        <span>{{ attachment.original_name }}</span>
-                                        <small class="text-muted ms-2">({{ (attachment.size / 1024) | round(1) }} KB)</small>
-                                    </div>
-                                    <a href="{{ url_for('download_leave_attachment', request_id=leave_request.id, filename=attachment.saved_name) }}"
-                                        class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-download"></i> Tải về
-                                    </a>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Các file mới sẽ được thêm vào danh sách trên
-                            </small>
+                    <div class="col-6 col-md-3">
+                        <div class="leave-day-card annual">
+                            <div class="day-label">Phép năm</div>
+                            <input type="number" class="form-control" id="annual_leave_days" name="annual_leave_days"
+                                value="{{ leave_request.annual_leave_days if leave_request else 0 }}" min="0" step="0.5">
                         </div>
-                        {% endif %}
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="leave-day-card unpaid">
+                            <div class="day-label">Không lương</div>
+                            <input type="number" class="form-control" id="unpaid_leave_days" name="unpaid_leave_days"
+                                value="{{ leave_request.unpaid_leave_days if leave_request else 0 }}" min="0" step="0.5">
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="leave-day-card special">
+                            <div class="day-label">Đặc biệt</div>
+                            <input type="number" class="form-control" id="special_leave_days" name="special_leave_days"
+                                value="{{ leave_request.special_leave_days if leave_request else 0 }}" min="0" step="0.5">
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="total-display">
+                            <div class="total-label">Tổng cộng</div>
+                            <div class="total-value"><span id="total-days-display">0</span></div>
+                            <div class="total-unit">ngày</div>
+                            <div class="days-status-text" id="days-status">Chọn thời gian để xem</div>
+                        </div>
+                    </div>
+                </div>
 
-                        <input type="file" class="form-control form-control-sm" id="attachments" name="attachments"
-                            multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="previewFiles(this)">
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Chấp nhận file: PDF, JPG, PNG, DOC, DOCX (tối đa 10MB mỗi file)
-                        </small>
-
-                        <!-- Preview uploaded files -->
-                        <div id="file-preview" class="mt-3" style="display: none;">
-                            <h6><i class="fas fa-file me-2"></i>Files đã chọn:</h6>
-                            <div id="file-list" class="list-group"></div>
+                <!-- Dynamic team fields inline -->
+                <div class="row g-3 mt-2">
+                    <div class="col-md-3 {% if not ((leave_request and leave_request.team and 'scope' in leave_request.team|lower) or (user and user.department and 'scope' in user.department|lower)) %}d-none{% endif %}" id="scope-days-wrapper-inline">
+                        <div class="leave-day-card">
+                            <div class="day-label">Nghỉ Scope</div>
+                            <input type="number" min="0" step="0.5" class="form-control" id="scope_leave_days_inline" name="scope_leave_days" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="col-md-3 {% if not ((leave_request and leave_request.team and 'york' in leave_request.team|lower) or (user and user.department and 'york' in user.department|lower)) %}d-none{% endif %}" id="york-days-wrapper-inline">
+                        <div class="leave-day-card">
+                            <div class="day-label">Nghỉ lễ Nhật</div>
+                            <input type="number" min="0" step="0.5" class="form-control" id="japan_holiday_days_inline" name="japan_holiday_days" placeholder="0">
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Hình thức nghỉ phép -->
-            <div class="form-section">
-                <h4 class="section-title">
-                    <i class="fas fa-calendar-check"></i> Hình thức nghỉ phép
-                </h4>
-                <!-- Chọn ca làm việc áp dụng khi xin nghỉ -->
-                <div id="shiftSelectionSection" class="row g-3 mb-3 align-items-end">
-                    <div class="col-md-3">
-                        <label for="leave_shift_code" class="form-label">Chọn ca làm việc áp dụng <span class="required">*</span></label>
-                        <select id="leave_shift_code" name="leave_shift_code" class="form-select form-select-sm" required>
-                            <option value="" {% if not leave_request or not leave_request.shift_code %}selected{% endif %}>-- Chọn ca làm việc --</option>
-                            <option value="1" {% if leave_request and leave_request.shift_code=='1' %}selected{% endif %}>Ca 1 (07:30 - 16:30)</option>
-                            <option value="2" {% if leave_request and leave_request.shift_code=='2' %}selected{% endif %}>Ca 2 (09:00 - 18:00)</option>
-                            <option value="3" {% if leave_request and leave_request.shift_code=='3' %}selected{% endif %}>Ca 3 (11:00 - 20:00)</option>
-                            <option value="4" {% if leave_request and leave_request.shift_code=='4' %}selected{% endif %}>Ca 4 (08:00 - 17:00)</option>
-                        </select>
-                        <div class="invalid-feedback">Vui lòng chọn ca làm việc</div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Khung giờ ca</label>
-                        <div id="leave_shift_window" class="form-control form-control-sm" style="background:#f8f9fa;" readonly>07:30 - 16:30</div>
-                    </div>
-                    <div class="col-md-3">
-                        <small class="text-muted"></small>
-                    </div>
+        <!-- Replacement Person -->
+        <div class="form-section" id="replacementSection">
+            <h4 class="section-title">
+                <i class="fas fa-user-friends"></i> Người thay thế
+            </h4>
+            <div class="replacement-grid">
+                <div>
+                    <label for="substitute_name" class="form-label">Tên người thay thế</label>
+                    <input type="text" class="form-control" id="substitute_name" name="substitute_name"
+                        value="{{ leave_request.substitute_name if leave_request else '' }}" placeholder="Nhập tên...">
                 </div>
-
-                <!-- Thời gian nghỉ phép -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-calendar-alt me-2"></i><span id="fromDateLabel">Từ ngày (Sau 11:59 là CH)</span><span class="required">*</span></h6>
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6">
-                                <label for="leave_from_date" class="form-label">Ngày</label>
-                                <input type="date" class="form-control form-control-sm" id="leave_from_date"
-                                    name="leave_from_date" required
-                                    value="{{ ('%04d-%02d-%02d' % (leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day)) if leave_request else '' }}">
-                                <div id="leave_from_date_error" class="invalid-feedback"></div>
-                            </div>
-                            <div class="col-6">
-                                <label for="leave_from_time" class="form-label">Giờ</label>
-                                <input type="time" class="form-control form-control-sm" id="leave_from_time"
-                                    name="leave_from_time" required
-                                    value="{{ ('%02d:%02d' % (leave_request.leave_from_hour, leave_request.leave_from_minute)) if leave_request else '' }}">
-                                <div id="leave_from_time_error" class="invalid-feedback"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-calendar-alt me-2"></i><span id="toDateLabel">Đến ngày (Sau 11:59 là CH)</span> <span class="required">*</span></h6>
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6">
-                                <label for="leave_to_date" class="form-label">Ngày</label>
-                                <input type="date" class="form-control form-control-sm" id="leave_to_date"
-                                    name="leave_to_date" required
-                                    value="{{ ('%04d-%02d-%02d' % (leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day)) if leave_request else '' }}">
-                                <div id="leave_to_date_error" class="invalid-feedback"></div>
-                            </div>
-                            <div class="col-6">
-                                <label for="leave_to_time" class="form-label">Giờ</label>
-                                <input type="time" class="form-control form-control-sm" id="leave_to_time"
-                                    name="leave_to_time" required
-                                    value="{{ ('%02d:%02d' % (leave_request.leave_to_hour, leave_request.leave_to_minute)) if leave_request else '' }}">
-                                <div id="leave_to_time_error" class="invalid-feedback"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Số ngày nghỉ -->
-                <div id="leaveDaysSection">
-                    <div class="alert alert-info mb-3">
-                        <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn nhập số ngày nghỉ:</h6>
-                        <p class="mb-1"><strong>⚠️ QUAN TRỌNG:</strong> Tổng số ngày xin nghỉ <strong>PHẢI BẰNG CHÍNH XÁC</strong> khoảng thời gian thực tế sử dụng phép (tính theo ca làm việc).</p>
-                        <p class="mb-0">Hệ thống sẽ tự động tính toán khoảng thời gian thực tế dựa trên ca làm việc và giờ bắt đầu/kết thúc. <strong>BẮT BUỘC phải nhập đúng số ngày được tính toán mới có thể gửi đơn!</strong></p>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-2">
-                            <label for="annual_leave_days" class="form-label">Nghỉ phép năm</label>
-                            <input type="number" class="form-control form-control-sm" id="annual_leave_days"
-                                name="annual_leave_days"
-                                value="{{ leave_request.annual_leave_days if leave_request else 0 }}" min="0"
-                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="unpaid_leave_days" class="form-label">Nghỉ không lương</label>
-                            <input type="number" class="form-control form-control-sm" id="unpaid_leave_days"
-                                name="unpaid_leave_days"
-                                value="{{ leave_request.unpaid_leave_days if leave_request else 0 }}" min="0"
-                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="special_leave_days" class="form-label">Nghỉ đặc biệt</label>
-                            <input type="number" class="form-control form-control-sm" id="special_leave_days"
-                                name="special_leave_days"
-                                value="{{ leave_request.special_leave_days if leave_request else 0 }}" min="0"
-                                step="0.5" placeholder="Ví dụ: 0.5, 1, 1.5">
-                            <small class="text-muted">Chỉ chấp nhận bội số của 0.5</small>
-                            <div class="invalid-feedback">Giá trị phải là bội số của 0.5 (0.5, 1.0, 1.5, ...)</div>
-                        </div>
-                        <!-- Scope / York dynamic fields inline -->
-                        <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'scope' in leave_request.team|lower) or (user and user.department and 'scope' in user.department|lower)) %}d-none{% endif %}"
-                            id="scope-days-wrapper">
-                            <label for="scope_leave_days" class="form-label">Nghỉ Scope</label>
-                            <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                                id="scope_leave_days" name="scope_leave_days" placeholder="0, 0.5, 1, 1.5...">
-                            <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
-                        </div>
-                        <div class="col-md-2 {% if not ((leave_request and leave_request.team and 'york' in leave_request.team|lower) or (user and user.department and 'york' in user.department|lower)) %}d-none{% endif %}"
-                            id="york-days-wrapper">
-                            <label for="japan_holiday_days" class="form-label">Nghỉ lễ Nhật</label>
-                            <input type="number" min="0" step="0.5" class="form-control form-control-sm"
-                                id="japan_holiday_days" name="japan_holiday_days" placeholder="0, 0.5, 1, 1.5...">
-                            <small class="text-muted">Chỉ chấp nhận bội số 0.5</small>
-                        </div>
-                        <div class="col-md-2 d-flex flex-column">
-                            <label class="form-label"></label>
-                            <div class="form-control form-control-sm d-flex flex-column justify-content-center"
-                                style="background:#f8f9fa; min-height: 64px;" readonly>
-                                <small class="text-muted">Tổng: <span id="total-days-display">0</span> ngày</small>
-                                <small id="days-status" class="text-muted">Chọn khoảng thời gian để xem giới hạn</small>
-                            </div>
-                        </div>
-                    </div>
+                <div>
+                    <label for="substitute_employee_id" class="form-label">Mã nhân viên</label>
+                    <input type="text" class="form-control" id="substitute_employee_id" name="substitute_employee_id"
+                        value="{{ leave_request.substitute_employee_id if leave_request else '' }}" placeholder="Nhập mã NV...">
                 </div>
             </div>
+        </div>
 
-            <!-- Người đảm trách công việc thay thế -->
-            <div class="form-section" id="replacementSection">
-                <h4 class="section-title">
-                    <i class="fas fa-user-friends"></i> Người đảm trách công việc thay thế
-                </h4>
-                <div class="row g-3 align-items-end">
-                    <div class="col-6 col-md">
-                        <label for="substitute_name" class="form-label">Tên người thay thế</label>
-                        <input type="text" class="form-control form-control-sm" id="substitute_name"
-                            name="substitute_name"
-                            value="{{ leave_request.substitute_name if leave_request else '' }}">
-                    </div>
-                    <div class="col-6 col-md">
-                        <label for="substitute_employee_id" class="form-label">Mã nhân viên thay thế</label>
-                        <input type="text" class="form-control form-control-sm" id="substitute_employee_id"
-                            name="substitute_employee_id"
-                            value="{{ leave_request.substitute_employee_id if leave_request else '' }}">
-                    </div>
-                </div>
-            </div>
+        <!-- Notes -->
+        <div class="form-section">
+            <h4 class="section-title">
+                <i class="fas fa-sticky-note"></i> Ghi chú
+            </h4>
+            <textarea class="form-control notes-textarea" id="notes" name="notes" rows="3"
+                placeholder="Ghi chú thêm (nếu có)...">{{ (leave_request.notes | filter_leave_notes) if leave_request else '' }}</textarea>
+        </div>
 
-            <!-- Ghi chú -->
-            <div class="form-section">
-                <h4 class="section-title">
-                    <i class="fas fa-sticky-note"></i> Ghi chú
-                </h4>
-                <div class="row">
-                    <div class="col-12">
-                        <textarea class="form-control form-control-sm" id="notes" name="notes" rows="3"
-                            placeholder="Ghi chú thêm (nếu có)">{{ (leave_request.notes | filter_leave_notes) if leave_request else '' }}</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Buttons -->
-            <div class="d-flex justify-content-end gap-2 mb-4">
-                <a href="{{ url_for('leave_requests_list') }}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Hủy
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> {% if is_edit %}Cập nhật{% else %}Gửi đơn{% endif %}
-                </button>
-            </div>
-        </form>
-    </div>
+        <!-- Action Buttons -->
+        <div class="form-actions">
+            <a href="{{ url_for('leave_requests_list') }}" class="btn btn-cancel">
+                <i class="fas fa-times me-1"></i> Hủy
+            </a>
+            <button type="submit" class="btn btn-submit">
+                <i class="fas fa-paper-plane me-1"></i> {% if is_edit %}Cập nhật{% else %}Gửi đơn{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
