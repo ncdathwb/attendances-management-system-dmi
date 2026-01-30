@@ -1,0 +1,835 @@
+/**
+ * Global Icon Styles
+ * ==================
+ * Consistent gradient icons across the entire application
+ * Created: 2026-01-30
+ */
+
+/* =========================================
+   CSS Variables for Icon Gradients
+   ========================================= */
+:root {
+    /* Primary gradients */
+    --icon-gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --icon-gradient-green: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --icon-gradient-pink: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --icon-gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --icon-gradient-cyan: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    --icon-gradient-orange: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --icon-gradient-red: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    --icon-gradient-teal: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    --icon-gradient-gold: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    --icon-gradient-indigo: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+
+    /* Shadow colors */
+    --icon-shadow-purple: rgba(102, 126, 234, 0.35);
+    --icon-shadow-green: rgba(17, 153, 142, 0.35);
+    --icon-shadow-pink: rgba(245, 87, 108, 0.35);
+    --icon-shadow-blue: rgba(79, 172, 254, 0.35);
+    --icon-shadow-orange: rgba(250, 112, 154, 0.35);
+    --icon-shadow-red: rgba(255, 117, 140, 0.35);
+}
+
+/* =========================================
+   Base Icon Box Style
+   ========================================= */
+.icon-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.icon-box-sm {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+}
+
+.icon-box-md {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+    border-radius: 10px;
+}
+
+.icon-box-lg {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+    border-radius: 12px;
+}
+
+.icon-box-xl {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    border-radius: 14px;
+}
+
+/* =========================================
+   Icon Color Variants
+   ========================================= */
+.icon-purple {
+    background: var(--icon-gradient-purple);
+    box-shadow: 0 4px 12px var(--icon-shadow-purple);
+}
+
+.icon-green {
+    background: var(--icon-gradient-green);
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+.icon-pink {
+    background: var(--icon-gradient-pink);
+    box-shadow: 0 4px 12px var(--icon-shadow-pink);
+}
+
+.icon-blue {
+    background: var(--icon-gradient-blue);
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+.icon-cyan {
+    background: var(--icon-gradient-cyan);
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+.icon-orange {
+    background: var(--icon-gradient-orange);
+    box-shadow: 0 4px 12px var(--icon-shadow-orange);
+}
+
+.icon-red {
+    background: var(--icon-gradient-red);
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+.icon-teal {
+    background: var(--icon-gradient-teal);
+    box-shadow: 0 4px 12px rgba(168, 237, 234, 0.35);
+    color: #5a5a5a;
+}
+
+.icon-gold {
+    background: var(--icon-gradient-gold);
+    box-shadow: 0 4px 12px rgba(247, 151, 30, 0.35);
+}
+
+.icon-indigo {
+    background: var(--icon-gradient-indigo);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+/* =========================================
+   Section Title Icons
+   ========================================= */
+.section-title-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    color: white;
+    font-size: 0.9rem;
+    margin-right: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================
+   Form Label Icons
+   ========================================= */
+.form-label i,
+label i {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    margin-right: 6px;
+}
+
+/* Default form label icon colors */
+.form-label i.fa-user,
+label i.fa-user {
+    background: var(--icon-gradient-purple);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-purple);
+}
+
+.form-label i.fa-envelope,
+label i.fa-envelope {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-blue);
+}
+
+.form-label i.fa-phone,
+label i.fa-phone {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-green);
+}
+
+.form-label i.fa-calendar,
+.form-label i.fa-calendar-alt,
+.form-label i.fa-calendar-day,
+.form-label i.fa-calendar-plus,
+.form-label i.fa-calendar-check,
+.form-label i.fa-calendar-times,
+.form-label i.fa-calendar-minus,
+label i.fa-calendar,
+label i.fa-calendar-alt,
+label i.fa-calendar-day {
+    background: var(--icon-gradient-pink);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-pink);
+}
+
+.form-label i.fa-clock,
+label i.fa-clock {
+    background: var(--icon-gradient-cyan);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-blue);
+}
+
+.form-label i.fa-id-card,
+.form-label i.fa-id-badge,
+label i.fa-id-card,
+label i.fa-id-badge {
+    background: var(--icon-gradient-indigo);
+    color: white;
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+}
+
+.form-label i.fa-building,
+.form-label i.fa-briefcase,
+label i.fa-building,
+label i.fa-briefcase {
+    background: var(--icon-gradient-orange);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-orange);
+}
+
+.form-label i.fa-lock,
+.form-label i.fa-key,
+label i.fa-lock,
+label i.fa-key {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-red);
+}
+
+.form-label i.fa-comment,
+.form-label i.fa-comments,
+.form-label i.fa-sticky-note,
+.form-label i.fa-pen,
+.form-label i.fa-edit,
+label i.fa-comment,
+label i.fa-comments,
+label i.fa-sticky-note {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 2px 6px rgba(247, 151, 30, 0.35);
+}
+
+.form-label i.fa-file,
+.form-label i.fa-file-alt,
+.form-label i.fa-paperclip,
+.form-label i.fa-upload,
+label i.fa-file,
+label i.fa-file-alt,
+label i.fa-paperclip {
+    background: var(--icon-gradient-teal);
+    color: #5a5a5a;
+    box-shadow: 0 2px 6px rgba(168, 237, 234, 0.35);
+}
+
+.form-label i.fa-users,
+.form-label i.fa-user-friends,
+label i.fa-users,
+label i.fa-user-friends {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-green);
+}
+
+.form-label i.fa-check,
+.form-label i.fa-check-circle,
+label i.fa-check,
+label i.fa-check-circle {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-green);
+}
+
+.form-label i.fa-times,
+.form-label i.fa-times-circle,
+.form-label i.fa-ban,
+label i.fa-times,
+label i.fa-times-circle {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-red);
+}
+
+.form-label i.fa-info,
+.form-label i.fa-info-circle,
+.form-label i.fa-question,
+.form-label i.fa-question-circle,
+label i.fa-info,
+label i.fa-info-circle {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 2px 6px var(--icon-shadow-blue);
+}
+
+.form-label i.fa-exclamation,
+.form-label i.fa-exclamation-circle,
+.form-label i.fa-exclamation-triangle,
+label i.fa-exclamation,
+label i.fa-exclamation-circle,
+label i.fa-exclamation-triangle {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 2px 6px rgba(247, 151, 30, 0.35);
+}
+
+/* =========================================
+   Card Header Icons
+   ========================================= */
+.card-header i,
+.card-title i,
+h4 i,
+h5 i,
+h6 i {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-right: 8px;
+}
+
+/* Section header icons with gradients */
+h4 i.fa-clock,
+h5 i.fa-clock,
+h6 i.fa-clock {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+h4 i.fa-calendar,
+h4 i.fa-calendar-alt,
+h4 i.fa-calendar-check,
+h5 i.fa-calendar,
+h5 i.fa-calendar-alt,
+h5 i.fa-calendar-check,
+h6 i.fa-calendar,
+h6 i.fa-calendar-alt {
+    background: var(--icon-gradient-pink);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-pink);
+}
+
+h4 i.fa-history,
+h5 i.fa-history,
+h6 i.fa-history {
+    background: var(--icon-gradient-purple);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-purple);
+}
+
+h4 i.fa-list,
+h4 i.fa-list-alt,
+h4 i.fa-clipboard-list,
+h5 i.fa-list,
+h5 i.fa-list-alt,
+h5 i.fa-clipboard-list,
+h6 i.fa-list,
+h6 i.fa-list-alt {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-user,
+h4 i.fa-users,
+h4 i.fa-user-cog,
+h5 i.fa-user,
+h5 i.fa-users,
+h5 i.fa-user-cog,
+h6 i.fa-user,
+h6 i.fa-users {
+    background: var(--icon-gradient-indigo);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+h4 i.fa-cog,
+h4 i.fa-cogs,
+h4 i.fa-sliders-h,
+h5 i.fa-cog,
+h5 i.fa-cogs,
+h5 i.fa-sliders-h,
+h6 i.fa-cog,
+h6 i.fa-cogs {
+    background: var(--icon-gradient-cyan);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-file,
+h4 i.fa-file-alt,
+h4 i.fa-file-pdf,
+h4 i.fa-file-excel,
+h5 i.fa-file,
+h5 i.fa-file-alt,
+h6 i.fa-file,
+h6 i.fa-file-alt {
+    background: var(--icon-gradient-orange);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-orange);
+}
+
+h4 i.fa-chart-bar,
+h4 i.fa-chart-line,
+h4 i.fa-chart-pie,
+h5 i.fa-chart-bar,
+h5 i.fa-chart-line,
+h6 i.fa-chart-bar {
+    background: var(--icon-gradient-teal);
+    color: #5a5a5a;
+    box-shadow: 0 4px 12px rgba(168, 237, 234, 0.35);
+}
+
+h4 i.fa-bell,
+h4 i.fa-envelope,
+h5 i.fa-bell,
+h5 i.fa-envelope,
+h6 i.fa-bell,
+h6 i.fa-envelope {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 4px 12px rgba(247, 151, 30, 0.35);
+}
+
+h4 i.fa-shield-alt,
+h4 i.fa-lock,
+h4 i.fa-key,
+h5 i.fa-shield-alt,
+h5 i.fa-lock,
+h6 i.fa-shield-alt,
+h6 i.fa-lock {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-lightbulb,
+h4 i.fa-star,
+h5 i.fa-lightbulb,
+h5 i.fa-star,
+h6 i.fa-lightbulb {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 4px 12px rgba(247, 151, 30, 0.35);
+}
+
+h4 i.fa-check,
+h4 i.fa-check-circle,
+h4 i.fa-check-square,
+h5 i.fa-check,
+h5 i.fa-check-circle,
+h6 i.fa-check,
+h6 i.fa-check-circle {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+h4 i.fa-times,
+h4 i.fa-times-circle,
+h4 i.fa-ban,
+h5 i.fa-times,
+h5 i.fa-times-circle,
+h6 i.fa-times,
+h6 i.fa-times-circle {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-pencil-alt,
+h4 i.fa-pen,
+h4 i.fa-edit,
+h5 i.fa-pencil-alt,
+h5 i.fa-pen,
+h5 i.fa-edit,
+h6 i.fa-pencil-alt,
+h6 i.fa-edit {
+    background: var(--icon-gradient-orange);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-orange);
+}
+
+h4 i.fa-trash,
+h4 i.fa-trash-alt,
+h5 i.fa-trash,
+h5 i.fa-trash-alt,
+h6 i.fa-trash {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-plus,
+h4 i.fa-plus-circle,
+h5 i.fa-plus,
+h5 i.fa-plus-circle,
+h6 i.fa-plus {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+h4 i.fa-minus,
+h4 i.fa-minus-circle,
+h5 i.fa-minus,
+h5 i.fa-minus-circle,
+h6 i.fa-minus {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-search,
+h5 i.fa-search,
+h6 i.fa-search {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-download,
+h4 i.fa-upload,
+h5 i.fa-download,
+h5 i.fa-upload,
+h6 i.fa-download {
+    background: var(--icon-gradient-cyan);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-print,
+h5 i.fa-print,
+h6 i.fa-print {
+    background: var(--icon-gradient-indigo);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+h4 i.fa-sync,
+h4 i.fa-sync-alt,
+h4 i.fa-redo,
+h5 i.fa-sync,
+h5 i.fa-sync-alt,
+h6 i.fa-sync {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-save,
+h5 i.fa-save,
+h6 i.fa-save {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+h4 i.fa-paper-plane,
+h4 i.fa-send,
+h5 i.fa-paper-plane,
+h6 i.fa-paper-plane {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-home,
+h5 i.fa-home,
+h6 i.fa-home {
+    background: var(--icon-gradient-purple);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-purple);
+}
+
+h4 i.fa-clipboard-check,
+h5 i.fa-clipboard-check,
+h6 i.fa-clipboard-check {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+h4 i.fa-signature,
+h5 i.fa-signature,
+h6 i.fa-signature {
+    background: var(--icon-gradient-indigo);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+h4 i.fa-tasks,
+h5 i.fa-tasks,
+h6 i.fa-tasks {
+    background: var(--icon-gradient-cyan);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-flag,
+h5 i.fa-flag,
+h6 i.fa-flag {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-torii-gate,
+h5 i.fa-torii-gate,
+h6 i.fa-torii-gate {
+    background: var(--icon-gradient-orange);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-orange);
+}
+
+h4 i.fa-plane,
+h4 i.fa-plane-departure,
+h5 i.fa-plane,
+h5 i.fa-plane-departure,
+h6 i.fa-plane {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+h4 i.fa-hospital,
+h4 i.fa-hospital-alt,
+h4 i.fa-medkit,
+h4 i.fa-first-aid,
+h5 i.fa-hospital,
+h5 i.fa-medkit,
+h6 i.fa-hospital {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-baby,
+h4 i.fa-child,
+h5 i.fa-baby,
+h6 i.fa-baby {
+    background: var(--icon-gradient-pink);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-pink);
+}
+
+h4 i.fa-heart,
+h5 i.fa-heart,
+h6 i.fa-heart {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+h4 i.fa-graduation-cap,
+h4 i.fa-book,
+h5 i.fa-graduation-cap,
+h5 i.fa-book,
+h6 i.fa-graduation-cap {
+    background: var(--icon-gradient-indigo);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+/* =========================================
+   Alert Icons
+   ========================================= */
+.alert i {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-right: 8px;
+}
+
+.alert-success i {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 2px 8px var(--icon-shadow-green);
+}
+
+.alert-danger i {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 2px 8px var(--icon-shadow-red);
+}
+
+.alert-warning i {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 2px 8px rgba(247, 151, 30, 0.35);
+}
+
+.alert-info i {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 2px 8px var(--icon-shadow-blue);
+}
+
+.alert-primary i {
+    background: var(--icon-gradient-purple);
+    color: white;
+    box-shadow: 0 2px 8px var(--icon-shadow-purple);
+}
+
+/* =========================================
+   Button Icons
+   ========================================= */
+.btn i {
+    margin-right: 6px;
+}
+
+.btn-icon-only i {
+    margin-right: 0;
+}
+
+/* =========================================
+   Badge Icons
+   ========================================= */
+.badge i {
+    margin-right: 4px;
+}
+
+/* =========================================
+   Info Box / Alert Box Icons
+   ========================================= */
+.info-alert i,
+.warning-alert i,
+.success-alert i,
+.danger-alert i {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.info-alert i {
+    background: var(--icon-gradient-blue);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-blue);
+}
+
+.warning-alert i {
+    background: var(--icon-gradient-gold);
+    color: white;
+    box-shadow: 0 4px 12px rgba(247, 151, 30, 0.35);
+}
+
+.success-alert i {
+    background: var(--icon-gradient-green);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-green);
+}
+
+.danger-alert i {
+    background: var(--icon-gradient-red);
+    color: white;
+    box-shadow: 0 4px 12px var(--icon-shadow-red);
+}
+
+/* =========================================
+   Table Action Button Icons
+   ========================================= */
+.btn-sm i {
+    font-size: 0.8rem;
+}
+
+/* =========================================
+   Hover Effects
+   ========================================= */
+.icon-box:hover,
+h4 i:hover,
+h5 i:hover,
+h6 i:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+/* =========================================
+   Responsive Adjustments
+   ========================================= */
+@media (max-width: 768px) {
+    .icon-box-lg {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .icon-box-xl {
+        width: 48px;
+        height: 48px;
+        font-size: 1.2rem;
+    }
+
+    h4 i,
+    h5 i,
+    h6 i {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+
+    .form-label i,
+    label i {
+        width: 20px;
+        height: 20px;
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .icon-box-lg {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+
+    h4 i,
+    h5 i,
+    h6 i {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+        margin-right: 6px;
+    }
+}

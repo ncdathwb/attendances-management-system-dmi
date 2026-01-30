@@ -61,9 +61,76 @@
 }
 
 .sidebar .nav-link i {
-    width: 20px;
+    width: 28px;
+    height: 28px;
     margin-right: 10px;
     text-align: center;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+/* Colored icons for nav items */
+.sidebar .nav-link i.fa-home {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-calendar-plus {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-list-alt {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #5a5a5a;
+}
+
+.sidebar .nav-link i.fa-history {
+    background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+    color: #5a5a5a;
+}
+
+.sidebar .nav-link i.fa-calendar-check {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-clipboard-list {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-sign-out-alt {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-user-cog,
+.sidebar .nav-link i.fa-cog {
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    color: white;
+}
+
+.sidebar .nav-link:hover i,
+.sidebar .nav-link.active i {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-header h3 i {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    border-radius: 10px;
+    font-size: 1rem;
+    box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
 }
 
 .sidebar .nav-link:hover {

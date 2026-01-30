@@ -22,8 +22,24 @@
 .sidebar-header h3 {
     margin: 0;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.sidebar-header h3 i {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 /* User Profile */
@@ -34,14 +50,16 @@
 }
 
 .user-avatar {
-    width: 60px;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.2);
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 10px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .user-avatar i {
@@ -99,10 +117,132 @@
 }
 
 .sidebar .nav-link i {
-    width: 20px;
-    margin-right: 12px;
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+/* Colored icons for nav items */
+.sidebar .nav-link i.fa-home {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-users {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-calendar-alt,
+.sidebar .nav-link i.fa-calendar {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-clipboard-list {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-calendar-check {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-calendar-plus {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-list-alt {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #5a5a5a;
+}
+
+.sidebar .nav-link i.fa-history {
+    background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+    color: #5a5a5a;
+}
+
+.sidebar .nav-link i.fa-user-cog,
+.sidebar .nav-link i.fa-cog {
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-sign-out-alt {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-plus,
+.sidebar .nav-link i.fa-plus-circle {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-edit,
+.sidebar .nav-link i.fa-pen {
+    background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-trash,
+.sidebar .nav-link i.fa-trash-alt {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-file,
+.sidebar .nav-link i.fa-file-alt {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-chart-bar,
+.sidebar .nav-link i.fa-chart-line {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-envelope {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-bell {
+    background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-shield-alt,
+.sidebar .nav-link i.fa-lock {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-sync,
+.sidebar .nav-link i.fa-sync-alt {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.sidebar .nav-link i.fa-signature {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+}
+
+.sidebar .nav-link:hover i,
+.sidebar .nav-link.active i {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Role Switcher */

@@ -62,8 +62,57 @@ body {
 
 .admin-sidebar .nav-link i {
     margin-right: 10px;
-    width: 20px;
+    width: 28px;
+    height: 28px;
     text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+/* Colored icons for admin nav items */
+.admin-sidebar .nav-link i.fa-home {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-users {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-calendar-alt {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-user-plus {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-trash {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-building {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link i.fa-sign-out-alt {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    color: white;
+}
+
+.admin-sidebar .nav-link:hover i,
+.admin-sidebar .nav-link.active i {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Main Content for Admin Pages */
