@@ -183,144 +183,181 @@ def send_leave_request_email_safe(request_data, user_data, action='create'):
         # Tính tổng số ngày nghỉ
         total_days = (request_data.get('annual_leave_days', 0) or 0) + (request_data.get('unpaid_leave_days', 0) or 0) + (request_data.get('special_leave_days', 0) or 0)
 
-        # Thông tin bổ sung cho HR
-        has_docs = bool(request_data.get('attachments') or request_data.get('hospital_confirmation') or request_data.get('wedding_invitation') or request_data.get('death_birth_certificate'))
+        # Xác định màu và icon theo loại action
+        if action_lower == 'create':
+            action_color = '#28a745'  # Xanh lá - tạo mới
+            action_icon = '🆕'
+            action_bg = '#d4edda'
+        elif action_lower == 'delete':
+            action_color = '#dc3545'  # Đỏ - xóa
+            action_icon = '🗑️'
+            action_bg = '#f8d7da'
+        else:  # update
+            action_color = '#ffc107'  # Vàng - cập nhật
+            action_icon = '✏️'
+            action_bg = '#fff3cd'
 
-        # Tạo nội dung HTML
-        cancel_notice_html = ""
-        if action_lower == 'delete':
-            cancel_notice_html = f"""
-                <div class="highlight">
-                    <h3>⚠️ Thông báo huỷ/xóa đơn</h3>
-                    <p>Nhân viên xác nhận <strong>không còn nhu cầu nghỉ</strong>. Vui lòng:</p>
-                    <ul>
-                        <li>Ngừng xử lý/phê duyệt đơn này</li>
-                        <li>Xóa/huỷ ghi nhận đơn nghỉ trong các hệ thống liên quan (nếu đã tạo)</li>
-                        <li>Cập nhật lịch/phân ca nếu đã bố trí người thay thế</li>
-                    </ul>
-                    <p><em>Mã đơn:</em> #{request_data['id']}</p>
-                </div>
-            """
+        # Xác định màu và icon theo loại đơn
+        if request_type == 'late_early':
+            if late_early_type == 'late':
+                type_color = '#fd7e14'  # Cam - đi trễ
+                type_icon = '⏰'
+                type_label = 'ĐI TRỄ'
+            else:
+                type_color = '#6f42c1'  # Tím - về sớm
+                type_icon = '🏃'
+                type_label = 'VỀ SỚM'
+        elif request_type == '30min_break':
+            type_color = '#17a2b8'  # Xanh dương - nghỉ 30p
+            type_icon = '☕'
+            type_label = 'NGHỈ 30 PHÚT'
+        else:
+            type_color = '#007bff'  # Xanh - nghỉ phép
+            type_icon = '📅'
+            type_label = 'NGHỈ PHÉP'
+
+        # Tạo nội dung HTML - thiết kế mới gọn gàng và rõ ràng
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
-                .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
-                .highlight {{ background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0; }}
-                table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-                th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-                th {{ background-color: #f8f9fa; font-weight: bold; }}
-                .footer {{ margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; font-size: 14px; color: #666; }}
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
+                .header {{ padding: 25px; text-align: center; }}
+                .action-badge {{ display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 10px; background-color: {action_bg}; color: {action_color}; border: 2px solid {action_color}; }}
+                .type-badge {{ display: inline-block; padding: 10px 25px; border-radius: 25px; font-weight: bold; font-size: 16px; background-color: {type_color}; color: white; }}
+                .employee-info {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }}
+                .employee-name {{ font-size: 22px; font-weight: bold; margin: 0 0 5px 0; }}
+                .employee-id {{ font-size: 14px; opacity: 0.9; }}
+                .content {{ padding: 25px; }}
+                .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }}
+                .info-box {{ background: #f8f9fa; padding: 15px; border-radius: 8px; }}
+                .info-label {{ font-size: 12px; color: #6c757d; text-transform: uppercase; margin-bottom: 5px; }}
+                .info-value {{ font-size: 16px; font-weight: 600; color: #212529; }}
+                .reason-box {{ background: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid {type_color}; margin-bottom: 20px; }}
+                .reason-label {{ font-size: 12px; color: #6c757d; text-transform: uppercase; margin-bottom: 8px; }}
+                .reason-text {{ font-size: 16px; color: #212529; line-height: 1.5; }}
+                .leave-days {{ background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+                .leave-days-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; }}
+                .leave-day-item {{ padding: 10px; background: white; border-radius: 6px; }}
+                .leave-day-value {{ font-size: 24px; font-weight: bold; color: {type_color}; }}
+                .leave-day-label {{ font-size: 11px; color: #6c757d; }}
+                .substitute-box {{ background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+                .substitute-title {{ font-size: 14px; font-weight: 600; color: #0066cc; margin-bottom: 10px; }}
+                .notes-box {{ background: #fffbeb; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 20px; }}
+                .attachment-box {{ background: #dcfce7; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+                .attachment-icon {{ font-size: 20px; margin-right: 10px; }}
+                .cancel-notice {{ background: #fee2e2; padding: 20px; border-radius: 8px; border: 2px solid #dc3545; margin-bottom: 20px; }}
+                .cancel-title {{ color: #dc3545; font-weight: bold; font-size: 16px; margin-bottom: 10px; }}
+                .footer {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }}
+                .timestamp {{ font-size: 12px; color: #6c757d; margin-top: 15px; }}
             </style>
         </head>
         <body>
             <div class="container">
+                <!-- Header với Action và Type badges -->
                 <div class="header">
-                    <h1>📧 THÔNG BÁO ĐƠN XIN NGHỈ PHÉP</h1>
-                    <h2>📋 ĐƠN XIN NGHỈ PHÉP</h2>
-                    <p><strong>Loại email:</strong> {action_label}</p>
-                    <p><strong>Nhân viên:</strong> {user_data['name']} ({user_data.get('employee_id', '')})</p>
-                    <p><strong>Email nhân viên:</strong> {user_data.get('email', 'Chưa cập nhật')}</p>
-                    <p><strong>Gửi từ hệ thống:</strong> {from_email}</p>
-                    <p><strong>Thời gian gửi:</strong> {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+                    <div class="action-badge">{action_icon} {action_label}</div>
+                    <br><br>
+                    <div class="type-badge">{type_icon} {type_label}</div>
                 </div>
 
-                {cancel_notice_html}
-
-                <div class="highlight">
-                    <h3>📅 Thông tin {'đi trễ/về sớm' if request_type == 'late_early' else 'nghỉ 30 phút' if request_type == '30min_break' else 'nghỉ phép'}</h3>
-                    <table>
-                        <tr>
-                            <th>Lý do</th>
-                            <td>{'[Đi trễ]: ' if request_type == 'late_early' and late_early_type == 'late' else '[Về sớm]: ' if request_type == 'late_early' and late_early_type == 'early' else '[Nghỉ 30 phút]: ' if request_type == '30min_break' else ''}{request_data['leave_reason']}</td>
-                        </tr>
-                        <tr>
-                            <th>Khoảng thời gian</th>
-                            <td>{from_date} {from_time} - {to_date} {to_time}</td>
-                        </tr>
-                        <tr>
-                            <th>Ca làm việc</th>
-                            <td>Ca {request_data.get('shift_code', '1')}</td>
-                        </tr>
-                        {'<tr><th>Thời gian đi trễ/về sớm</th><td><strong>' + ('Đi trễ: ' + from_time if late_early_type == 'late' else 'Về sớm: ' + to_time) + '</strong></td></tr>' if request_type == 'late_early' else '<tr><th>Thời gian nghỉ 30 phút</th><td><strong>' + from_time + ' - ' + to_time + '</strong></td></tr>' if request_type == '30min_break' else '<tr><th>Tổng số ngày nghỉ</th><td><strong>' + str(total_days) + ' ngày</strong></td></tr>'}
-                    </table>
-
-                    {'<h3>📊 Phân bổ ngày nghỉ</h3><table><tr><th>Phép năm</th><td>' + str(request_data.get('annual_leave_days', 0)) + ' ngày</td></tr><tr><th>Nghỉ không lương</th><td>' + str(request_data.get('unpaid_leave_days', 0)) + ' ngày</td></tr><tr><th>Nghỉ đặc biệt</th><td>' + str(request_data.get('special_leave_days', 0)) + ' ngày</td></tr></table>' if request_type == 'leave' else ''}
-
-                    <h3>👥 Thông tin thay thế</h3>
-                    <table>
-                        <tr>
-                            <th>Người thay thế</th>
-                            <td>{request_data.get('substitute_name', 'Chưa chỉ định')}</td>
-                        </tr>
-                        <tr>
-                            <th>Mã nhân viên thay thế</th>
-                            <td>{request_data.get('substitute_employee_id', 'Chưa chỉ định')}</td>
-                        </tr>
-                    </table>
+                <!-- Thông tin nhân viên -->
+                <div class="employee-info">
+                    <p class="employee-name">{user_data['name']}</p>
+                    <p class="employee-id">Mã NV: {user_data.get('employee_id', 'N/A')} | {user_data.get('email', '')}</p>
                 </div>
 
-                {f'<h3>📝 Ghi chú</h3><div class="highlight"><p>{request_data.get("notes", "")}</p></div>' if request_data.get('notes') else ''}
+                <div class="content">
+                    {'<div class="cancel-notice"><div class="cancel-title">⚠️ THÔNG BÁO HỦY ĐƠN</div><p>Nhân viên xác nhận <strong>không còn nhu cầu</strong>. Vui lòng hủy xử lý đơn này.</p><p style="margin:0;font-size:13px;color:#666;">Mã đơn: #' + str(request_data['id']) + '</p></div>' if action_lower == 'delete' else ''}
 
-                <h3>ℹ️ Thông tin bổ sung</h3>
-                <p>• Tài liệu đính kèm: {'Có' if has_docs else 'Không có'}</p>
-                {f'<p>• <strong>📎 CÓ {len(json.loads(request_data["attachments"]))} FILE(S) ĐÍNH KÈM TRONG EMAIL NÀY</strong></p>' if request_data.get('attachments') else ''}
-                <p>• Đơn này được gửi tự động từ hệ thống quản lý chấm công</p>
-                <p>• Vui lòng phản hồi trong thời gian sớm nhất</p>
+                    <!-- Lý do -->
+                    <div class="reason-box">
+                        <div class="reason-label">Lý do</div>
+                        <div class="reason-text">{request_data['leave_reason']}</div>
+                    </div>
+
+                    <!-- Thông tin thời gian -->
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="info-label">{'Ngày' if request_type == '30min_break' or (from_date == to_date) else 'Từ ngày'}</div>
+                            <div class="info-value">{from_date}</div>
+                        </div>
+                        {'<div class="info-box"><div class="info-label">Đến ngày</div><div class="info-value">' + to_date + '</div></div>' if from_date != to_date and request_type == 'leave' else '<div class="info-box"><div class="info-label">Ca làm việc</div><div class="info-value">Ca ' + str(request_data.get('shift_code', '1')) + '</div></div>'}
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="info-label">{'Thời gian nghỉ' if request_type == '30min_break' else 'Giờ đi trễ' if request_type == 'late_early' and late_early_type == 'late' else 'Giờ về sớm' if request_type == 'late_early' else 'Từ giờ'}</div>
+                            <div class="info-value" style="color: {type_color};">{from_time}{' - ' + to_time if request_type == '30min_break' else ''}</div>
+                        </div>
+                        {'<div class="info-box"><div class="info-label">Đến giờ</div><div class="info-value">' + to_time + '</div></div>' if request_type == 'leave' else '<div class="info-box"><div class="info-label">Ca làm việc</div><div class="info-value">Ca ' + str(request_data.get('shift_code', '1')) + '</div></div>' if request_type != '30min_break' else ''}
+                    </div>
+
+                    {'<div class="leave-days"><div class="info-label" style="margin-bottom:10px;">📊 Phân bổ ngày nghỉ</div><div class="leave-days-grid"><div class="leave-day-item"><div class="leave-day-value">' + str(request_data.get('annual_leave_days', 0)) + '</div><div class="leave-day-label">Phép năm</div></div><div class="leave-day-item"><div class="leave-day-value">' + str(request_data.get('unpaid_leave_days', 0)) + '</div><div class="leave-day-label">Không lương</div></div><div class="leave-day-item"><div class="leave-day-value">' + str(request_data.get('special_leave_days', 0)) + '</div><div class="leave-day-label">Đặc biệt</div></div></div><div style="text-align:center;margin-top:15px;font-size:18px;font-weight:bold;color:' + type_color + ';">Tổng: ' + str(total_days) + ' ngày</div></div>' if request_type == 'leave' else ''}
+
+                    <!-- Người thay thế -->
+                    <div class="substitute-box">
+                        <div class="substitute-title">👥 Người thay thế</div>
+                        <div style="font-size:15px;">{request_data.get('substitute_name', 'Chưa chỉ định') or 'Chưa chỉ định'} {'(' + request_data.get('substitute_employee_id', '') + ')' if request_data.get('substitute_employee_id') else ''}</div>
+                    </div>
+
+                    {f'<div class="notes-box"><div class="info-label">📝 Ghi chú</div><div style="margin-top:8px;">{request_data.get("notes", "")}</div></div>' if request_data.get('notes') else ''}
+
+                    {f'<div class="attachment-box"><span class="attachment-icon">📎</span><strong>{len(json.loads(request_data["attachments"]))} file đính kèm</strong> trong email này</div>' if request_data.get('attachments') else ''}
+
+                    <div class="timestamp">
+                        Mã đơn: #{request_data['id']} | Gửi lúc: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+                    </div>
+                </div>
 
                 <div class="footer">
-                    <p><strong>Hệ thống quản lý chấm công DMI</strong></p>
-                    <p>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</p>
+                    <strong>Hệ thống quản lý chấm công DMI</strong><br>
+                    Email tự động - Vui lòng không trả lời trực tiếp
                 </div>
             </div>
         </body>
         </html>
         """
 
-        # Tạo nội dung text
-        cancel_notice_text = ""
-        if action_lower == 'delete':
-            cancel_notice_text = (
-                "\nTHÔNG BÁO HUỶ/XÓA ĐƠN:\n"
-                "- Nhân viên không còn nhu cầu nghỉ.\n"
-                "- Vui lòng ngừng xử lý và xoá/cập nhật các ghi nhận liên quan.\n"
-                "- Cập nhật lịch/phân ca nếu đã sắp xếp thay thế.\n"
-            )
+        # Tạo nội dung text (plain text version) - gọn gàng hơn
         text_content = f"""
-THÔNG BÁO ĐƠN XIN NGHỈ PHÉP
+{'=' * 50}
+{action_icon} {action_label} | {type_icon} {type_label}
+{'=' * 50}
 
-LOẠI EMAIL: {action_label}
+NHÂN VIÊN: {user_data['name']}
+Mã NV: {user_data.get('employee_id', 'N/A')}
+Email: {user_data.get('email', '')}
 
-Gửi từ: {user_data['name']} ({user_data.get('employee_id', '')})
-Email: {from_email}
-Thời gian gửi: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+{'⚠️ THÔNG BÁO HỦY ĐƠN' if action_lower == 'delete' else ''}
+{'Nhân viên xác nhận KHÔNG CÒN NHU CẦU. Vui lòng hủy xử lý đơn này.' if action_lower == 'delete' else ''}
 
-{cancel_notice_text}
+LÝ DO: {request_data['leave_reason']}
 
-THÔNG TIN {'ĐI TRỄ/VỀ SỚM' if request_type == 'late_early' else 'NGHỈ 30 PHÚT' if request_type == '30min_break' else 'NGHỈ PHÉP'}:
-- Lý do: {'[Đi trễ]: ' if request_type == 'late_early' and late_early_type == 'late' else '[Về sớm]: ' if request_type == 'late_early' and late_early_type == 'early' else '[Nghỉ 30 phút]: ' if request_type == '30min_break' else ''}{request_data['leave_reason']}
-- Khoảng thời gian: {from_date} {from_time} - {to_date} {to_time}
+THỜI GIAN:
+{'- Ngày: ' + from_date if request_type == '30min_break' or from_date == to_date else '- Từ: ' + from_date + ' ' + from_time}
+{'- Thời gian nghỉ: ' + from_time + ' - ' + to_time if request_type == '30min_break' else '- Đến: ' + to_date + ' ' + to_time if request_type == 'leave' else '- Giờ ' + ('đi trễ' if late_early_type == 'late' else 'về sớm') + ': ' + (from_time if late_early_type == 'late' else to_time)}
 - Ca làm việc: Ca {request_data.get('shift_code', '1')}
-{'THỜI GIAN ĐI TRỄ/VỀ SỚM: ' + ('Đi trễ: ' + from_time if late_early_type == 'late' else 'Về sớm: ' + to_time) if request_type == 'late_early' else 'THỜI GIAN NGHỈ 30 PHÚT: ' + from_time + ' - ' + to_time if request_type == '30min_break' else 'TỔNG SỐ NGÀY NGHỈ: ' + str(total_days) + ' ngày'}
 
 {'PHÂN BỔ NGÀY NGHỈ:' if request_type == 'leave' else ''}
 {'- Phép năm: ' + str(request_data.get('annual_leave_days', 0)) + ' ngày' if request_type == 'leave' else ''}
-{'- Nghỉ không lương: ' + str(request_data.get('unpaid_leave_days', 0)) + ' ngày' if request_type == 'leave' else ''}
-{'- Nghỉ đặc biệt: ' + str(request_data.get('special_leave_days', 0)) + ' ngày' if request_type == 'leave' else ''}
+{'- Không lương: ' + str(request_data.get('unpaid_leave_days', 0)) + ' ngày' if request_type == 'leave' else ''}
+{'- Đặc biệt: ' + str(request_data.get('special_leave_days', 0)) + ' ngày' if request_type == 'leave' else ''}
+{'- TỔNG: ' + str(total_days) + ' ngày' if request_type == 'leave' else ''}
 
-THÔNG TIN THAY THẾ:
-- Người thay thế: {request_data.get('substitute_name', 'Chưa chỉ định')}
-- Mã nhân viên thay thế: {request_data.get('substitute_employee_id', 'Chưa chỉ định')}
+NGƯỜI THAY THẾ: {request_data.get('substitute_name', 'Chưa chỉ định') or 'Chưa chỉ định'} {('(' + request_data.get('substitute_employee_id', '') + ')') if request_data.get('substitute_employee_id') else ''}
 
 {f'GHI CHÚ: {request_data.get("notes", "")}' if request_data.get('notes') else ''}
 
-{f'📎 CÓ {len(json.loads(request_data["attachments"]))} FILE(S) ĐÍNH KÈM TRONG EMAIL NÀY' if request_data.get('attachments') else ''}
+{f'📎 CÓ {len(json.loads(request_data["attachments"]))} FILE ĐÍNH KÈM' if request_data.get('attachments') else ''}
 
-Lưu ý: Đơn xin nghỉ phép này đã được gửi tự động từ hệ thống quản lý chấm công.
+--
+Mã đơn: #{request_data['id']}
+Gửi lúc: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+Hệ thống quản lý chấm công DMI
         """
 
         # Tạo email message
