@@ -329,7 +329,7 @@ if (timeAttendanceForm) {
             if (response.ok) {
                 showAlert(data.message, 'success');
                 resetFormToDefaults();
-                updateAttendanceHistory();
+                updateAttendanceHistory(true);
             } else {
                 showAlert(data.error || 'Lỗi khi chấm công', 'danger');
             }
@@ -844,7 +844,7 @@ function handleAttendance(action) {
                 showToast(data.error, 'error');
             } else {
                 showToast(data.message, 'success');
-                updateAttendanceHistory();
+                updateAttendanceHistory(true);
             }
         })
         .catch(error => {
@@ -1035,7 +1035,7 @@ function deleteAttendance(id) {
                     showAlert(data.error, 'error');
                 } else {
                     showAlert('Đã xóa thành công!', 'success');
-                    updateAttendanceHistory();
+                    updateAttendanceHistory(true);
                 }
             })
             .catch(error => {
@@ -1321,7 +1321,7 @@ function handleAttendanceSubmit(e) {
                     showAlert(respData.error, 'error');
                 } else {
                     showAlert('Cập nhật chấm công thành công', 'success');
-                    updateAttendanceHistory();
+                    updateAttendanceHistory(true);
                 }
             })
             .catch(error => {
@@ -1385,7 +1385,8 @@ function handleAttendanceSubmit(e) {
                 }
                 // Reset form về trạng thái mặc định sau khi tạo thành công
                 resetFormToDefaults();
-                updateAttendanceHistory();
+                // Force update để bỏ qua throttle và đảm bảo dữ liệu được load
+                updateAttendanceHistory(true);
             }
         })
         .catch(error => {

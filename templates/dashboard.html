@@ -55,7 +55,7 @@
             <i class="fas fa-times"></i>
         </button>
         <div class="sidebar-header">
-            <h3><i class="fas fa-clock me-2"></i>Chấm công</h3>
+            <h3><i class="fas fa-clock"></i>Chấm công</h3>
         </div>
         <div class="user-profile">
             <div class="user-avatar">
@@ -879,17 +879,34 @@
             pageData.forEach(record => {
                 const row = document.createElement('tr');
                 row.style.height = '50px'; // Set fixed height for all rows
-                let statusText = record.approved ? 'Đã phê duyệt' : 'Chờ phê duyệt';
+
+                // Xử lý hiển thị trạng thái chi tiết dựa trên record.status
+                let statusText = '';
+                let statusClass = '';
+
+                if (record.approved || record.status === 'approved') {
+                    statusText = 'Đã phê duyệt';
+                    statusClass = 'status-approved';
+                } else if (record.status === 'rejected') {
+                    statusText = 'Từ chối';
+                    statusClass = 'status-rejected';
+                } else if (record.status === 'pending') {
+                    statusText = 'Chờ Trưởng nhóm';
+                    statusClass = 'status-pending';
+                } else if (record.status === 'pending_manager') {
+                    statusText = 'Chờ Quản lý';
+                    statusClass = 'status-pending-manager';
+                } else if (record.status === 'pending_admin') {
+                    statusText = 'Chờ Admin';
+                    statusClass = 'status-pending-admin';
+                } else {
+                    // Fallback cho các trạng thái không xác định
+                    statusText = 'Chờ phê duyệt';
+                    statusClass = 'status-pending';
+                }
 
                 // Xử lý hiển thị loại ngày
                 let holidayTypeText = translateHolidayType(record.holiday_type);
-
-                // Xác định class cho trạng thái
-                let statusClass = record.approved ? 'status-approved' : 'status-pending';
-                if (record.status === 'rejected') {
-                    statusText = 'Từ chối';
-                    statusClass = 'status-rejected';
-                }
 
                 // Xử lý hiển thị thông tin ca
                 let shiftText = '-';
@@ -1062,15 +1079,15 @@
         let lastUpdateTime = 0;
         const UPDATE_THROTTLE_MS = 1000; // Chỉ cho phép gọi API mỗi 1 giây
 
-        function updateAttendanceHistory() {
+        function updateAttendanceHistory(forceUpdate = false) {
             // Kiểm tra xem có đang update không và thời gian từ lần update cuối
             const now = Date.now();
-            if (isUpdatingAttendance || (now - lastUpdateTime) < UPDATE_THROTTLE_MS) {
+            if (!forceUpdate && (isUpdatingAttendance || (now - lastUpdateTime) < UPDATE_THROTTLE_MS)) {
                 console.log('Skipping duplicate updateAttendanceHistory call');
                 return;
             }
 
-            console.log('🔄 Fetching attendance history...');  // Debug log
+            console.log('🔄 Fetching attendance history...', forceUpdate ? '(forced)' : '');  // Debug log
 
             // Kiểm tra xem element attendanceHistory có tồn tại và hiển thị không
             const attendanceHistoryElement = document.getElementById('attendanceHistory');
@@ -1087,8 +1104,8 @@
                 return;
             }
 
-            // Kiểm tra xem section có được hiển thị không
-            if (attendanceHistorySection && attendanceHistorySection.style.display === 'none') {
+            // Khi forceUpdate=true, không kiểm tra section display để đảm bảo dữ liệu được load
+            if (!forceUpdate && attendanceHistorySection && attendanceHistorySection.style.display === 'none') {
                 console.log('❌ attendanceHistorySection is hidden, skipping update');
                 return;
             }
@@ -1142,6 +1159,9 @@
         // Function to format date for display (DD/MM/YYYY) - moved to dashboard.js to avoid conflicts
 
         // Function to format time for input - moved to dashboard.js to avoid conflicts
+
+        // Export hàm updateAttendanceHistory ra window để dashboard.js có thể gọi
+        window.updateAttendanceHistory = updateAttendanceHistory;
 
         // Event listeners - Đã được xử lý trong dashboard.js
         // document.getElementById('saveAttendanceBtn')?.addEventListener('click', handleAttendanceSubmit);

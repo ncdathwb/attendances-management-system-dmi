@@ -9569,12 +9569,15 @@ def record_attendance():
     if check_in and check_out:
         attendance.update_work_hours()
     try:
-        logger.info("Attempting to commit attendance record", 
+        logger.info("Attempting to commit attendance record",
                    user_id=user.id, date=date.isoformat(), holiday_type=holiday_type)
-        
+
         db.session.commit()
-        
-        logger.info("Successfully committed attendance record", 
+
+        # Debug: Verify record was saved
+        print(f"[DEBUG] ✅ Attendance saved: id={attendance.id}, user_id={attendance.user_id}, date={attendance.date}, status={attendance.status}")
+
+        logger.info("Successfully committed attendance record",
                    attendance_id=attendance.id, user_id=user.id)
         
         audit_logger.audit_action(
@@ -9799,16 +9802,26 @@ def get_attendance_history():
                 date_to = datetime(year + 1, 1, 1).date()
             else:
                 date_to = datetime(year, month + 1, 1).date()
-            
+
+            # Debug logging
+            print(f"[DEBUG] get_attendance_history: user_id={user.id}, month={month}, year={year}")
+            print(f"[DEBUG] date_from={date_from}, date_to={date_to}")
+
             # Use optimized query for user's own records with month filter
             from utils.query_optimizer import optimize_attendance_history_query
             attendances, total = optimize_attendance_history_query(
                 user_id=user.id, page=1, per_page=1000, is_admin=False,
                 date_from=date_from, date_to=date_to
             )
+
+            print(f"[DEBUG] Query returned {total} records for user {user.id}")
+
             history = []
             for att in attendances:
                 history.append(att.to_dict())
+
+            print(f"[DEBUG] Returning {len(history)} records to frontend")
+
             resp = jsonify(history)
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             resp.headers['Pragma'] = 'no-cache'

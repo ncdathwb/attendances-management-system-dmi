@@ -56,15 +56,19 @@
 }
 
 .sidebar-header h3 i {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    font-size: 1.1rem;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border-radius: 10px;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+    flex-shrink: 0;
+    /* Prevent icon from shrinking */
+    margin-top: -2px;
+    /* Fine-tune vertical alignment */
 }
 
 .user-profile {
@@ -338,11 +342,30 @@ td span {
    ========================================= */
 
 /* Ngày */
-.attendance-history th:nth-child(1) { width: 80px !important; }
-.attendance-history th:nth-child(2) { width: 60px !important; } /* Giờ vào */
-.attendance-history th:nth-child(3) { width: 60px !important; } /* Giờ ra */
-.attendance-history th:nth-child(4) { width: 40px !important; } /* Nghỉ */
-.attendance-history th:nth-child(5) { width: 50px !important; } /* Đối ứng */
+.attendance-history th:nth-child(1) {
+    width: 80px !important;
+}
+
+.attendance-history th:nth-child(2) {
+    width: 60px !important;
+}
+
+/* Giờ vào */
+.attendance-history th:nth-child(3) {
+    width: 60px !important;
+}
+
+/* Giờ ra */
+.attendance-history th:nth-child(4) {
+    width: 40px !important;
+}
+
+/* Nghỉ */
+.attendance-history th:nth-child(5) {
+    width: 50px !important;
+}
+
+/* Đối ứng */
 .attendance-history td:nth-child(5) {
     width: 50px !important;
     min-width: 50px !important;
@@ -350,17 +373,62 @@ td span {
     overflow: visible !important;
     white-space: nowrap !important;
 }
-.attendance-history th:nth-child(6) { width: 70px !important; } /* Tổng giờ làm */
-.attendance-history th:nth-child(7) { width: 60px !important; } /* Giờ công */
-.attendance-history th:nth-child(8) { width: 60px !important; } /* Tăng ca trước 22h */
-.attendance-history th:nth-child(9) { width: 60px !important; } /* Tăng ca sau 22h */
-.attendance-history th:nth-child(10) { width: 90px !important; } /* Loại ngày */
-.attendance-history th:nth-child(11) { width: 100px !important; } /* Nhân viên */
-.attendance-history th:nth-child(12) { width: 100px !important; } /* Phòng ban */
-.attendance-history th:nth-child(13) { width: 90px !important; } /* Trạng thái */
-.attendance-history th:nth-child(14) { width: 80px !important; } /* Chữ ký */
-.attendance-history th:nth-child(15) { width: 120px !important; } /* Thao tác */
-.attendance-history th:nth-child(16) { width: 120px !important; } /* Ghi chú */
+
+.attendance-history th:nth-child(6) {
+    width: 70px !important;
+}
+
+/* Tổng giờ làm */
+.attendance-history th:nth-child(7) {
+    width: 60px !important;
+}
+
+/* Giờ công */
+.attendance-history th:nth-child(8) {
+    width: 60px !important;
+}
+
+/* Tăng ca trước 22h */
+.attendance-history th:nth-child(9) {
+    width: 60px !important;
+}
+
+/* Tăng ca sau 22h */
+.attendance-history th:nth-child(10) {
+    width: 90px !important;
+}
+
+/* Loại ngày */
+.attendance-history th:nth-child(11) {
+    width: 100px !important;
+}
+
+/* Nhân viên */
+.attendance-history th:nth-child(12) {
+    width: 100px !important;
+}
+
+/* Phòng ban */
+.attendance-history th:nth-child(13) {
+    width: 90px !important;
+}
+
+/* Trạng thái */
+.attendance-history th:nth-child(14) {
+    width: 80px !important;
+}
+
+/* Chữ ký */
+.attendance-history th:nth-child(15) {
+    width: 120px !important;
+}
+
+/* Thao tác */
+.attendance-history th:nth-child(16) {
+    width: 120px !important;
+}
+
+/* Ghi chú */
 
 /* =========================================
    FORM STYLES
@@ -702,16 +770,65 @@ td span {
 }
 
 /* Ngày */
-.table th:nth-child(1), .table td:nth-child(1) { width: 80px; }
-.table th:nth-child(2), .table td:nth-child(2) { width: 60px; } /* Giờ vào */
-.table th:nth-child(3), .table td:nth-child(3) { width: 60px; } /* Giờ ra */
-.table th:nth-child(4), .table td:nth-child(4) { width: 40px; } /* Nghỉ */
-.table th:nth-child(5), .table td:nth-child(5) { width: 50px; } /* Giờ công */
-.table th:nth-child(6), .table td:nth-child(6) { width: 55px; } /* Tăng ca trước 22h */
-.table th:nth-child(7), .table td:nth-child(7) { width: 55px; } /* Tăng ca sau 22h */
-.table th:nth-child(8), .table td:nth-child(8) { width: 80px; } /* Loại ngày */
-.table th:nth-child(9), .table td:nth-child(9) { width: 90px; } /* Trạng thái */
-.table th:nth-child(10), .table td:nth-child(10) { width: 90px; } /* Thao tác */
+.table th:nth-child(1),
+.table td:nth-child(1) {
+    width: 80px;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+    width: 60px;
+}
+
+/* Giờ vào */
+.table th:nth-child(3),
+.table td:nth-child(3) {
+    width: 60px;
+}
+
+/* Giờ ra */
+.table th:nth-child(4),
+.table td:nth-child(4) {
+    width: 40px;
+}
+
+/* Nghỉ */
+.table th:nth-child(5),
+.table td:nth-child(5) {
+    width: 50px;
+}
+
+/* Giờ công */
+.table th:nth-child(6),
+.table td:nth-child(6) {
+    width: 55px;
+}
+
+/* Tăng ca trước 22h */
+.table th:nth-child(7),
+.table td:nth-child(7) {
+    width: 55px;
+}
+
+/* Tăng ca sau 22h */
+.table th:nth-child(8),
+.table td:nth-child(8) {
+    width: 80px;
+}
+
+/* Loại ngày */
+.table th:nth-child(9),
+.table td:nth-child(9) {
+    width: 90px;
+}
+
+/* Trạng thái */
+.table th:nth-child(10),
+.table td:nth-child(10) {
+    width: 90px;
+}
+
+/* Thao tác */
 
 /* =========================================
    PAGINATION
@@ -864,6 +981,22 @@ body {
 
 .status-rejected {
     color: #dc3545;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.status-pending-manager {
+    color: #17a2b8;
+    font-weight: 500;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+.status-pending-admin {
+    color: #6f42c1;
     font-weight: 500;
     display: inline-block;
     width: 100%;
@@ -1289,6 +1422,7 @@ body {
    MOBILE RESPONSIVE (< 768px)
    ========================================= */
 @media (max-width: 768px) {
+
     /* Show mobile menu toggle */
     .mobile-menu-toggle {
         display: flex;
@@ -1403,7 +1537,8 @@ body {
     .attendance-form input[type="time"],
     .attendance-form input[type="text"],
     .attendance-form select {
-        font-size: 16px; /* Prevent zoom on iOS */
+        font-size: 16px;
+        /* Prevent zoom on iOS */
         padding: 10px 12px;
     }
 
@@ -1604,6 +1739,7 @@ body {
    PRINT STYLES
    ========================================= */
 @media print {
+
     .sidebar,
     .mobile-menu-toggle,
     .sidebar-overlay,
@@ -1627,6 +1763,7 @@ body {
    ACCESSIBILITY IMPROVEMENTS
    ========================================= */
 @media (prefers-reduced-motion: reduce) {
+
     .sidebar,
     .sidebar-overlay,
     .mobile-menu-toggle,
