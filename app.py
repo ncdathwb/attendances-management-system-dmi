@@ -767,6 +767,24 @@ def batch_update_multi_attendances_sync(attendances_with_data, timeout_seconds=1
             spreadsheet_id = target_file['id']
             _log(f"✅ [BATCH_MULTI_SYNC] Tìm thấy file: {target_file.get('name')} (ID: {spreadsheet_id})")
 
+            # Lấy danh sách các sheet có trong spreadsheet và populate cache
+            available_sheets_set = set()
+            try:
+                spreadsheet_info = google_api.sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                sheets_data = spreadsheet_info.get('sheets', [])
+                available_sheets = [sheet['properties']['title'] for sheet in sheets_data]
+                available_sheets_set = set(available_sheets)
+                _log(f"   📋 Các sheet có trong file: {', '.join(available_sheets[:10])}{'...' if len(available_sheets) > 10 else ''}")
+
+                # Populate cache để tránh gọi API lại trong _read_sheet_values
+                for sheet in sheets_data:
+                    title = sheet['properties']['title']
+                    sheet_id = sheet['properties']['sheetId']
+                    cache_key = f"{spreadsheet_id}:{title}"
+                    google_api._sheet_id_cache[cache_key] = sheet_id
+            except Exception as sheet_err:
+                _log(f"   ⚠️ Không thể lấy danh sách sheet: {sheet_err}")
+
             # STEP 3: Gom records theo employee (sheet) trong spreadsheet
             employee_groups = {}  # key: employee_id -> list of records
             for record in records:
@@ -778,6 +796,13 @@ def batch_update_multi_attendances_sync(attendances_with_data, timeout_seconds=1
             # STEP 4: Xử lý từng employee sheet
             for employee_id, emp_records in employee_groups.items():
                 _log(f"\n   👤 Employee: {employee_id} ({len(emp_records)} records)")
+
+                # Kiểm tra sheet có tồn tại không trước khi đọc
+                if available_sheets_set and employee_id not in available_sheets_set:
+                    _log(f"   ⚠️ Sheet '{employee_id}' không tồn tại trong file. Cần tạo sheet cho nhân viên này.")
+                    for record in emp_records:
+                        result['failed'].append({'id': record['attendance'].id, 'error': f"Sheet '{employee_id}' không tồn tại - cần tạo sheet"})
+                    continue
 
                 # Đọc sheet một lần
                 try:
@@ -844,6 +869,10 @@ def batch_update_multi_attendances_sync(attendances_with_data, timeout_seconds=1
                     _log(f"   ❌ Lỗi batch update: {e}")
                     for record in records_for_update:
                         result['failed'].append({'id': record['attendance'].id, 'error': f'Lỗi batch update: {str(e)}'})
+
+                # Thêm delay nhỏ giữa các employee để giảm tải API
+                import time
+                time.sleep(0.3)  # 300ms delay giữa mỗi employee
 
         timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         _log(f"\n{'='*80}")
@@ -1144,13 +1173,40 @@ def batch_update_multi_leave_requests_sync(leave_requests_with_data, timeout_sec
             spreadsheet_id = target_file['id']
             _log(f"✅ [BATCH_LEAVE_SYNC] Tìm thấy file: {target_file.get('name')} (ID: {spreadsheet_id})")
 
+            # Lấy danh sách các sheet có trong spreadsheet để debug và populate cache
+            available_sheets = []
+            available_sheets_set = set()
+            try:
+                spreadsheet_info = google_api.sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                sheets_data = spreadsheet_info.get('sheets', [])
+                available_sheets = [sheet['properties']['title'] for sheet in sheets_data]
+                available_sheets_set = set(available_sheets)
+                _log(f"   📋 Các sheet có trong file: {', '.join(available_sheets[:10])}{'...' if len(available_sheets) > 10 else ''}")
+
+                # Populate cache để tránh gọi API lại trong _read_sheet_values
+                for sheet in sheets_data:
+                    title = sheet['properties']['title']
+                    sheet_id = sheet['properties']['sheetId']
+                    cache_key = f"{spreadsheet_id}:{title}"
+                    google_api._sheet_id_cache[cache_key] = sheet_id
+            except Exception as sheet_err:
+                _log(f"   ⚠️ Không thể lấy danh sách sheet: {sheet_err}")
+
             # STEP 3: Xử lý từng employee sheet
             for employee_id, emp_updates in employee_groups.items():
                 _log(f"\n   👤 Employee: {employee_id} ({len(emp_updates)} updates)")
 
+                # Kiểm tra sheet có tồn tại không trước khi đọc
+                employee_id_str = str(employee_id)
+                if available_sheets_set and employee_id_str not in available_sheets_set:
+                    _log(f"   ⚠️ Sheet '{employee_id_str}' không tồn tại trong file. Cần tạo sheet cho nhân viên này.")
+                    for upd in emp_updates:
+                        failed_leave_ids[upd['leave_request_id']] = f"Sheet '{employee_id_str}' không tồn tại - cần tạo sheet"
+                    continue
+
                 # Đọc sheet một lần
                 try:
-                    rows = google_api._read_sheet_values(spreadsheet_id, employee_id)
+                    rows = google_api._read_sheet_values(spreadsheet_id, employee_id_str)
                     if not rows:
                         _log(f"   ⚠️ Không đọc được dữ liệu sheet {employee_id}")
                         for upd in emp_updates:
@@ -2286,17 +2342,7 @@ class GoogleDriveAPI:
                         self.creds = Credentials.from_authorized_user_info(token_data, GOOGLE_SCOPES)
                 except Exception as e:
                     print(f"Lỗi khi load token.json: {e}")
-            elif os.path.exists('token.pickle'): # Migration from pickle
-                try:
-                    import pickle
-                    with open('token.pickle', 'rb') as token:
-                        self.creds = pickle.load(token)
-                    # Convert to json
-                    with open('token.json', 'w') as token:
-                        token.write(self.creds.to_json())
-                    print("Đã chuyển đổi token.pickle sang token.json")
-                except Exception as e:
-                    print(f"Lỗi khi migrate token.pickle: {e}")
+            # Removed pickle migration code for security - only JSON is supported now
             return
         
         # Chỉ authenticate nếu được phép và cần thiết
@@ -2309,6 +2355,12 @@ class GoogleDriveAPI:
         
         # Cache cho file ID để tránh tìm kiếm nhiều lần
         self._file_cache = {}
+        # Cache cho sheet ID để tránh gọi API lặp lại (giảm rate limit)
+        self._sheet_id_cache = {}
+        # Rate limit tracking
+        self._api_call_timestamps = []
+        self._rate_limit_window = 60  # 60 giây
+        self._rate_limit_max_calls = 55  # Giới hạn 55 (dưới ngưỡng 60 của Google)
     
     def authenticate(self, allow_browser_auth=False):
         """Xác thực với Google API
@@ -2327,14 +2379,7 @@ class GoogleDriveAPI:
                 with open('token.json', 'r') as token:
                     token_data = json.load(token)
                     self.creds = Credentials.from_authorized_user_info(token_data, GOOGLE_SCOPES)
-            elif os.path.exists('token.pickle'):
-                # Migration
-                import pickle
-                with open('token.pickle', 'rb') as token:
-                    self.creds = pickle.load(token)
-                # Save as json
-                with open('token.json', 'w') as token:
-                    token.write(self.creds.to_json())
+            # Removed pickle migration - only JSON is supported for security
             
             # Nếu không có credentials hợp lệ
             if not self.creds or not self.creds.valid:
@@ -2427,7 +2472,7 @@ class GoogleDriveAPI:
                             # Xóa token cũ để tránh lỗi lặp lại
                             try:
                                 if os.path.exists(self.token_file):
-                                    backup_name = f"token_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pickle"
+                                    backup_name = f"token_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
                                     shutil.copy2(self.token_file, backup_name)
                                     os.remove(self.token_file)
                                     print(f"💾 Đã backup và xóa token cũ: {backup_name}")
@@ -2503,10 +2548,10 @@ class GoogleDriveAPI:
             if self.creds.refresh_token:
                 print("Đang gia hạn token...")
                 self.creds.refresh(GoogleRequest())
-                
-                # Lưu token mới
-                with open(self.token_file, 'wb') as token:
-                    pickle.dump(self.creds, token)
+
+                # Lưu token mới dạng JSON (thống nhất với ensure_valid_token)
+                with open(self.token_file, 'w') as token:
+                    token.write(self.creds.to_json())
                 
                 # Cập nhật services
                 self.drive_service = build('drive', 'v3', credentials=self.creds)
@@ -2936,66 +2981,75 @@ class GoogleDriveAPI:
         if len(sanitized_ranges) == 0:
             print(f"❌ [BATCH_UPDATE_FORMAT] Không có range hợp lệ nào sau khi sanitize")
             return False
-        
-        # Retry logic với exponential backoff
-        max_retries = 3
-        retry_delay = 1  # giây
-        
+
+        # Retry logic với exponential backoff - TĂNG SỐ LẦN VÀ DELAY
+        max_retries = 5  # Tăng từ 3 lên 5
+        base_retry_delay = 2  # Tăng từ 1 lên 2
+        rate_limit_delay = 30  # Delay đặc biệt cho rate limit errors
+
         for attempt in range(max_retries):
             try:
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
                 if attempt > 0:
                     print(f"🔄 [BATCH_UPDATE_FORMAT] Lần thử {attempt + 1}/{max_retries} - {timestamp}")
-                
+
                 if not self.ensure_valid_token():
                     print("❌ [BATCH_UPDATE_FORMAT] Không thể đảm bảo token hợp lệ")
                     return False
-                
+
                 if not self.sheets_service:
                     print("❌ [BATCH_UPDATE_FORMAT] Sheets service không khả dụng")
                     return False
-                
+
+                # Kiểm tra rate limit trước khi gọi API
+                self._check_and_wait_rate_limit()
+
                 # Bước 1: Cập nhật values
                 values_body = {
                     'valueInputOption': 'USER_ENTERED',
                     'data': sanitized_ranges
                 }
-                
+
                 values_result = self.sheets_service.spreadsheets().values().batchUpdate(
                     spreadsheetId=spreadsheet_id,
                     body=values_body
                 ).execute()
-                
+
                 updated = values_result.get('totalUpdatedCells', 0)
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
                 print(f"✅ [BATCH_UPDATE_FORMAT] {timestamp} - Cập nhật values thành công, số ô: {updated}")
-                
+
+                # Kiểm tra rate limit trước khi format
+                self._check_and_wait_rate_limit()
+
                 # Bước 2: Áp dụng formatting ngay sau đó
                 if format_requests:
                     format_body = {
                         'requests': format_requests
                     }
-                    
+
                     format_result = self.sheets_service.spreadsheets().batchUpdate(
                         spreadsheetId=spreadsheet_id,
                         body=format_body
                     ).execute()
-                    
+
                     timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
                     print(f"✅ [BATCH_UPDATE_FORMAT] {timestamp} - Áp dụng formatting thành công cho {len(format_requests)} ranges")
-                
+
                 return True
-                
+
             except Exception as e:
                 error_str = str(e)
                 error_type = type(e).__name__
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-                
+
                 # Phân loại lỗi
                 is_retryable = False
+                is_rate_limit = False
                 if '429' in error_str or 'quota' in error_str.lower() or 'rate limit' in error_str.lower():
                     is_retryable = True
-                    print(f"⚠️ [BATCH_UPDATE_FORMAT] {timestamp} - Rate limit/quota error (có thể retry): {error_str}")
+                    is_rate_limit = True
+                    print(f"⚠️ [BATCH_UPDATE_FORMAT] {timestamp} - Rate limit/quota error (sẽ đợi lâu hơn): {error_str}")
                 elif '503' in error_str or '500' in error_str or 'timeout' in error_str.lower():
                     is_retryable = True
                     print(f"⚠️ [BATCH_UPDATE_FORMAT] {timestamp} - Server error (có thể retry): {error_str}")
@@ -3007,10 +3061,14 @@ class GoogleDriveAPI:
                     return False
                 else:
                     print(f"❌ [BATCH_UPDATE_FORMAT] {timestamp} - Lỗi không xác định: {error_type} - {error_str}")
-                
+
                 # Retry nếu có thể
                 if is_retryable and attempt < max_retries - 1:
-                    wait_time = retry_delay * (2 ** attempt)
+                    # Đợi lâu hơn nếu là rate limit error
+                    if is_rate_limit:
+                        wait_time = rate_limit_delay + (attempt * 10)  # 30, 40, 50, 60 giây
+                    else:
+                        wait_time = base_retry_delay * (2 ** attempt)  # 2, 4, 8, 16 giây
                     print(f"⏳ [BATCH_UPDATE_FORMAT] Đợi {wait_time} giây trước khi retry...")
                     time.sleep(wait_time)
                 else:
@@ -3020,7 +3078,7 @@ class GoogleDriveAPI:
                     print(f"   Error Message: {error_str}")
                     print(f"   Traceback:\n{traceback.format_exc()}")
                     return False
-        
+
         return False
 
     def center_align_cells(self, spreadsheet_id, sheet_name, ranges):
@@ -3156,19 +3214,63 @@ class GoogleDriveAPI:
             # Vẫn return False nhưng không crash app
             return False
 
+    def _check_and_wait_rate_limit(self):
+        """Kiểm tra và đợi nếu sắp vượt rate limit."""
+        import time
+        current_time = time.time()
+
+        # Xóa các timestamps quá 60 giây
+        self._api_call_timestamps = [
+            t for t in self._api_call_timestamps
+            if current_time - t < self._rate_limit_window
+        ]
+
+        # Nếu sắp vượt ngưỡng, đợi
+        if len(self._api_call_timestamps) >= self._rate_limit_max_calls:
+            oldest_call = min(self._api_call_timestamps)
+            wait_time = self._rate_limit_window - (current_time - oldest_call) + 1
+            if wait_time > 0:
+                print(f"⏳ [RATE_LIMIT] Đợi {wait_time:.1f}s để tránh vượt quota (đã có {len(self._api_call_timestamps)} calls trong 60s)...")
+                time.sleep(wait_time)
+                # Xóa lại sau khi đợi
+                current_time = time.time()
+                self._api_call_timestamps = [
+                    t for t in self._api_call_timestamps
+                    if current_time - t < self._rate_limit_window
+                ]
+
+        # Ghi nhận call mới
+        self._api_call_timestamps.append(time.time())
+
     def _get_sheet_id(self, spreadsheet_id, sheet_name):
-        """Lấy sheet ID từ tên sheet."""
+        """Lấy sheet ID từ tên sheet - CÓ CACHE để giảm API calls."""
+        # Kiểm tra cache trước
+        cache_key = f"{spreadsheet_id}:{sheet_name}"
+        if cache_key in self._sheet_id_cache:
+            return self._sheet_id_cache[cache_key]
+
         try:
             if not self.ensure_valid_token():
                 return None
+
+            # Kiểm tra rate limit trước khi gọi API
+            self._check_and_wait_rate_limit()
+
             spreadsheet = self.sheets_service.spreadsheets().get(
                 spreadsheetId=spreadsheet_id
             ).execute()
+
             sheets = spreadsheet.get('sheets', [])
+
+            # Cache tất cả sheet IDs trong spreadsheet này
             for sheet in sheets:
-                if sheet['properties']['title'] == sheet_name:
-                    return sheet['properties']['sheetId']
-            return None
+                title = sheet['properties']['title']
+                sheet_id = sheet['properties']['sheetId']
+                key = f"{spreadsheet_id}:{title}"
+                self._sheet_id_cache[key] = sheet_id
+
+            # Trả về sheet ID được yêu cầu
+            return self._sheet_id_cache.get(cache_key)
         except Exception as e:
             print(f"⚠️ Không thể lấy sheet ID: {e}")
             return None
@@ -3248,77 +3350,96 @@ class GoogleDriveAPI:
             return [date_str_iso]
 
     def _read_sheet_values(self, spreadsheet_id, sheet_name, a1_range='A1:ZZ1000'):
-        """Đọc giá trị từ sheet - CẢI THIỆN: Kiểm tra sheet tồn tại trước với retry logic"""
+        """Đọc giá trị từ sheet - CẢI THIỆN: Kiểm tra sheet tồn tại trước với retry logic và rate limiting"""
         import time
         from datetime import datetime as dt
-        
+
         # Validation đầu vào
         if not spreadsheet_id or not isinstance(spreadsheet_id, str) or not spreadsheet_id.strip():
             print(f"❌ [READ_SHEET] Spreadsheet ID không hợp lệ: {spreadsheet_id}")
             return []
-        
+
         if not sheet_name or not isinstance(sheet_name, str) or not sheet_name.strip():
             print(f"❌ [READ_SHEET] Sheet name không hợp lệ: {sheet_name}")
             return []
-        
-        # Retry logic với exponential backoff
-        max_retries = 3
-        retry_delay = 1  # giây
-        
+
+        # Retry logic với exponential backoff - TĂNG SỐ LẦN VÀ DELAY CHO RATE LIMIT
+        max_retries = 5  # Tăng từ 3 lên 5
+        base_retry_delay = 2  # Tăng từ 1 lên 2 giây
+        rate_limit_delay = 30  # Delay đặc biệt cho rate limit errors (30 giây)
+
         for attempt in range(max_retries):
             try:
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
                 if attempt > 0:
                     print(f"🔄 [READ_SHEET] Lần thử {attempt + 1}/{max_retries} - {timestamp}")
-                
+
                 if not self.ensure_valid_token():
                     print("❌ [READ_SHEET] Không thể đảm bảo token hợp lệ")
                     return []
-                
+
                 if not self.sheets_service:
                     print("❌ [READ_SHEET] Sheets service không khả dụng")
                     return []
-                
-                # Kiểm tra sheet có tồn tại không
-                try:
-                    spreadsheet = self.sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-                    sheet_names = [sheet['properties']['title'] for sheet in spreadsheet.get('sheets', [])]
-                    
-                    if sheet_name not in sheet_names:
-                        print(f"⚠️ [READ_SHEET] Sheet '{sheet_name}' không tồn tại trong spreadsheet")
-                        print(f"   📋 Các sheet hiện có: {', '.join(sheet_names)}")
-                        print(f"   ⚠️ Vui lòng tạo sheet '{sheet_name}' trong Google Sheet trước khi cập nhật")
-                        return []
-                except Exception as check_err:
-                    error_str = str(check_err)
-                    # Nếu là lỗi quyền hoặc không tìm thấy, không retry
-                    if 'PERMISSION_DENIED' in error_str or 'NOT_FOUND' in error_str:
-                        print(f"❌ [READ_SHEET] Lỗi khi kiểm tra sheet: {error_str}")
-                        return []
-                    print(f"⚠️ [READ_SHEET] Không thể kiểm tra sheet tồn tại: {check_err}")
-                    # Vẫn tiếp tục thử đọc, có thể sheet tồn tại nhưng có lỗi khi check
-                
+
+                # Kiểm tra rate limit trước khi gọi API
+                self._check_and_wait_rate_limit()
+
+                # Kiểm tra sheet có tồn tại không - dùng cache nếu có
+                cache_key = f"{spreadsheet_id}:{sheet_name}"
+                if cache_key not in self._sheet_id_cache:
+                    try:
+                        spreadsheet = self.sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+                        sheets = spreadsheet.get('sheets', [])
+
+                        # Cache tất cả sheet IDs
+                        for sheet in sheets:
+                            title = sheet['properties']['title']
+                            sheet_id = sheet['properties']['sheetId']
+                            key = f"{spreadsheet_id}:{title}"
+                            self._sheet_id_cache[key] = sheet_id
+
+                        if cache_key not in self._sheet_id_cache:
+                            sheet_names = [sheet['properties']['title'] for sheet in sheets]
+                            print(f"⚠️ [READ_SHEET] Sheet '{sheet_name}' không tồn tại trong spreadsheet")
+                            print(f"   📋 Các sheet hiện có: {', '.join(sheet_names)}")
+                            print(f"   ⚠️ Vui lòng tạo sheet '{sheet_name}' trong Google Sheet trước khi cập nhật")
+                            return []
+                    except Exception as check_err:
+                        error_str = str(check_err)
+                        # Nếu là lỗi quyền hoặc không tìm thấy, không retry
+                        if 'PERMISSION_DENIED' in error_str or 'NOT_FOUND' in error_str:
+                            print(f"❌ [READ_SHEET] Lỗi khi kiểm tra sheet: {error_str}")
+                            return []
+                        print(f"⚠️ [READ_SHEET] Không thể kiểm tra sheet tồn tại: {check_err}")
+                        # Vẫn tiếp tục thử đọc, có thể sheet tồn tại nhưng có lỗi khi check
+
+                # Kiểm tra rate limit trước khi đọc
+                self._check_and_wait_rate_limit()
+
                 # Đọc dữ liệu từ sheet
                 resp = self.sheets_service.spreadsheets().values().get(
                     spreadsheetId=spreadsheet_id,
                     range=f"{sheet_name}!{a1_range}"
                 ).execute()
-                
+
                 values = resp.get('values', [])
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
                 print(f"✅ [READ_SHEET_SUCCESS] {timestamp} - Đọc thành công {len(values)} dòng từ sheet '{sheet_name}'")
                 return values
-                
+
             except Exception as e:
                 error_msg = str(e)
                 error_type = type(e).__name__
                 timestamp = dt.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-                
+
                 # Phân loại lỗi
                 is_retryable = False
+                is_rate_limit = False
                 if '429' in error_msg or 'quota' in error_msg.lower() or 'rate limit' in error_msg.lower():
                     is_retryable = True
-                    print(f"⚠️ [READ_SHEET] {timestamp} - Rate limit/quota error (có thể retry): {error_msg}")
+                    is_rate_limit = True
+                    print(f"⚠️ [READ_SHEET] {timestamp} - Rate limit/quota error (sẽ đợi lâu hơn): {error_msg}")
                 elif '503' in error_msg or '500' in error_msg or 'timeout' in error_msg.lower():
                     is_retryable = True
                     print(f"⚠️ [READ_SHEET] {timestamp} - Server error (có thể retry): {error_msg}")
@@ -3334,10 +3455,14 @@ class GoogleDriveAPI:
                     return []  # Không retry lỗi parse range
                 else:
                     print(f"❌ [READ_SHEET] {timestamp} - Lỗi không xác định: {error_type} - {error_msg}")
-                
+
                 # Retry nếu có thể
                 if is_retryable and attempt < max_retries - 1:
-                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    # Đợi lâu hơn nếu là rate limit error
+                    if is_rate_limit:
+                        wait_time = rate_limit_delay + (attempt * 10)  # 30, 40, 50, 60 giây
+                    else:
+                        wait_time = base_retry_delay * (2 ** attempt)  # 2, 4, 8, 16 giây
                     print(f"⏳ [READ_SHEET] Đợi {wait_time} giây trước khi retry...")
                     time.sleep(wait_time)
                 else:
@@ -8391,16 +8516,29 @@ def load_user(user_id):
 # License / Activation utils
 # ==========================
 def get_activation_record():
-    """Lấy (hoặc tạo mặc định) bản ghi kích hoạt duy nhất."""
-    activation = Activation.query.get(1)
-    if not activation:
-        activation = Activation(id=1, is_activated=False)
-        db.session.add(activation)
+    """Lấy (hoặc tạo mặc định) bản ghi kích hoạt duy nhất - có retry để tránh database locked."""
+    import time
+
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-    return activation
+            activation = Activation.query.get(1)
+            if not activation:
+                activation = Activation(id=1, is_activated=False)
+                db.session.add(activation)
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            return activation
+        except Exception as e:
+            error_str = str(e).lower()
+            if 'locked' in error_str or 'busy' in error_str:
+                if attempt < max_retries - 1:
+                    time.sleep(0.5 * (attempt + 1))  # 0.5s, 1s, 1.5s
+                    continue
+            raise
+    return None
 
 
 def is_app_activated():
@@ -16668,6 +16806,55 @@ def approve_all_attendances():
 # LEAVE REQUEST ROUTES
 # ============================================================================
 
+# API endpoint để lấy số lượng đơn nghỉ phép đang chờ phê duyệt
+@app.route('/api/leave/pending-count', methods=['GET'])
+def get_leave_pending_count():
+    """Get count of pending leave requests that current user can approve"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Không có quyền truy cập', 'count': 0}), 401
+
+    if check_session_timeout():
+        return jsonify({'error': 'Phiên đăng nhập đã hết hạn', 'count': 0}), 401
+
+    update_session_activity()
+
+    user = db.session.get(User, session['user_id'])
+    if not user:
+        return jsonify({'error': 'Không tìm thấy người dùng', 'count': 0}), 404
+
+    current_role = session.get('current_role', user.roles.split(',')[0])
+    if current_role not in ['TEAM_LEADER', 'MANAGER', 'ADMIN']:
+        return jsonify({'count': 0}), 200
+
+    try:
+        # Xác định phạm vi leave requests có thể phê duyệt theo role
+        if current_role == 'ADMIN':
+            # Admin có thể phê duyệt pending_admin
+            count = LeaveRequest.query.filter(
+                LeaveRequest.status == 'pending_admin'
+            ).count()
+            target_status = 'pending_admin'
+        elif current_role == 'MANAGER':
+            # Manager có thể phê duyệt pending_manager
+            count = LeaveRequest.query.filter(
+                LeaveRequest.status == 'pending_manager'
+            ).count()
+            target_status = 'pending_manager'
+        else:  # TEAM_LEADER
+            # Team leader chỉ có thể phê duyệt pending cùng phòng ban
+            count = LeaveRequest.query.join(User, LeaveRequest.user_id == User.id).filter(
+                LeaveRequest.status == 'pending',
+                User.department == user.department
+            ).count()
+            target_status = 'pending'
+
+        print(f"[INFO] get_leave_pending_count: role={current_role}, target_status={target_status}, count={count}")
+        return jsonify({'count': count, 'role': current_role, 'target_status': target_status}), 200
+
+    except Exception as e:
+        print(f"[ERROR] get_leave_pending_count: {str(e)}")
+        return jsonify({'error': str(e), 'count': 0}), 500
+
 # API endpoint để phê duyệt tất cả leave request records
 @app.route('/api/leave/approve-all', methods=['POST'])
 @rate_limit(max_requests=10, window_seconds=60)  # Giới hạn 10 lần gọi API trong 1 phút
@@ -16702,18 +16889,19 @@ def approve_all_leave_requests():
     # Import datetime at function level to avoid scope issues
     import sys
     from datetime import datetime as dt
-    
+
     try:
-        # Xác định phạm vi leave requests cần phê duyệt
+        # Xác định phạm vi leave requests cần phê duyệt theo đúng role
+        # Mỗi role chỉ phê duyệt đúng trạng thái mà họ có thể phê duyệt
         if current_role == 'ADMIN':
-            # Admin có thể phê duyệt tất cả trạng thái pending
+            # Admin chỉ phê duyệt pending_admin (bước cuối cùng)
             leave_requests_query = LeaveRequest.query.filter(
-                LeaveRequest.status.in_(['pending', 'pending_manager', 'pending_admin'])
+                LeaveRequest.status == 'pending_admin'
             )
         elif current_role == 'MANAGER':
-            # Manager có thể phê duyệt pending và pending_manager
+            # Manager chỉ phê duyệt pending_manager
             leave_requests_query = LeaveRequest.query.filter(
-                LeaveRequest.status.in_(['pending', 'pending_manager'])
+                LeaveRequest.status == 'pending_manager'
             )
         else:  # TEAM_LEADER
             # Team leader chỉ có thể phê duyệt pending cùng phòng ban
@@ -17382,6 +17570,67 @@ def submit_leave_request():
         # Ràng buộc: các số ngày phải là bội số 0.5
         def ensure_half_step(x):
             return (int(round(x * 2)) / 2.0)
+
+        # Auto-calculate japan_holiday_days và scope_leave_days nếu người dùng không nhập
+        # nhưng lý do nghỉ hoặc phòng ban liên quan đến York/Scope
+        try:
+            leave_reason_lower = (leave_request.leave_reason or '').lower()
+            user_department_lower = (user.department or '').lower()
+
+            # Tính số giờ nghỉ từ thời gian đăng ký
+            from datetime import datetime as dt_calc
+            leave_from_dt = dt_calc(
+                leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day,
+                leave_request.leave_from_hour, leave_request.leave_from_minute
+            )
+            leave_to_dt = dt_calc(
+                leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day,
+                leave_request.leave_to_hour, leave_request.leave_to_minute
+            )
+            duration_hours = (leave_to_dt - leave_from_dt).total_seconds() / 3600
+
+            # Tính số ngày tự động (1 ngày = 8 giờ, làm tròn 0.5)
+            auto_days = ensure_half_step(duration_hours / 8.0)
+
+            # Kiểm tra điều kiện cho nghỉ lễ Nhật (York)
+            is_york_related = (
+                'york' in user_department_lower or
+                'lễ nhật' in leave_reason_lower or
+                'le nhat' in leave_reason_lower or
+                'nghỉ bù' in leave_reason_lower and 'nhật' in leave_reason_lower
+            )
+
+            # Kiểm tra điều kiện cho nghỉ Scope
+            is_scope_related = 'scope' in user_department_lower
+
+            # Tự động điền japan_holiday_days nếu liên quan đến York và chưa nhập
+            if is_york_related and (leave_request.japan_holiday_days or 0) == 0:
+                # Chỉ auto-fill nếu tất cả các loại ngày khác đều = 0
+                total_other_days = (
+                    (leave_request.annual_leave_days or 0) +
+                    (leave_request.unpaid_leave_days or 0) +
+                    (leave_request.special_leave_days or 0) +
+                    (leave_request.scope_leave_days or 0)
+                )
+                if total_other_days == 0 and auto_days > 0:
+                    leave_request.japan_holiday_days = auto_days
+                    _safe_print(f"[Leave][Auto] Auto-filled japan_holiday_days={auto_days} for request (York/Lễ Nhật)")
+
+            # Tự động điền scope_leave_days nếu liên quan đến Scope và chưa nhập
+            if is_scope_related and not is_york_related and (leave_request.scope_leave_days or 0) == 0:
+                # Chỉ auto-fill nếu tất cả các loại ngày khác đều = 0
+                total_other_days = (
+                    (leave_request.annual_leave_days or 0) +
+                    (leave_request.unpaid_leave_days or 0) +
+                    (leave_request.special_leave_days or 0) +
+                    (leave_request.japan_holiday_days or 0)
+                )
+                if total_other_days == 0 and auto_days > 0:
+                    leave_request.scope_leave_days = auto_days
+                    _safe_print(f"[Leave][Auto] Auto-filled scope_leave_days={auto_days} for request (Scope)")
+        except Exception as auto_calc_err:
+            _safe_print(f"[Leave][Auto] Error in auto-calculation: {auto_calc_err}")
+
         leave_request.annual_leave_days = ensure_half_step(leave_request.annual_leave_days or 0.0)
         leave_request.unpaid_leave_days = ensure_half_step(leave_request.unpaid_leave_days or 0.0)
         leave_request.special_leave_days = ensure_half_step(leave_request.special_leave_days or 0.0)
@@ -18073,27 +18322,8 @@ def check_google_token_status(use_cache=True) -> dict:
                     # Scope might differ but usually fine to load what is there
                     creds = Credentials.from_authorized_user_info(token_data)
             except Exception as e:
-                # Fall through to pickle check if json fails
+                # JSON load failed - will require re-authentication
                 pass
-                
-        if not creds and os.path.exists('token.pickle'):
-            try:
-                import pickle
-                with open('token.pickle', 'rb') as token:
-                    creds = pickle.load(token)
-                # Auto migrate
-                with open('token.json', 'w') as token:
-                    token.write(creds.to_json())
-            except Exception as e:
-                result = {
-                    'valid': False,
-                    'needs_reauth': True,
-                    'message': f'Lỗi đọc token: {str(e)}',
-                    'can_approve': False
-                }
-                _token_status_cache = result
-                _token_status_cache_time = time_module.time()
-                return result
         
         if not creds:
             result = {
@@ -18735,6 +18965,64 @@ def edit_leave_request(request_id):
             # Chuẩn hóa bội số 0.5 cho số ngày
             def ensure_half_step(x):
                 return (int(round((x or 0.0) * 2)) / 2.0)
+
+            # Auto-calculate japan_holiday_days và scope_leave_days nếu người dùng không nhập
+            try:
+                leave_reason_lower = (leave_request.leave_reason or '').lower()
+                user_department_lower = (user.department or '').lower()
+
+                # Tính số giờ nghỉ từ thời gian đăng ký
+                from datetime import datetime as dt_calc
+                leave_from_dt = dt_calc(
+                    leave_request.leave_from_year, leave_request.leave_from_month, leave_request.leave_from_day,
+                    leave_request.leave_from_hour, leave_request.leave_from_minute
+                )
+                leave_to_dt = dt_calc(
+                    leave_request.leave_to_year, leave_request.leave_to_month, leave_request.leave_to_day,
+                    leave_request.leave_to_hour, leave_request.leave_to_minute
+                )
+                duration_hours = (leave_to_dt - leave_from_dt).total_seconds() / 3600
+
+                # Tính số ngày tự động (1 ngày = 8 giờ, làm tròn 0.5)
+                auto_days = ensure_half_step(duration_hours / 8.0)
+
+                # Kiểm tra điều kiện cho nghỉ lễ Nhật (York)
+                is_york_related = (
+                    'york' in user_department_lower or
+                    'lễ nhật' in leave_reason_lower or
+                    'le nhat' in leave_reason_lower or
+                    'nghỉ bù' in leave_reason_lower and 'nhật' in leave_reason_lower
+                )
+
+                # Kiểm tra điều kiện cho nghỉ Scope
+                is_scope_related = 'scope' in user_department_lower
+
+                # Tự động điền japan_holiday_days nếu liên quan đến York và chưa nhập
+                if is_york_related and (leave_request.japan_holiday_days or 0) == 0:
+                    total_other_days = (
+                        (leave_request.annual_leave_days or 0) +
+                        (leave_request.unpaid_leave_days or 0) +
+                        (leave_request.special_leave_days or 0) +
+                        (leave_request.scope_leave_days or 0)
+                    )
+                    if total_other_days == 0 and auto_days > 0:
+                        leave_request.japan_holiday_days = auto_days
+                        _safe_print(f"[Leave][Edit][Auto] Auto-filled japan_holiday_days={auto_days}")
+
+                # Tự động điền scope_leave_days nếu liên quan đến Scope và chưa nhập
+                if is_scope_related and not is_york_related and (leave_request.scope_leave_days or 0) == 0:
+                    total_other_days = (
+                        (leave_request.annual_leave_days or 0) +
+                        (leave_request.unpaid_leave_days or 0) +
+                        (leave_request.special_leave_days or 0) +
+                        (leave_request.japan_holiday_days or 0)
+                    )
+                    if total_other_days == 0 and auto_days > 0:
+                        leave_request.scope_leave_days = auto_days
+                        _safe_print(f"[Leave][Edit][Auto] Auto-filled scope_leave_days={auto_days}")
+            except Exception as auto_calc_err:
+                _safe_print(f"[Leave][Edit][Auto] Error: {auto_calc_err}")
+
             leave_request.annual_leave_days = ensure_half_step(leave_request.annual_leave_days)
             leave_request.unpaid_leave_days = ensure_half_step(leave_request.unpaid_leave_days)
             leave_request.special_leave_days = ensure_half_step(leave_request.special_leave_days)

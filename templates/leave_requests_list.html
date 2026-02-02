@@ -158,16 +158,6 @@ request.args.get('date_to') %}
 </div>
 {% endif %}
 
-<!-- Bulk Approve Section (Team Leader, Manager, Admin Only) -->
-{% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
-<div class="d-flex justify-content-end mb-3 gap-2" id="bulkActionButtons">
-    <button class="btn btn-success" onclick="showBulkApproveModal()" id="btnBulkApprove"
-        style="min-width: 180px; display: none;">
-        <i class="fas fa-check-double me-2"></i>Phê duyệt tất cả
-    </button>
-</div>
-{% endif %}
-
 <div class="table-container">
     <div class="table-responsive">
         <table class="table data-table" style="width: 100%;">
@@ -183,7 +173,22 @@ request.args.get('date_to') %}
                     <th style="min-width: 150px;">Ghi chú</th>
                     <th style="min-width: 120px;">Trạng thái</th>
                     <th style="min-width: 120px;">Ngày tạo</th>
-                    <th style="min-width: 150px;">Thao tác</th>
+                    <th style="min-width: 150px;">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span>Thao tác</span>
+                            {% if current_role in ['TEAM_LEADER', 'MANAGER', 'ADMIN'] %}
+                            <button class="btn btn-success btn-sm btn-bulk-approve-header"
+                                onclick="showBulkApproveModal()"
+                                id="btnBulkApprove"
+                                style="display: none;"
+                                title="Phê duyệt tất cả đơn đang chờ">
+                                <i class="fas fa-check-double me-1"></i>
+                                <span class="d-none d-lg-inline">Tất cả</span>
+                                <span class="badge bg-white text-success ms-1" id="pendingCountBadge">0</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -265,6 +270,14 @@ request.args.get('date_to') %}
                                     {% if request.special_leave_days > 0 %}
                                     <span class="badge bg-success text-white">{{ request.special_leave_days }}
                                         ngày đặc biệt</span>
+                                    {% endif %}
+                                    {% if request.japan_holiday_days > 0 %}
+                                    <span class="badge bg-danger text-white">{{ request.japan_holiday_days }}
+                                        ngày lễ Nhật</span>
+                                    {% endif %}
+                                    {% if request.scope_leave_days > 0 %}
+                                    <span class="badge bg-purple text-white" style="background-color: #6f42c1 !important;">{{ request.scope_leave_days }}
+                                        ngày Scope</span>
                                     {% endif %}
                                     {% endif %}
                         </div>
@@ -517,14 +530,17 @@ request.args.get('date_to') %}
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-check-double me-2"></i>Xác nhận phê duyệt hàng loạt
+                    <i class="fas fa-check-double me-2"></i>Xác nhận phê duyệt tất cả
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-3">Bạn có chắc chắn muốn phê duyệt <strong id="bulkApproveCount">0</strong> đơn nghỉ
-                    phép?</p>
-                <div class="alert alert-warning">
+                <p class="mb-3">Bạn có chắc chắn muốn phê duyệt <strong>TẤT CẢ <span id="bulkApproveCount">0</span> đơn</strong> nghỉ phép đang chờ?</p>
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Lưu ý:</strong> Hệ thống sẽ phê duyệt tất cả các đơn đang chờ bạn phê duyệt, bao gồm cả các đơn ở các trang khác (không chỉ trang hiện tại).
+                </div>
+                <div class="alert alert-warning mb-0">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     Hành động này không thể hoàn tác!
                 </div>
