@@ -1054,6 +1054,18 @@
                         leaveReasonTextarea.setAttribute('required', 'required'); // Đảm bảo có thuộc tính required
                     }
 
+                    // Khôi phục trạng thái editable cho ngày/giờ kết thúc (bỏ readonly từ chế độ 30 phút)
+                    const toDateInput = document.getElementById('leave_to_date');
+                    const toTimeInput = document.getElementById('leave_to_time');
+                    if (toDateInput) {
+                        toDateInput.readOnly = false;
+                        toDateInput.style.backgroundColor = '';
+                    }
+                    if (toTimeInput) {
+                        toTimeInput.readOnly = false;
+                        toTimeInput.style.backgroundColor = '';
+                    }
+
                     // Cập nhật title trang
                     document.title = document.title.replace('nghỉ phép', 'đi trễ/về sớm');
 
@@ -1079,6 +1091,27 @@
                     // Ẩn phần ghi chú cho nghỉ 30 phút
                     if (notesSection) {
                         notesSection.style.display = 'none';
+                    }
+
+                    // Tự động đồng bộ ngày kết thúc = ngày bắt đầu
+                    const fromDateInput = document.getElementById('leave_from_date');
+                    const toDateInput = document.getElementById('leave_to_date');
+                    if (fromDateInput && toDateInput) {
+                        toDateInput.value = fromDateInput.value;
+                        toDateInput.readOnly = true;
+                        toDateInput.style.backgroundColor = '#e9ecef';
+                    }
+
+                    // Tự động tính giờ kết thúc = giờ bắt đầu + 30 phút
+                    const fromTimeInput = document.getElementById('leave_from_time');
+                    const toTimeInput = document.getElementById('leave_to_time');
+                    if (fromTimeInput && toTimeInput) {
+                        toTimeInput.readOnly = true;
+                        toTimeInput.style.backgroundColor = '#e9ecef';
+                        // Tính toán nếu đã có giờ bắt đầu
+                        if (fromTimeInput.value) {
+                            autoCalculate30MinEndTime();
+                        }
                     }
 
                     // Cập nhật title trang
@@ -1110,6 +1143,18 @@
                         notesSection.style.display = 'block';
                     }
 
+                    // Khôi phục trạng thái editable cho ngày/giờ kết thúc (bỏ readonly từ chế độ 30 phút)
+                    const toDateInput = document.getElementById('leave_to_date');
+                    const toTimeInput = document.getElementById('leave_to_time');
+                    if (toDateInput) {
+                        toDateInput.readOnly = false;
+                        toDateInput.style.backgroundColor = '';
+                    }
+                    if (toTimeInput) {
+                        toTimeInput.readOnly = false;
+                        toTimeInput.style.backgroundColor = '';
+                    }
+
                     // Cập nhật title trang
                     document.title = document.title.replace('đi trễ/về sớm', 'nghỉ phép');
                     document.title = document.title.replace('nghỉ 30 phút', 'nghỉ phép');
@@ -1136,6 +1181,83 @@
             function debouncedValidation(callback, delay = 500) {
                 clearTimeout(validationTimeout);
                 validationTimeout = setTimeout(callback, delay);
+            }
+
+            // Hàm tự động tính giờ kết thúc = giờ bắt đầu + 30 phút cho nghỉ 30 phút
+            function autoCalculate30MinEndTime() {
+                const fromTimeInput = document.getElementById('leave_from_time');
+                const toTimeInput = document.getElementById('leave_to_time');
+                const fromDateInput = document.getElementById('leave_from_date');
+                const toDateInput = document.getElementById('leave_to_date');
+
+                if (!fromTimeInput || !toTimeInput || !fromTimeInput.value) return;
+
+                const fromTime = fromTimeInput.value;
+                const timeParts = fromTime.split(':');
+                if (timeParts.length !== 2) return;
+
+                let fromHour = parseInt(timeParts[0]);
+                let fromMinute = parseInt(timeParts[1]);
+
+                if (isNaN(fromHour) || isNaN(fromMinute)) return;
+
+                // Tính giờ kết thúc = giờ bắt đầu + 30 phút
+                let toMinute = fromMinute + 30;
+                let toHour = fromHour;
+
+                if (toMinute >= 60) {
+                    toMinute -= 60;
+                    toHour += 1;
+                }
+
+                // Xử lý trường hợp qua ngày (nếu > 23:59)
+                if (toHour >= 24) {
+                    toHour = 23;
+                    toMinute = 59;
+                }
+
+                // Format thời gian kết thúc
+                const toTimeStr = `${String(toHour).padStart(2, '0')}:${String(toMinute).padStart(2, '0')}`;
+                toTimeInput.value = toTimeStr;
+
+                // Đồng bộ ngày kết thúc = ngày bắt đầu
+                if (fromDateInput && toDateInput && fromDateInput.value) {
+                    toDateInput.value = fromDateInput.value;
+                }
+            }
+
+            // Event listener cho ngày bắt đầu - tự động đồng bộ ngày kết thúc cho nghỉ 30 phút
+            const fromDateInputFor30Min = document.getElementById('leave_from_date');
+            if (fromDateInputFor30Min) {
+                fromDateInputFor30Min.addEventListener('change', function() {
+                    const requestType = document.getElementById('requestTypeSelect').value;
+                    if (requestType === '30min_break') {
+                        const toDateInput = document.getElementById('leave_to_date');
+                        if (toDateInput) {
+                            toDateInput.value = this.value;
+                        }
+                    }
+                });
+            }
+
+            // Event listener cho giờ bắt đầu - tự động tính giờ kết thúc cho nghỉ 30 phút
+            const fromTimeInputFor30Min = document.getElementById('leave_from_time');
+            if (fromTimeInputFor30Min) {
+                fromTimeInputFor30Min.addEventListener('change', function() {
+                    const requestType = document.getElementById('requestTypeSelect').value;
+                    if (requestType === '30min_break') {
+                        autoCalculate30MinEndTime();
+                    }
+                });
+                // Cũng lắng nghe sự kiện input để cập nhật real-time
+                fromTimeInputFor30Min.addEventListener('input', function() {
+                    const requestType = document.getElementById('requestTypeSelect').value;
+                    if (requestType === '30min_break') {
+                        debouncedValidation(() => {
+                            autoCalculate30MinEndTime();
+                        }, 200);
+                    }
+                });
             }
 
             // Event listener cho validation real-time của nghỉ 30 phút
