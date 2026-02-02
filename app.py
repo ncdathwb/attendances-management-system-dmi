@@ -2858,12 +2858,13 @@ class GoogleDriveAPI:
         from datetime import datetime as dt
         
         # Validation đầu vào
+        print(f"🔍 [DEBUG] batch_update_values_with_formatting called with sheet_name={sheet_name}, type={type(sheet_name)}")
         if not spreadsheet_id or not isinstance(spreadsheet_id, str) or not spreadsheet_id.strip():
             print(f"❌ [BATCH_UPDATE_FORMAT] Spreadsheet ID không hợp lệ: {spreadsheet_id}")
             return False
-        
+
         if not sheet_name or not isinstance(sheet_name, str) or not sheet_name.strip():
-            print(f"❌ [BATCH_UPDATE_FORMAT] Sheet name không hợp lệ: {sheet_name}")
+            print(f"❌ [BATCH_UPDATE_FORMAT] Sheet name không hợp lệ: {sheet_name} (type={type(sheet_name).__name__})")
             return False
         
         if not data_ranges or not isinstance(data_ranges, list) or len(data_ranges) == 0:
