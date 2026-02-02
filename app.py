@@ -852,7 +852,7 @@ def batch_update_multi_attendances_sync(attendances_with_data, timeout_seconds=1
 
                 try:
                     success = google_api.batch_update_values_with_formatting(
-                        spreadsheet_id, employee_id, all_updates
+                        spreadsheet_id, str(employee_id), all_updates
                     )
                     result['total_api_calls'] += 1
 
@@ -1254,7 +1254,7 @@ def batch_update_multi_leave_requests_sync(leave_requests_with_data, timeout_sec
 
                 try:
                     success = google_api.batch_update_values_with_formatting(
-                        spreadsheet_id, employee_id, all_updates
+                        spreadsheet_id, str(employee_id), all_updates
                     )
                     result['total_api_calls'] += 1
 
